@@ -1,0 +1,132 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test-server:
+    name: Server tests (pytest)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "echo 'db.runCommand({ ping: 1 })' | mongosh --quiet"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync deps
+        working-directory: server
+        run: uv sync --frozen
+
+      - name: Run pytest
+        working-directory: server
+        run: uv run pytest -v
+
+  build-client:
+    name: Client build (vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: client
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: client
+        run: pnpm run build
+
+  deploy:
+    name: Deploy to production
+    needs: [test-server, build-client]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: Build client
+        working-directory: client
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+      - name: Deploy code
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh ${USER}@${HOST} "mkdir -p /opt/speakup"
+          rsync -avz --delete \
+            --exclude='.env' --exclude='.env.*' \
+            --exclude='__pycache__' --exclude='.pytest_cache' \
+            --exclude='tests' \
+            ./server/ ${USER}@${HOST}:/opt/speakup/server/
+          rsync -avz --delete ./client/dist/ ${USER}@${HOST}:/opt/speakup/client/dist/
+
+      - name: Setup env and restart
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: |
+          ssh ${USER}@${HOST} 'bash -s' << 'REMOTE'
+          export PATH="$HOME/.local/bin:$PATH"
+          which uv 2>/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
+
+          cd /opt/speakup
+
+          cat > .env.production << ENVEOF
+          DASHSCOPE_API_KEY='"$DASHSCOPE_API_KEY"'
+          MONGO_URI='"$MONGO_URI"'
+          PORT=3001
+          APP_ENV=production
+          ENVEOF
+
+          cd server
+          uv sync
+
+          export PATH="$HOME/.local/bin:$PATH"
+          pm2 delete speakup-server 2>/dev/null || true
+          pm2 start --interpreter "$HOME/.local/bin/uv" --interpreter-args "run python" main.py --name speakup-server
+          pm2 save
+          REMOTE

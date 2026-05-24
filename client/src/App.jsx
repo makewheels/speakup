@@ -3,8 +3,8 @@ import { UserProvider, useUser } from "./context/UserContext.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import PracticePage from "./pages/PracticePage.jsx";
-import HistoryPage from "./pages/HistoryPage.jsx";
 import VocabularyPage from "./pages/VocabularyPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
 import "./App.css";
 
 function ProtectedRoutes() {
@@ -21,8 +21,8 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/practice" replace />} />
         <Route path="/practice" element={<PracticePage />} />
         <Route path="/practice/:sessionId" element={<PracticePage />} />
-        <Route path="/history" element={<HistoryPage />} />
         <Route path="/vocabulary" element={<VocabularyPage />} />
+        <Route path="/me" element={<ProfilePage />} />
       </Route>
     </Routes>
   );

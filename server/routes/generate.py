@@ -1,24 +1,12 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from services.image_generator import get_next_image, start_prefetch
+from services.image_generator import get_next_image
 
 router = APIRouter(prefix="/api/generate", tags=["generate"])
 
 
-class UserRequest(BaseModel):
-    userId: str
-
-
 @router.post("/next")
-async def next_image(req: UserRequest):
+async def next_image():
     try:
-        return await get_next_image(req.userId)
-    except Exception as e:
+        return await get_next_image()
+    except Exception:
         raise HTTPException(500, "图片生成失败")
-
-
-@router.post("/prefetch")
-async def prefetch(req: UserRequest):
-    import asyncio
-    asyncio.create_task(start_prefetch(req.userId))
-    return {"ok": True}
