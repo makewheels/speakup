@@ -9,10 +9,12 @@ export default function LoginPage() {
   const { login } = useUser();
   const navigate = useNavigate();
 
+  const valid = /^1\d{10}$/.test(phone);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!/^1\d{10}$/.test(phone)) {
-      setError("请输入正确的手机号");
+    if (!valid) {
+      setError("手机号格式不对，请重新输入");
       return;
     }
     setLoading(true);
@@ -29,21 +31,47 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <h1>SpeakUp</h1>
-      <p className="subtitle">看图片，说英语，AI 帮你纠正</p>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="tel"
-          placeholder="输入手机号"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          maxLength={11}
-        />
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? "登录中..." : "进入"}
+      <div className="brand">
+        <div className="eyebrow brand-eyebrow">v0.1 · DEMO</div>
+        <h1>SpeakUp</h1>
+        <p className="subtitle">
+          看图片，用英语描述。<br />
+          AI 把你和母语者的差距指出来。
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="login-field">
+        <div className="eyebrow" style={{ marginBottom: 10 }}>手机号</div>
+        <div className={`login-field-row${error ? " error" : ""}`}>
+          <span className="cc">+86</span>
+          <input
+            type="tel"
+            inputMode="numeric"
+            placeholder="138 0000 0000"
+            value={phone}
+            onChange={(e) => {
+              setPhone(e.target.value.replace(/\D/g, "").slice(0, 11));
+              if (error) setError("");
+            }}
+            maxLength={11}
+            autoFocus
+          />
+        </div>
+        {error && <div className="error-text">{error}</div>}
+        <p className="hint">输入手机号即注册，无需验证码。</p>
+
+        <div className="spacer" />
+
+        <button
+          type="submit"
+          className={`su-btn su-btn-primary submit${!valid && !loading ? " disabled" : ""}`}
+          disabled={!valid || loading}
+        >
+          {loading ? (<><span className="spin" />&nbsp;进入</>) : "进入"}
         </button>
       </form>
+
+      <p className="footer-note">please use chrome · 仅支持 chrome 浏览器</p>
     </div>
   );
 }

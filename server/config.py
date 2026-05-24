@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-env_file = f".env.{os.getenv('NODE_ENV', 'development')}"
+env_file = f".env.{os.getenv('APP_ENV', 'development')}"
 load_dotenv(Path(__file__).parent / env_file)
 load_dotenv(Path(__file__).parent / ".env", override=False)
 

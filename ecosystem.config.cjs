@@ -6,7 +6,7 @@ module.exports = {
     interpreter: "uv",
     interpreter_args: "run python",
     env: {
-      NODE_ENV: "production",
+      APP_ENV: "production",
     },
   }],
 };

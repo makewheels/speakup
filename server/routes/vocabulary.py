@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from bson import ObjectId
@@ -18,6 +18,7 @@ class ReviewRequest(BaseModel):
 
 @router.post("")
 async def add_words(req: AddWordsRequest):
+    now = datetime.now(timezone.utc)
     added = 0
     for w in req.words:
         existing = await get_db().vocabulary.find_one({"userId": req.userId, "word": w["word"]})
@@ -26,10 +27,12 @@ async def add_words(req: AddWordsRequest):
         await get_db().vocabulary.insert_one({
             "userId": req.userId,
             "word": w["word"],
-            "chinese": w.get("chinese", ""),
+            "original": w.get("original", ""),
+            "note": w.get("note", ""),
             "contextSentence": w.get("contextSentence", ""),
             "sessionId": w.get("sessionId", ""),
-            "nextReviewAt": datetime.utcnow(),
+            "createdAt": now,
+            "nextReviewAt": now,
             "reviewCount": 0,
             "interval": 1,
             "easiness": 2.5,
@@ -42,7 +45,7 @@ async def add_words(req: AddWordsRequest):
 async def list_vocabulary(userId: str = Query(...), due: bool = False):
     filter = {"userId": userId}
     if due:
-        filter["nextReviewAt"] = {"$lte": datetime.utcnow()}
+        filter["nextReviewAt"] = {"$lte": datetime.now(timezone.utc)}
     cursor = get_db().vocabulary.find(filter).sort("nextReviewAt", 1)
     items = []
     async for item in cursor:
@@ -52,9 +55,9 @@ async def list_vocabulary(userId: str = Query(...), due: bool = False):
 
 
 @router.post("/{vid}/review")
-async def review_word(vid: str, req: ReviewRequest):
+async def review_word(vid: str, req: ReviewRequest, userId: str = Query(...)):
     try:
-        item = await get_db().vocabulary.find_one({"_id": ObjectId(vid)})
+        item = await get_db().vocabulary.find_one({"_id": ObjectId(vid), "userId": userId})
     except Exception:
         raise HTTPException(404, "生词不存在")
     if not item:
@@ -68,7 +71,7 @@ async def review_word(vid: str, req: ReviewRequest):
         item["easiness"] = max(1.3, item["easiness"] - 0.3)
         item["interval"] = 1
 
-    item["nextReviewAt"] = datetime.utcnow() + timedelta(days=item["interval"])
+    item["nextReviewAt"] = datetime.now(timezone.utc) + timedelta(days=item["interval"])
     await get_db().vocabulary.update_one(
         {"_id": ObjectId(vid)},
         {"$set": {
@@ -83,6 +86,11 @@ async def review_word(vid: str, req: ReviewRequest):
 
 
 @router.delete("/{vid}")
-async def delete_word(vid: str):
-    await get_db().vocabulary.delete_one({"_id": ObjectId(vid)})
+async def delete_word(vid: str, userId: str = Query(...)):
+    try:
+        result = await get_db().vocabulary.delete_one({"_id": ObjectId(vid), "userId": userId})
+    except Exception:
+        raise HTTPException(404, "生词不存在")
+    if result.deleted_count == 0:
+        raise HTTPException(404, "生词不存在")
     return {"ok": True}
