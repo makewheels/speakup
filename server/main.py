@@ -2,12 +2,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from db.connection import connect_db
+from services.image_generator import init_pool
 from routes import auth, generate, correct, sessions, vocabulary
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
+    await init_pool()
     yield
 
 
