@@ -65,15 +65,16 @@ async def _generate_one():
 async def _fill_pool():
     global _refilling
     _refilling = True
-    needed = POOL_SIZE - len(_pool)
-    print(f"[ImagePool] Refilling {needed} images...")
-    for _ in range(needed):
+    print(f"[ImagePool] Pool size {len(_pool)}, refilling...")
+    while len(_pool) < POOL_SIZE:
         try:
             img = await _generate_one()
             _pool.append(img)
+            print(f"[ImagePool] +1 = {len(_pool)}/{POOL_SIZE}")
         except Exception as e:
             print(f"[ImagePool] Generation failed: {e}")
-    print(f"[ImagePool] Pool size: {len(_pool)}")
+            await asyncio.sleep(10)  # Wait before retry
+    print(f"[ImagePool] Full: {len(_pool)}")
     _refilling = False
 
 
