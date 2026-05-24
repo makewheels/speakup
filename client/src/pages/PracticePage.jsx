@@ -109,6 +109,7 @@ export default function PracticePage() {
         sessionId: session._id,
         text: transcript.trim(),
         sceneDescription: session.sceneDescription || "",
+        imageUrl: session.imageUrl || "",
       });
       setResult(data);
       // Prefetch next image while user reviews results
@@ -141,15 +142,6 @@ export default function PracticePage() {
       setSavingWords(false);
     }
   };
-
-  const starSum = result?.scores
-    ? Object.values(result.scores).reduce((a, b) => a + b, 0)
-    : 0;
-
-  const medal =
-    starSum >= 22 ? "💎" : starSum >= 17 ? "🥇" : starSum >= 11 ? "🥈" : "🥉";
-  const medalName =
-    starSum >= 22 ? "钻石" : starSum >= 17 ? "金牌" : starSum >= 11 ? "银牌" : "铜牌";
 
   if (loadingImage) {
     return (
@@ -203,37 +195,21 @@ export default function PracticePage() {
 
       {result && (
         <div className="result-section">
-          <div className="medal-row">
-            <span className="medal">{medal}</span>
-            <span className="medal-name">{medalName}</span>
-          </div>
-
-          <div className="scores-grid">
-            {[
-              { key: "grammar", label: "语法" },
-              { key: "vocabulary", label: "词汇" },
-              { key: "completeness", label: "完整度" },
-              { key: "fluency", label: "流利度" },
-              { key: "structure", label: "结构" },
-            ].map((s) => (
-              <div key={s.key} className="score-item">
-                <span className="score-label">{s.label}</span>
-                <span className="score-stars">
-                  {"★".repeat(result.scores?.[s.key] || 0)}
-                  {"☆".repeat(5 - (result.scores?.[s.key] || 0))}
-                </span>
-              </div>
-            ))}
-          </div>
+          {result.whatISee && (
+            <div className="result-block ai-see-block">
+              <h3>AI sees in the image:</h3>
+              <p>{result.whatISee}</p>
+            </div>
+          )}
 
           <div className="result-block">
-            <h3>纠正后：</h3>
+            <h3>Your corrected version:</h3>
             <p className="corrected-text">{result.correctedText}</p>
           </div>
 
           {result.corrections?.length > 0 && (
             <div className="result-block">
-              <h3>修改详情：</h3>
+              <h3>Corrections:</h3>
               <ul className="corrections-list">
                 {result.corrections.map((c, i) => (
                   <li key={i}>
@@ -244,22 +220,41 @@ export default function PracticePage() {
                   </li>
                 ))}
               </ul>
-              {!wordsSaved && (
-                <button
-                  className="save-vocab-btn"
-                  onClick={saveToVocabulary}
-                  disabled={savingWords}
-                >
-                  {savingWords ? "保存中..." : "📝 收藏到生词本"}
-                </button>
-              )}
-              {wordsSaved && <p className="saved-msg">已加入生词本</p>}
             </div>
           )}
 
+          {result.missedElements?.length > 0 && (
+            <div className="result-block">
+              <h3>You missed in the image:</h3>
+              <ul>
+                {result.missedElements.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.suggestedVocabulary?.length > 0 && (
+            <div className="result-block">
+              <h3>Richer vocabulary to try:</h3>
+              <ul className="vocab-suggestions">
+                {result.suggestedVocabulary.map((v, i) => (
+                  <li key={i}>{v}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.corrections?.length > 0 && !wordsSaved && (
+            <button className="save-vocab-btn" onClick={saveToVocabulary} disabled={savingWords}>
+              {savingWords ? "Saving..." : "Save to vocabulary"}
+            </button>
+          )}
+          {wordsSaved && <p className="saved-msg">Saved!</p>}
+
           {result.tips?.length > 0 && (
             <div className="result-block tips-block">
-              <h3>学习建议：</h3>
+              <h3>Study tips:</h3>
               <ul>
                 {result.tips.map((t, i) => (
                   <li key={i}>{t}</li>
@@ -269,7 +264,7 @@ export default function PracticePage() {
           )}
 
           <button className="new-round-btn" onClick={startNewRound}>
-            再来一题
+            Next image
           </button>
         </div>
       )}
