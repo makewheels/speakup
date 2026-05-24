@@ -56,12 +56,12 @@ async def correct_text(text: str, scene_description: str, image_url: str = "") -
                 {"type": "text", "text": f"The student said:\n\"{text}\"\n\nEvaluate against the image."},
             ],
         }]
-        model = "qwen-vl-plus"
+        model = "qwen3-vl-plus"
     else:
         messages = [{"role": "system", "content": SYSTEM_PROMPT}, {
             "role": "user", "content": f"The student said:\n\"{text}\"\n\nEvaluate their English.",
         }]
-        model = "qwen-plus"
+        model = "qwen3.6-plus"
 
     resp = await _get_client().chat.completions.create(
         model=model, messages=messages, temperature=0.3, max_tokens=2000,
