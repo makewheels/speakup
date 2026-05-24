@@ -9,13 +9,13 @@ SCENE_PROMPTS = {
     "city": "A bustling, photorealistic city scene: busy street with shops, pedestrians crossing, outdoor market stalls, bus or subway entrance. No text.",
 }
 
-UNSPLASH_QUERIES = {
-    "daily": "kitchen cooking family",
-    "travel": "airport hotel travel",
-    "nature": "park garden nature people",
-    "social": "restaurant cafe people talking",
-    "home": "living room family cozy",
-    "city": "city street market people",
+QUERIES = {
+    "daily": "kitchen,cooking,food",
+    "travel": "airport,hotel,travel",
+    "nature": "park,garden,forest",
+    "social": "restaurant,cafe,people",
+    "home": "living-room,bedroom,cozy",
+    "city": "city,street,market",
 }
 
 TOPICS = list(SCENE_PROMPTS.keys())
@@ -23,8 +23,8 @@ TOPICS = list(SCENE_PROMPTS.keys())
 
 async def get_next_image(user_id: str = "") -> dict:
     topic = random.choice(TOPICS)
-    query = UNSPLASH_QUERIES[topic]
-    url = f"https://source.unsplash.com/1024x1024/?{query}"
+    query = QUERIES[topic]
+    url = f"https://loremflickr.com/1024/1024/{query}?random={random.randint(1,99999)}"
     return {
         "imageUrl": url,
         "topic": topic,
