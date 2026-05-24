@@ -31,7 +31,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
 
-      - name: Deploy files
+      - name: Deploy code
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
@@ -40,17 +40,35 @@ jobs:
           rsync -avz --delete ./server/ ${USER}@${HOST}:/opt/speakup/server/
           rsync -avz --delete ./client/dist/ ${USER}@${HOST}:/opt/speakup/client/dist/
 
-      - name: Install deps and restart
+      - name: Setup env and restart
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
         run: |
-          ssh ${USER}@${HOST} "cat > /opt/speakup/.env.production << 'EOF'
-          NODE_ENV=production
-          DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
-          MONGO_URI=${MONGO_URI}
+          ssh ${USER}@${HOST} 'bash -s' << 'REMOTE'
+          # Install uv if not present
+          export PATH="$HOME/.local/bin:$PATH"
+          which uv 2>/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
+
+          cd /opt/speakup
+
+          # Create env file
+          cat > .env.production << ENVEOF
+          DASHSCOPE_API_KEY='"$DASHSCOPE_API_KEY"'
+          MONGO_URI='"$MONGO_URI"'
           PORT=3001
-          EOF"
-          ssh ${USER}@${HOST} "cd /opt/speakup/server && uv sync && pm2 restart speakup-server || pm2 start --interpreter python3 main.py --name speakup-server && pm2 save"
+          NODE_ENV=production
+          ENVEOF
+
+          # Install deps
+          cd server
+          uv sync
+
+          # Restart
+          export PATH="$HOME/.local/bin:$PATH"
+          pm2 delete speakup-server 2>/dev/null || true
+          pm2 start --interpreter "$HOME/.local/bin/uv" --interpreter-args "run python" main.py --name speakup-server
+          pm2 save
+          REMOTE
