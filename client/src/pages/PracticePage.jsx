@@ -75,8 +75,14 @@ export default function PracticePage() {
     };
 
     recognition.onerror = (event) => {
-      console.error("Recognition error:", event.error);
       setRecording(false);
+      if (event.error === "not-allowed") {
+        alert("麦克风被禁止了。请在浏览器地址栏左边点锁图标 → 允许麦克风权限，然后刷新页面。");
+      } else if (event.error === "audio-capture") {
+        alert("未检测到麦克风设备，请检查麦克风是否连接。");
+      } else {
+        console.error("Recognition error:", event.error);
+      }
     };
     recognition.onend = () => setRecording(false);
 
