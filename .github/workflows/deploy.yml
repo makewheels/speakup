@@ -1,0 +1,43 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Build client
+        run: |
+          cd client
+          pnpm install
+          pnpm run build
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+      - name: Deploy to server
+        run: |
+          ssh ubuntu@101.42.94.17 "mkdir -p /opt/speakup"
+          rsync -avz --delete ./server/ ubuntu@101.42.94.17:/opt/speakup/server/
+          rsync -avz --delete ./client/dist/ ubuntu@101.42.94.17:/opt/speakup/client/dist/
+          rsync -avz ./ecosystem.config.cjs ubuntu@101.42.94.17:/opt/speakup/
+
+      - name: Install deps and restart
+        run: |
+          ssh ubuntu@101.42.94.17 "cd /opt/speakup && pnpm install --dir server && pm2 startOrReload ecosystem.config.cjs && pm2 save"
