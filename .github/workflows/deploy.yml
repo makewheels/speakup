@@ -32,18 +32,26 @@ jobs:
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
 
       - name: Deploy to server
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh ubuntu@101.42.94.17 "mkdir -p /opt/speakup"
-          rsync -avz --delete ./server/ ubuntu@101.42.94.17:/opt/speakup/server/
-          rsync -avz --delete ./client/dist/ ubuntu@101.42.94.17:/opt/speakup/client/dist/
-          rsync -avz ./ecosystem.config.cjs ubuntu@101.42.94.17:/opt/speakup/
+          ssh ${USER}@${HOST} "mkdir -p /opt/speakup"
+          rsync -avz --delete ./server/ ${USER}@${HOST}:/opt/speakup/server/
+          rsync -avz --delete ./client/dist/ ${USER}@${HOST}:/opt/speakup/client/dist/
+          rsync -avz ./ecosystem.config.cjs ${USER}@${HOST}:/opt/speakup/
 
       - name: Create env and restart
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
         run: |
-          ssh ubuntu@101.42.94.17 "cat > /opt/speakup/.env.production << 'EOF'
+          ssh ${USER}@${HOST} "cat > /opt/speakup/.env.production << 'EOF'
           NODE_ENV=production
-          DASHSCOPE_API_KEY=${{ secrets.DASHSCOPE_API_KEY }}
-          MONGO_URI=mongodb://speakup-user:SpkUp42!MDBXcN98@101.42.140.207:27017/speakup
+          DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+          MONGO_URI=${MONGO_URI}
           PORT=3001
           EOF"
-          ssh ubuntu@101.42.94.17 "cd /opt/speakup && pnpm install --dir server && pm2 startOrReload ecosystem.config.cjs && pm2 save"
+          ssh ${USER}@${HOST} "cd /opt/speakup && pnpm install --dir server && pm2 startOrReload ecosystem.config.cjs && pm2 save"
