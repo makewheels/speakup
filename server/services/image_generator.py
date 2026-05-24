@@ -15,6 +15,8 @@ SCENE_PROMPTS = {
 }
 
 TOPICS = list(SCENE_PROMPTS.keys())
+POOL_SIZE = 10
+REFILL_THRESHOLD = 5
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -22,24 +24,30 @@ HEADERS = {
     "X-DashScope-Async": "enable",
 }
 
+# Global image pool
+_pool: list[dict] = []
+_refilling = False
+
 
 async def _poll_task(client: httpx.AsyncClient, task_id: str, max_attempts=30):
     for _ in range(max_attempts):
         await asyncio.sleep(2)
-        resp = await client.get(f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}", headers={"Authorization": f"Bearer {DASHSCOPE_API_KEY}"})
+        resp = await client.get(
+            f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
+            headers={"Authorization": f"Bearer {DASHSCOPE_API_KEY}"},
+        )
         data = resp.json()
         status = data.get("output", {}).get("task_status")
         if status == "SUCCEEDED":
             return data["output"]["results"][0]["url"]
         if status == "FAILED":
-            raise Exception(data.get("output", {}).get("message", "Image generation failed"))
+            raise Exception(data.get("output", {}).get("message", "Generation failed"))
     raise Exception("Image generation timed out")
 
 
-async def _generate_one(topic=None):
-    t = topic or random.choice(TOPICS)
-    prompt = SCENE_PROMPTS[t]
-
+async def _generate_one():
+    topic = random.choice(TOPICS)
+    prompt = SCENE_PROMPTS[topic]
     async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.post(DASHSCOPE_URL, headers=HEADERS, json={
             "model": "wanx-v1",
@@ -49,48 +57,49 @@ async def _generate_one(topic=None):
         data = resp.json()
         if data.get("code"):
             raise Exception(data.get("message", "Generation failed"))
-
         task_id = data["output"]["task_id"]
         image_url = await _poll_task(client, task_id)
-        return {"imageUrl": image_url, "topic": t, "prompt": prompt}
+        return {"imageUrl": image_url, "topic": topic, "prompt": prompt}
 
 
-# Image cache
-_cache: dict[str, dict] = {}
-_pending: dict[str, asyncio.Task] = {}
+async def _fill_pool():
+    global _refilling
+    _refilling = True
+    needed = POOL_SIZE - len(_pool)
+    print(f"[ImagePool] Refilling {needed} images...")
+    for _ in range(needed):
+        try:
+            img = await _generate_one()
+            _pool.append(img)
+        except Exception as e:
+            print(f"[ImagePool] Generation failed: {e}")
+    print(f"[ImagePool] Pool size: {len(_pool)}")
+    _refilling = False
 
 
-async def get_next_image(user_id: str) -> dict:
-    cached = _cache.pop(user_id, None)
-    if cached:
-        asyncio.create_task(_prefetch(user_id))
-        return cached
-
-    if user_id in _pending:
-        await _pending[user_id]
-        cached = _cache.pop(user_id, None)
-        if cached:
-            asyncio.create_task(_prefetch(user_id))
-            return cached
-
-    result = await _generate_one()
-    asyncio.create_task(_prefetch(user_id))
-    return result
+async def _ensure_pool():
+    global _refilling
+    if len(_pool) < REFILL_THRESHOLD and not _refilling:
+        asyncio.create_task(_fill_pool())
 
 
-async def _prefetch(user_id: str):
-    if user_id in _pending or user_id in _cache:
-        return
-    task = asyncio.create_task(_generate_one())
-
-    def _done(t):
-        if not t.exception():
-            _cache[user_id] = t.result()
-        _pending.pop(user_id, None)
-
-    task.add_done_callback(_done)
-    _pending[user_id] = task
+async def init_pool():
+    """Call on server startup to pre-fill the pool."""
+    if len(_pool) < REFILL_THRESHOLD:
+        asyncio.create_task(_fill_pool())
 
 
-async def start_prefetch(user_id: str):
-    await _prefetch(user_id)
+async def get_next_image(user_id: str = "") -> dict:
+    """Get the next available image. Returns instantly if pool has images."""
+    if _pool:
+        img = _pool.pop(0)
+        asyncio.create_task(_ensure_pool())
+        return img
+    # Pool empty — generate on demand
+    img = await _generate_one()
+    asyncio.create_task(_ensure_pool())
+    return img
+
+
+async def start_prefetch(user_id: str = ""):
+    asyncio.create_task(_ensure_pool())
