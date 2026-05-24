@@ -1,8 +1,10 @@
 module.exports = {
   apps: [{
     name: "speakup-server",
-    script: "./server/index.js",
-    cwd: "/opt/speakup",
+    script: "main.py",
+    cwd: "/opt/speakup/server",
+    interpreter: "uv",
+    interpreter_args: "run python",
     env: {
       NODE_ENV: "production",
     },

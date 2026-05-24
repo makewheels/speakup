@@ -31,7 +31,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
 
-      - name: Deploy to server
+      - name: Deploy files
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
@@ -39,9 +39,8 @@ jobs:
           ssh ${USER}@${HOST} "mkdir -p /opt/speakup"
           rsync -avz --delete ./server/ ${USER}@${HOST}:/opt/speakup/server/
           rsync -avz --delete ./client/dist/ ${USER}@${HOST}:/opt/speakup/client/dist/
-          rsync -avz ./ecosystem.config.cjs ${USER}@${HOST}:/opt/speakup/
 
-      - name: Create env and restart
+      - name: Install deps and restart
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
@@ -54,4 +53,4 @@ jobs:
           MONGO_URI=${MONGO_URI}
           PORT=3001
           EOF"
-          ssh ${USER}@${HOST} "cd /opt/speakup && pnpm install --dir server && pm2 startOrReload ecosystem.config.cjs && pm2 save"
+          ssh ${USER}@${HOST} "cd /opt/speakup/server && uv sync && pm2 restart speakup-server || pm2 start --interpreter python3 main.py --name speakup-server && pm2 save"
