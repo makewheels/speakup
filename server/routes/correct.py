@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from bson import ObjectId
@@ -11,7 +12,6 @@ class CorrectRequest(BaseModel):
     userId: str
     sessionId: str
     text: str
-    sceneDescription: str = ""
     imageUrl: str = ""
 
 
@@ -24,16 +24,14 @@ async def correct(req: CorrectRequest):
     if not session:
         raise HTTPException(404, "会话不存在")
 
-    result = await correct_text(req.text, req.sceneDescription, req.imageUrl)
+    result = await correct_text(req.text, req.imageUrl)
 
     attempt = {
         "transcript": req.text,
-        "correctedText": result["correctedText"],
-        "corrections": result["corrections"],
-        "tips": result.get("tips", []),
-        "whatISee": result.get("whatISee", ""),
-        "missedElements": result.get("missedElements", []),
-        "suggestedVocabulary": result.get("suggestedVocabulary", []),
+        "summary": result["summary"],
+        "nativeVersion": result["nativeVersion"],
+        "gaps": result["gaps"],
+        "createdAt": datetime.now(timezone.utc),
     }
     await get_db().sessions.update_one(
         {"_id": ObjectId(req.sessionId)},

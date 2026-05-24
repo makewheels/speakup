@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from bson import ObjectId
@@ -9,9 +10,7 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 class CreateSessionRequest(BaseModel):
     userId: str
     topic: str
-    sceneDescription: str = ""
     imageUrl: str = ""
-    imagePrompt: str = ""
 
 
 @router.post("")
@@ -19,10 +18,9 @@ async def create_session(req: CreateSessionRequest):
     doc = {
         "userId": req.userId,
         "topic": req.topic,
-        "sceneDescription": req.sceneDescription,
         "imageUrl": req.imageUrl,
-        "imagePrompt": req.imagePrompt,
         "attempts": [],
+        "createdAt": datetime.now(timezone.utc),
     }
     result = await get_db().sessions.insert_one(doc)
     doc["_id"] = str(result.inserted_id)
