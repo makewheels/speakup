@@ -14,72 +14,76 @@ def _get_client():
         )
     return _client
 
-SYSTEM_PROMPT_TEMPLATE = """You are an experienced English tutor helping a Chinese student improve their spoken English.
-The student described a scene: "{scene}".
 
-Your task:
-1. Correct grammar, vocabulary, and expression errors. Keep the original meaning.
-2. For each error, explain briefly in Chinese.
-3. Provide 1-2 general study tips in Chinese.
+SYSTEM_PROMPT = """You are a friendly English tutor helping a Chinese student. You can SEE the image they described.
 
-Respond ONLY with valid JSON, no markdown:
-{{
-  "correctedText": "the fully corrected English text",
+1. Briefly describe what you actually see in the image (as reference)
+2. Correct their grammar, vocabulary, and expression errors
+3. Point out things in the image they missed
+4. Suggest richer vocabulary they could use
+
+Give ALL feedback in English (corrections, tips, reasons). Use Chinese only for complex grammar concepts.
+
+Respond with ONLY valid JSON:
+{
+  "whatISee": "what is actually in the image (2-3 sentences)",
+  "correctedText": "their corrected version",
   "corrections": [
-    {{ "original": "wrong part", "corrected": "corrected part", "reason": "中文解释" }}
+    { "original": "wrong", "corrected": "right", "reason": "why" }
   ],
-  "tips": ["中文学习建议"],
-  "scores": {{
-    "grammar": 3,
-    "vocabulary": 3,
-    "completeness": 3,
-    "fluency": 3,
-    "structure": 3
-  }}
-}}
-
-Scoring guide (1-5):
-- grammar: tense, singular/plural, articles, word order
-- vocabulary: word variety, appropriateness
-- completeness: how well the description covers the scene
-- fluency: natural flow
-- structure: logical order, use of transitions
-
-Always include at least one positive observation in the tips."""
+  "missedElements": ["things they missed in the image"],
+  "suggestedVocabulary": ["richer words"],
+  "tips": ["study advice in English"]
+}"""
 
 
-async def correct_text(text: str, scene_description: str) -> dict:
+async def correct_text(text: str, scene_description: str, image_url: str = "") -> dict:
     if not text or len(text.strip()) < 3:
         return {
+            "whatISee": "",
             "correctedText": text,
             "corrections": [],
-            "tips": ["你说的太短了，试试描述更多细节吧！"],
-            "scores": {"grammar": 1, "vocabulary": 1, "completeness": 1, "fluency": 1, "structure": 1},
+            "missedElements": [],
+            "suggestedVocabulary": [],
+            "tips": ["Try to say more! Describe what you see in detail."],
         }
 
+    if image_url:
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}, {
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": image_url}},
+                {"type": "text", "text": f"The student said:\n\"{text}\"\n\nEvaluate against the image."},
+            ],
+        }]
+        model = "qwen-vl-plus"
+    else:
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}, {
+            "role": "user", "content": f"The student said:\n\"{text}\"\n\nEvaluate their English.",
+        }]
+        model = "qwen-plus"
+
     resp = await _get_client().chat.completions.create(
-        model="qwen3-max",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT_TEMPLATE.format(scene=scene_description)},
-            {"role": "user", "content": text},
-        ],
-        temperature=0.3,
-        max_tokens=2000,
+        model=model, messages=messages, temperature=0.3, max_tokens=2000,
     )
 
     raw = resp.choices[0].message.content or ""
     raw = raw.replace("```json", "").replace("```", "").strip()
-    result = json.loads(raw)
+
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        return {
+            "whatISee": "", "correctedText": text,
+            "corrections": [], "missedElements": [], "suggestedVocabulary": [],
+            "tips": ["Sorry, evaluation failed. Please try again."],
+        }
 
     return {
+        "whatISee": result.get("whatISee", ""),
         "correctedText": result.get("correctedText", text),
         "corrections": result.get("corrections", []),
+        "missedElements": result.get("missedElements", []),
+        "suggestedVocabulary": result.get("suggestedVocabulary", []),
         "tips": result.get("tips", []),
-        "scores": {
-            "grammar": result.get("scores", {}).get("grammar", 3),
-            "vocabulary": result.get("scores", {}).get("vocabulary", 3),
-            "completeness": result.get("scores", {}).get("completeness", 3),
-            "fluency": result.get("scores", {}).get("fluency", 3),
-            "structure": result.get("scores", {}).get("structure", 3),
-        },
     }
