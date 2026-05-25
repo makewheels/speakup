@@ -1,10 +1,25 @@
-"""Pure logic tests for the corrector — no Mongo, no real LLM."""
+"""Pure logic tests for the corrector — no Mongo, no real LLM, no real image fetch."""
 
 import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from services.corrector import correct_text
+
+
+@pytest.fixture(autouse=True)
+def _no_image_fetch(monkeypatch):
+    """These tests don't care about image inlining; pass URL through.
+
+    Tests of `_to_data_url` itself live in test_image_data_url.py and
+    re-patch httpx directly.
+    """
+    async def _identity(url, **kwargs):
+        return url
+
+    monkeypatch.setattr("services.corrector._to_data_url", _identity)
 
 
 def _fake_llm(content: str):
