@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Changed
+- 生产 MongoDB 连接从公网 IP `101.42.140.207` 切到内网 IP `10.0.20.14`（同一台 Lighthouse-2 实例，腾讯内网直连不走公网）。已同步更新 GitHub Secret `MONGO_URI` 和 `CLAUDE.md`；线上 `server/.env` 也已同步。
+- 全局 `~/.claude/CLAUDE.md` 里"MongoDB：101.42.140.207:27017（内网）"那句也是错的（公网 IP 标成内网），建议同步改成 `10.0.20.14`。
+
 ### Added
 - **前端 vitest 测试**：`client/src/**/*.test.jsx`，11 个用例覆盖 Icon 渲染 + LoginPage 表单校验 / 提交，807ms 跑完。CI 在 `test-client` job 里跑。
 - **差距框架（gap-exposure）** 取代"纠错"作为产品本质 — see `SPEC.md` §2

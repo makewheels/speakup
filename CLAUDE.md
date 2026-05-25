@@ -8,7 +8,7 @@
 |---|------|------|
 | 前端 | React 19 + Vite 8 | SPA, pnpm 管理 |
 | 后端 | FastAPI + uv | Python 3.14, 异步 |
-| 数据库 | MongoDB | 101.42.140.207:27017 |
+| 数据库 | MongoDB | 10.0.20.14:27017（腾讯 Lighthouse 内网，对应公网 101.42.140.207）|
 | 图片来源 | loremflickr 随机图床 | 临时方案；按 topic 取关键词 |
 | AI 反馈 | DashScope qwen3-vl-plus (VLM) | 看图 + 听描述 → JSON 反馈 |
 | 部署 | PM2 + Nginx | ubuntu@101.42.94.17 |
@@ -42,7 +42,7 @@ speakup/
 | 环境 | MongoDB | 启动 |
 |------|---------|------|
 | dev (本地) | localhost/speakup-dev | `uv run python main.py` |
-| prod | 101.42.140.207/speakup | PM2 管理 |
+| prod | 10.0.20.14/speakup（内网）| PM2 管理 |
 
 环境由 `APP_ENV` 切换（dev/prod 默认 development）。`config.py` 会加载 `.env.{APP_ENV}` 然后用 `.env` 兜底。
 
