@@ -23,7 +23,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - 环境变量 `NODE_ENV` → `APP_ENV`（Python 项目不该用 Node 命名）
 - 图片尺寸：loremflickr 1024×1024 → 640×640，加快 DashScope 看图
 - 底部导航：3 tab（练习 / 复习 / 我的）
-- AI prompt 完全重写：写明"暴露差距 / 不脑补 / 不改 idea / 不炫词 / 不元话语"五条原则
+- AI prompt 完全重写：写明"暴露差距 / 不脑补 /不改 idea / 不炫词 / 不元话语"五条原则
+- **AI 评估提速**：服务端先把图片 fetch 下来转 base64 data URL 再传给 DashScope，避免 DashScope 自己二次拉 loremflickr（国内访问海外图床慢）。失败自动 fallback 回原 URL，不会让 AI 调用挂掉。预计省 30-60s。
+- conftest 加 `_no_image_fetch` 文件级 fixture 在 corrector 单测里 mock 掉网络调用，CI 不依赖外部网络
 
 ### Fixed
 - `sessions.createdAt` 之前从未写入，导致历史列表排序乱、日期显示 Invalid Date

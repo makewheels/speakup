@@ -1,5 +1,9 @@
+import base64
 import json
+
+import httpx
 from openai import AsyncOpenAI
+
 from config import DASHSCOPE_API_KEY
 
 _client = None
@@ -13,6 +17,31 @@ def _get_client():
             api_key=DASHSCOPE_API_KEY,
         )
     return _client
+
+
+async def _to_data_url(image_url: str, timeout: float = 20.0) -> str:
+    """Fetch the image and inline it as a data URL.
+
+    DashScope otherwise re-fetches the original URL on its end; for slow
+    image hosts (e.g. loremflickr from mainland China) that re-fetch dominates
+    the request. Bypassing it by sending bytes directly is materially faster.
+    Falls back to the original URL on any failure so the call still works.
+    """
+    if not image_url or image_url.startswith("data:"):
+        return image_url
+    if not image_url.startswith(("http://", "https://")):
+        return image_url
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as c:
+            resp = await c.get(image_url)
+            resp.raise_for_status()
+            mime = resp.headers.get("content-type", "image/jpeg").split(";", 1)[0].strip()
+            if not mime.startswith("image/"):
+                mime = "image/jpeg"
+            b64 = base64.b64encode(resp.content).decode("ascii")
+            return f"data:{mime};base64,{b64}"
+    except Exception:
+        return image_url
 
 
 SYSTEM_PROMPT = """You are an English coach helping a Chinese adult learner.
@@ -71,8 +100,10 @@ async def correct_text(text: str, image_url: str = "") -> dict:
         }
 
     if image_url:
+        # Pre-fetch ourselves and inline as data URL so DashScope skips its own (slow) image fetch.
+        image_payload = await _to_data_url(image_url)
         user_content = [
-            {"type": "image_url", "image_url": {"url": image_url}},
+            {"type": "image_url", "image_url": {"url": image_payload}},
             {"type": "text", "text": f'The student said:\n"{text}"\n\nExpose gaps against a native speaker.'},
         ]
     else:
