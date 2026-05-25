@@ -35,8 +35,8 @@ jobs:
         working-directory: server
         run: uv run pytest -v
 
-  test-client:
-    name: Client tests + build (vitest + vite)
+  test-web:
+    name: Web tests + build (vitest + vite)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -49,23 +49,23 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: client/pnpm-lock.yaml
+          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Install
-        working-directory: client
+        working-directory: web
         run: pnpm install --frozen-lockfile
 
       - name: Run vitest
-        working-directory: client
+        working-directory: web
         run: pnpm test
 
       - name: Build
-        working-directory: client
+        working-directory: web
         run: pnpm run build
 
   deploy:
     name: Deploy to production
-    needs: [test-server, test-client]
+    needs: [test-server, test-web]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
@@ -79,10 +79,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: client/pnpm-lock.yaml
+          cache-dependency-path: web/pnpm-lock.yaml
 
-      - name: Build client
-        working-directory: client
+      - name: Build web
+        working-directory: web
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
@@ -105,7 +105,7 @@ jobs:
             --exclude='.venv' \
             --exclude='tests' \
             ./server/ ${USER}@${HOST}:/opt/speakup/server/
-          rsync -avz --delete ./client/dist/ ${USER}@${HOST}:/opt/speakup/client/dist/
+          rsync -avz --delete ./web/dist/ ${USER}@${HOST}:/opt/speakup/web/dist/
 
       - name: Setup env and restart
         env:
@@ -119,6 +119,15 @@ jobs:
           which uv 2>/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 
           cd /opt/speakup
+
+          # 迁移 client/dist → web/dist（兼容旧目录名）
+          if [ -d client/dist ] && [ ! -d web/dist ]; then
+            mv client web
+          fi
+
+          # 更新 Nginx 中的路径（client/dist → web/dist）
+          sudo sed -i 's|/opt/speakup/client/dist|/opt/speakup/web/dist|g' /etc/nginx/sites-available/speakup
+          sudo nginx -t && sudo systemctl reload nginx
 
           cat > .env.production << ENVEOF
           DASHSCOPE_API_KEY='"$DASHSCOPE_API_KEY"'

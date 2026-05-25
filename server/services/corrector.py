@@ -69,8 +69,9 @@ WHAT NOT TO DO:
 - Do NOT correct trivial typos or speech-recognition artifacts if meaning is clear.
 
 LANGUAGE OF FEEDBACK:
-- `summary`, `nativeVersion`, gap `original`/`better`: English.
-- gap `why`: default English. Switch to Chinese ONLY when a grammar concept is materially clearer in Chinese. Do not mix within one `why`.
+- `summary`: Chinese.
+- `nativeVersion`, gap `original`/`better`: English.
+- gap `why`: Chinese. Keep English terms or short phrases inline when they clarify meaning.
 
 OUTPUT: strict JSON only, no markdown fences, no commentary.
 

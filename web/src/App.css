@@ -415,7 +415,7 @@ button { font-family: inherit; }
 
 .su-corr .from {
   font-family: var(--ff-mono);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ink-3);
   text-decoration: line-through;
   text-decoration-color: var(--warn);
@@ -425,12 +425,12 @@ button { font-family: inherit; }
 .su-corr .arrow {
   font-family: var(--ff-mono);
   color: var(--ink-4);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .su-corr .to {
   font-family: var(--ff-mono);
-  font-size: 13px;
+  font-size: 15px;
   color: var(--ink);
   font-weight: 500;
 }
@@ -438,15 +438,15 @@ button { font-family: inherit; }
 .su-corr .reason {
   grid-column: 1 / -1;
   font-family: var(--ff-cn);
-  font-size: 12px;
+  font-size: 14px;
   color: var(--ink-2);
   padding-top: 4px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .su-corr .reason .cat {
   font-family: var(--ff-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink-4);
   letter-spacing: 0.08em;
   text-transform: uppercase;
