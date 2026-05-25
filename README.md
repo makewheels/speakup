@@ -2,7 +2,7 @@
 
 看图片 → 说英语 → AI 看图给反馈。面向中国英语学习者的口语练习工具。
 
-**地址：[https://speak.a4.fit](https://speak.a4.fit)**
+**地址：[https://speakup.a4.fit](https://speakup.a4.fit)**
 
 ## 怎么用
 
