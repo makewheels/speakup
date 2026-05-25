@@ -69,6 +69,13 @@ export default function PracticePage() {
       alert("请使用 Chrome 浏览器");
       return;
     }
+
+    // Chrome 要求 HTTPS 才能用麦克风，HTTP 下直接拒绝且不弹权限窗口
+    if (location.protocol === "http:" && location.hostname !== "localhost") {
+      alert("当前是 HTTP 连接，Chrome 不允许使用麦克风。\n请用 HTTPS 访问，或在本地 localhost 调试。");
+      return;
+    }
+
     const recognition = new SR();
     recognition.lang = "en-US";
     recognition.continuous = true;
@@ -87,7 +94,11 @@ export default function PracticePage() {
     recognition.onerror = (event) => {
       setPhase("review");
       if (event.error === "not-allowed") {
-        alert("麦克风权限被拒。Chrome 地址栏左侧锁图标 → 允许麦克风 → 刷新页面。");
+        if (location.protocol === "http:") {
+          alert("麦克风被浏览器拦截：当前是 HTTP 连接，Chrome 要求 HTTPS 才能使用麦克风。");
+        } else {
+          alert("麦克风权限被拒。Chrome 地址栏左侧锁图标 → 允许麦克风 → 刷新页面。");
+        }
       } else if (event.error === "audio-capture") {
         alert("没检测到麦克风，检查一下设备连接。");
       } else if (event.error === "network") {
