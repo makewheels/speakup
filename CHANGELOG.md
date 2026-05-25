@@ -20,7 +20,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - `CHANGELOG.md`（本文件）
 
 ### Changed
-- 生产域名 `speakup.example.com` → `speakup.example.com`，对齐产品名。仓库内只是文档引用；DNS / Nginx / TLS 证书需手动同步（见 PR 说明）。
+- 生产域名 `speakup.example.com` → `speakup.example.com`，对齐产品名。Aliyun DNS / Nginx / TLS 证书已就位。HTTP 已通；HTTPS 受未备案影响在 TLS 握手层被中间件拦截，需后续 ICP 备案才能恢复。
+
+### Fixed
+- 部署流水线 rsync 不再把本地 `.venv` 推到远端（之前会用本地 macOS Python 路径覆盖远端 Linux venv，导致 PM2 启动失败 502）。`.venv` 加进 `--exclude` 列表。
 - 原"生词本/错题本"统一改名为 **复习**（review item），UI / 数据语义对齐
 - 环境变量 `NODE_ENV` → `APP_ENV`（Python 项目不该用 Node 命名）
 - 图片尺寸：loremflickr 1024×1024 → 640×640，加快 DashScope 看图
