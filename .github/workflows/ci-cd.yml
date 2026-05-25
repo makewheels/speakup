@@ -99,7 +99,7 @@ jobs:
           USER: ${{ secrets.DEPLOY_USER }}
         run: |
           # 创建目录 + 迁移旧 client→web
-          ssh ${USER}@${HOST} 'bash -s' << 'PREP'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 ${USER}@${HOST} 'bash -s' << 'PREP'
           sudo mkdir -p /opt/speakup
           cd /opt/speakup
           if [ -d client/dist ] && [ ! -d web/dist ]; then
@@ -108,12 +108,15 @@ jobs:
           mkdir -p web/dist
           PREP
           rsync -avz --delete \
+            -e "ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10" \
             --exclude='.env' --exclude='.env.*' \
             --exclude='__pycache__' --exclude='.pytest_cache' \
             --exclude='.venv' \
             --exclude='tests' \
             ./server/ ${USER}@${HOST}:/opt/speakup/server/
-          rsync -avz --delete ./web/dist/ ${USER}@${HOST}:/opt/speakup/web/dist/
+          rsync -avz --delete \
+            -e "ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10" \
+            ./web/dist/ ${USER}@${HOST}:/opt/speakup/web/dist/
 
       - name: Setup env and restart
         env:
@@ -122,7 +125,7 @@ jobs:
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
         run: |
-          ssh ${USER}@${HOST} 'bash -s' << 'REMOTE'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 ${USER}@${HOST} 'bash -s' << 'REMOTE'
           export PATH="$HOME/.local/bin:$PATH"
           which uv 2>/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 
