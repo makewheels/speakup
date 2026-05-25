@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
+- **前端 vitest 测试**：`client/src/**/*.test.jsx`，11 个用例覆盖 Icon 渲染 + LoginPage 表单校验 / 提交，807ms 跑完。CI 在 `test-client` job 里跑。
 - **差距框架（gap-exposure）** 取代"纠错"作为产品本质 — see `SPEC.md` §2
 - 新 AI 输出 schema：`{summary, nativeVersion, gaps[{original, better, why, category}]}`
 - 视觉系统从 Claude Design 移植：Newsreader 衬线 + Geist + JetBrains Mono + 暖纸色，全套 design tokens
