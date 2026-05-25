@@ -40,11 +40,13 @@ pnpm run dev               # http://localhost:5173
 
 ## 生产部署
 
-push 到 master → GitHub Actions 自动部署到 101.42.94.17
+push 到 master → GitHub Actions 自动部署到生产环境。
 
 ```bash
 git push  # 自动触发部署
 ```
+
+部署目标主机 / 凭据见本地 `AGENTS.md`（gitignored）。
 
 ## 环境变量
 
