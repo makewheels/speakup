@@ -73,7 +73,7 @@ git push  # GitHub Actions → rsync → PM2 reload
 - 图片：loremflickr 随机给图，场景不可控；通义万相生图 + COS 池待接
 - 模型名 `qwen3.6-plus` 待与 DashScope 实际可用模型对齐
 - 部署系统有 secrets 不透传 + 路径错位 bug，详见下文 "部署 known issues"
-- HTTPS 当前被中间件拦截（疑似未备案），需 ICP 备案才能恢复
+- HTTPS 通过 8443 端口提供（腾讯云 443 端口被网络层拦截），HTTP 自动跳转
 
 ---
 
@@ -138,11 +138,11 @@ tccli lighthouse DescribeFirewallRules --InstanceId <实例 id> --region ap-beij
 
 ## HTTPS
 
-- `speakup.a4.fit` 的 TLS 握手在外部访问时被中间件切（TCP 通、Client Hello 后无 Server Hello）
-- 怀疑是未备案导致的运营商/中间件拦截
-- 临时方案：HTTP 直供；certbot --redirect 加的 301 已手动关掉
-- 老域名 `speak.a4.fit` 同样问题，保留服务作为兼容
-- 长期方案：ICP 备案
+- 腾讯云网络层拦截了 443 端口的 TLS 流量（TCP 通、Client Hello 后无 Server Hello），所有 SSL 端口中只有 443 被阻断
+- **当前方案**：Nginx 在 **8443** 端口提供 HTTPS，HTTP:80 自动 301 跳转到 `https://:8443`
+- SSL 证书：Let's Encrypt，certbot 自动续期，覆盖 `speak.a4.fit` + `speakup.a4.fit`
+- 老域名 `speak.a4.fit` 同样指向此服务器，同样走 8443
+- 长期方案：ICP 备案后恢复 443 端口
 
 ## 凭据旋转 checklist
 
