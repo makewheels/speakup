@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 
 import httpx
 from openai import AsyncOpenAI
@@ -8,6 +9,9 @@ from config import DASHSCOPE_API_KEY
 
 _client = None
 
+# DashScope VL 模型调用超时（秒）
+_API_TIMEOUT = 60.0
+
 
 def _get_client():
     global _client
@@ -15,6 +19,7 @@ def _get_client():
         _client = AsyncOpenAI(
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             api_key=DASHSCOPE_API_KEY,
+            timeout=_API_TIMEOUT,
         )
     return _client
 
@@ -109,17 +114,23 @@ async def correct_text(text: str, image_url: str = "") -> dict:
     else:
         user_content = f'The student said:\n"{text}"\n\nExpose gaps against a native speaker.'
 
-    resp = await _get_client().chat.completions.create(
-        model="qwen3.6-plus",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
-        temperature=0.3,
-        max_tokens=2000,
-    )
+    try:
+        resp = await _get_client().chat.completions.create(
+            model="qwen3.6-plus",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+            extra_body={"enable_thinking": False},
+        )
+    except Exception:
+        return {**_EMPTY, "summary": "AI service timed out. Please try again."}
 
     raw = (resp.choices[0].message.content or "").replace("```json", "").replace("```", "").strip()
+    # qwen3 thinking 模式可能在 content 中混入 <think> 标签
+    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
 
     try:
         result = json.loads(raw)
