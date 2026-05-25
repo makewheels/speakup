@@ -102,6 +102,7 @@ jobs:
           rsync -avz --delete \
             --exclude='.env' --exclude='.env.*' \
             --exclude='__pycache__' --exclude='.pytest_cache' \
+            --exclude='.venv' \
             --exclude='tests' \
             ./server/ ${USER}@${HOST}:/opt/speakup/server/
           rsync -avz --delete ./client/dist/ ${USER}@${HOST}:/opt/speakup/client/dist/
