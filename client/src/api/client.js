@@ -1,16 +1,31 @@
 const BASE = "/api";
+const DEFAULT_TIMEOUT = 90_000; // 90s，留足 AI 推理时间
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "Request failed");
+  const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...fetchOpts,
+      body: fetchOpts.body ? JSON.stringify(fetchOpts.body) : undefined,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Request failed");
+    }
+    return res.json();
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error("请求超时，请重试");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json();
 }
 
 export const api = {
