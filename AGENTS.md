@@ -20,7 +20,7 @@
 
 ```
 speakup/
-├── client/                    # React 前端 (pnpm)
+├── web/                    # React 前端 (pnpm)
 │   └── src/
 │       ├── api/client.js            # fetch 封装
 │       ├── context/UserContext.jsx   # 登录状态 (localStorage)
@@ -54,7 +54,7 @@ speakup/
 ```bash
 # 本地开发
 cd server && uv run python main.py     # API :3001
-cd client && pnpm run dev              # 前端 :5173 → proxy /api
+cd web && pnpm run dev              # 前端 :5173 → proxy /api
 
 # 生产部署 (自动)
 git push  # GitHub Actions → rsync → PM2 reload
@@ -165,7 +165,7 @@ tccli lighthouse DescribeFirewallRules --InstanceId <实例 id> --region ap-beij
 
 1. **每次改动都开 PR**（不 push master）：`git checkout -b <type>/<slug>` → 改 → `gh pr create`
 2. **每个 PR 更 CHANGELOG.md**：`## [Unreleased]` 段，用 Keep a Changelog 分类（Added / Changed / Fixed / Removed / Security）
-3. **测试要是代码**：后端 `server/tests/`（pytest），前端 `client/src/**/*.test.jsx`（vitest），不靠 curl 一次性脚本
+3. **测试要是代码**：后端 `server/tests/`（pytest），前端 `web/src/**/*.test.jsx`（vitest），不靠 curl 一次性脚本
 4. **测试不调用大模型**：conftest 有 cost guard fixture 拒绝真实 DashScope 调用；新测试必须 mock 掉
 5. **报告"完成"前必须本机跑过对应测试**：build / pytest / vitest 全过，且功能路径手动或自动验过一遍
 6. **中文优先**：PR / commit / CHANGELOG / 文档 / 对话回复用中文。代码标识符和技术术语保持英文。
