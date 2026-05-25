@@ -20,6 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - `CHANGELOG.md`（本文件）
 
 ### Changed
+- 生产域名 `speak.a4.fit` → `speakup.a4.fit`，对齐产品名。仓库内只是文档引用；DNS / Nginx / TLS 证书需手动同步（见 PR 说明）。
 - 原"生词本/错题本"统一改名为 **复习**（review item），UI / 数据语义对齐
 - 环境变量 `NODE_ENV` → `APP_ENV`（Python 项目不该用 Node 命名）
 - 图片尺寸：loremflickr 1024×1024 → 640×640，加快 DashScope 看图
