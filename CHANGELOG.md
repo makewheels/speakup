@@ -13,6 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **防御 `<think>` 标签**：解析 AI 响应时剥离可能混入的 thinking 标签，避免 JSON 解析失败
 - **CI Node.js 20 弃用警告**：升级 `actions/checkout` v4→v5、`setup-node` v4→v5、`setup-uv` v6→v8
 - **麦克风 HTTP 拦截**：HTTP 下 Chrome 静默拒绝麦克风权限且不弹窗，增加协议检测和明确提示
+- **HTTPS 恢复**：腾讯云 443 端口 TLS 被网络层拦截，改用 8443 端口提供 HTTPS；HTTP 自动 301 跳转到 `https://:8443`
 
 ### Security
 - **入库文件不再包含任何 IP / 主机名 / 凭据**。`CLAUDE.md`、`README.md` 改用占位描述。
