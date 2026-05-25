@@ -98,7 +98,15 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh ${USER}@${HOST} "mkdir -p /opt/speakup"
+          # 创建目录 + 迁移旧 client→web
+          ssh ${USER}@${HOST} 'bash -s' << 'PREP'
+          sudo mkdir -p /opt/speakup
+          cd /opt/speakup
+          if [ -d client/dist ] && [ ! -d web/dist ]; then
+            mv client web
+          fi
+          mkdir -p web/dist
+          PREP
           rsync -avz --delete \
             --exclude='.env' --exclude='.env.*' \
             --exclude='__pycache__' --exclude='.pytest_cache' \
@@ -120,12 +128,7 @@ jobs:
 
           cd /opt/speakup
 
-          # 迁移 client/dist → web/dist（兼容旧目录名）
-          if [ -d client/dist ] && [ ! -d web/dist ]; then
-            mv client web
-          fi
-
-          # 更新 Nginx 中的路径（client/dist → web/dist）
+          # 更新 Nginx 中的路径（client/dist → web/dist，幂等）
           sudo sed -i 's|/opt/speakup/client/dist|/opt/speakup/web/dist|g' /etc/nginx/sites-available/speakup
           sudo nginx -t && sudo systemctl reload nginx
 
