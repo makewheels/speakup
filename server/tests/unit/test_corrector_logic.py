@@ -58,6 +58,7 @@ def test_valid_json_response_mapped_to_schema():
                 "better": "cat is sleeping",
                 "why": "needs auxiliary 'is'",
                 "category": "grammar",
+                "saveToReview": True,
             }
         ],
     }
@@ -70,6 +71,7 @@ def test_valid_json_response_mapped_to_schema():
     assert result["nativeVersion"] == payload["nativeVersion"]
     assert len(result["gaps"]) == 1
     assert result["gaps"][0]["category"] == "grammar"
+    assert result["gaps"][0]["saveToReview"] is True
 
 
 def test_response_wrapped_in_markdown_fences_still_parses():

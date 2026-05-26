@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
-import { api } from "../api/client.js";
+import { api, correctStream } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 
 const PROMPTS = {
@@ -18,18 +18,19 @@ export default function PracticePage() {
   const { user } = useUser();
 
   const [session, setSession] = useState(null);
-  const [phase, setPhase] = useState("loading");      // loading | ready | recording | review | evaluating | feedback
+  const [phase, setPhase] = useState("loading");
   const [transcript, setTranscript] = useState("");
   const [elapsed, setElapsed] = useState("0:00");
   const [result, setResult] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [autoSaved, setAutoSaved] = useState(0);
   const [evalElapsed, setEvalElapsed] = useState(0);
+  const [streamingLen, setStreamingLen] = useState(0);
 
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const secondsRef = useRef(0);
   const evalTimerRef = useRef(null);
+  const sseControllerRef = useRef(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -40,11 +41,14 @@ export default function PracticePage() {
     startNewRound();
   }, [sessionId]);
 
+  // 组件卸载时取消 SSE
+  useEffect(() => () => sseControllerRef.current?.abort(), []);
+
   const startNewRound = async () => {
     setPhase("loading");
     setResult(null);
     setTranscript("");
-    setSaved(false);
+    setAutoSaved(0);
     setElapsed("0:00");
     secondsRef.current = 0;
     setSession(null);
@@ -69,8 +73,6 @@ export default function PracticePage() {
       alert("请使用 Chrome 浏览器");
       return;
     }
-
-    // Chrome 要求 HTTPS 才能用麦克风，HTTP 下直接拒绝且不弹权限窗口
     if (location.protocol === "http:" && location.hostname !== "localhost") {
       alert("当前是 HTTP 连接，Chrome 不允许使用麦克风。\n请用 HTTPS 访问，或在本地 localhost 调试。");
       return;
@@ -116,7 +118,7 @@ export default function PracticePage() {
     setElapsed("0:00");
     setTranscript("");
     setResult(null);
-    setSaved(false);
+    setAutoSaved(0);
     setPhase("recording");
 
     timerRef.current = setInterval(() => {
@@ -134,49 +136,39 @@ export default function PracticePage() {
     setPhase("review");
   };
 
-  const evaluate = async () => {
+  const evaluate = () => {
     if (!transcript.trim() || !session) return;
     setPhase("evaluating");
     setEvalElapsed(0);
+    setStreamingLen(0);
     evalTimerRef.current = setInterval(() => setEvalElapsed((s) => s + 1), 1000);
-    try {
-      const data = await api.correct({
+
+    sseControllerRef.current = correctStream(
+      {
         userId: user.userId,
         sessionId: session._id,
         text: transcript.trim(),
         imageUrl: session.imageUrl || "",
-      });
-      setResult(data);
-      setPhase("feedback");
-    } catch {
-      alert("评估请求失败");
-      setPhase("review");
-    } finally {
-      clearInterval(evalTimerRef.current);
-    }
-  };
-
-  const saveToReview = async () => {
-    if (!result?.gaps?.length || !session) return;
-    setSaving(true);
-    try {
-      const words = result.gaps.map((g) => ({
-        word: g.better,
-        original: g.original,
-        note: g.why,
-        contextSentence: result.nativeVersion || "",
-        sessionId: session._id,
-      }));
-      await api.addVocabulary(user.userId, words);
-      setSaved(true);
-    } catch {
-      alert("添加失败");
-    } finally {
-      setSaving(false);
-    }
+      },
+      {
+        onChunk: (text) => setStreamingLen((n) => n + text.length),
+        onDone: ({ result: res, autoSaved: n }) => {
+          clearInterval(evalTimerRef.current);
+          setResult(res);
+          setAutoSaved(n);
+          setPhase("feedback");
+        },
+        onError: (err) => {
+          clearInterval(evalTimerRef.current);
+          alert("评估请求失败：" + err.message);
+          setPhase("review");
+        },
+      }
+    );
   };
 
   if (phase === "feedback" && result) {
+    const autoSavedGaps = result.gaps?.filter((g) => g.saveToReview) ?? [];
     return (
       <div className="practice-page fb-page fade-in">
         <div className="scene-thumb">
@@ -218,13 +210,29 @@ export default function PracticePage() {
           <>
             <h3 className="section-title">
               差距点<span className="count">· {result.gaps.length} 处</span>
+              {autoSavedGaps.length > 0 && (
+                <span className="count" style={{ color: "var(--accent)", marginLeft: 8 }}>
+                  · {autoSavedGaps.length} 项已加入复习
+                </span>
+              )}
             </h3>
             <div style={{ marginBottom: 18 }}>
               {result.gaps.map((g, i) => (
                 <div key={i} className="su-corr">
                   <div className="from">{g.original}</div>
                   <div className="arrow">→</div>
-                  <div className="to">{g.better}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div className="to">{g.better}</div>
+                    {g.saveToReview && (
+                      <span title="已加入复习" style={{
+                        fontSize: 11, color: "var(--accent)", fontFamily: "var(--ff-ui)",
+                        background: "color-mix(in srgb, var(--accent) 12%, transparent)",
+                        padding: "1px 6px", borderRadius: 4, whiteSpace: "nowrap",
+                      }}>
+                        已收录
+                      </span>
+                    )}
+                  </div>
                   <div className="reason">
                     {g.category && <span className="cat">{g.category}</span>}
                     {g.why}
@@ -236,19 +244,12 @@ export default function PracticePage() {
         )}
 
         <div className="actions-stack">
-          {result.gaps?.length > 0 && (
-            <button
-              className={"su-btn " + (saved ? "su-btn-tertiary" : "su-btn-primary")}
-              disabled={saved || saving}
-              onClick={saveToReview}
-            >
-              {saved ? (<><Icon name="check" size={18} />&nbsp;已添加到复习</>)
-                : saving ? (<><span className="spin" />&nbsp;添加中…</>)
-                : (<><Icon name="save" size={18} />&nbsp;添加到复习</>)}
-            </button>
-            )}
           <div className="actions-row">
-            <button className="su-btn su-btn-secondary" onClick={() => { setResult(null); setTranscript(""); setPhase("ready"); setSaved(false); }} style={{ flex: 1, height: 48 }}>
+            <button
+              className="su-btn su-btn-secondary"
+              onClick={() => { setResult(null); setTranscript(""); setPhase("ready"); setAutoSaved(0); }}
+              style={{ flex: 1, height: 48 }}
+            >
               <Icon name="refresh" size={16} />&nbsp;重说
             </button>
             <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
@@ -337,7 +338,9 @@ export default function PracticePage() {
             fontFamily: "var(--ff-cn)", fontSize: 12, color: "var(--ink-3)",
             textAlign: "center", marginTop: 14, lineHeight: 1.6,
           }}>
-            {evalElapsed < 15
+            {streamingLen > 0
+              ? `AI 正在写… 已生成 ${streamingLen} 字符`
+              : evalElapsed < 15
               ? "正在让 AI 看图片..."
               : evalElapsed < 40
               ? "正在对比母语者会怎么说..."
