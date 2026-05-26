@@ -322,9 +322,10 @@ MVP 两个 tab（`我的` V1.1 再加）：
 - [ ] 反馈页"静默预取下一张图"
 - [x] 复习页筛选 tab（全部 / 待复习 / 已掌握）
 - [ ] 架构升级：langchain + 结构化输出（讨论后定）
-- [ ] **AI 评估加速**：服务端先 fetch 图片转 base64 传给 DashScope（避免 DashScope 再去拉 loremflickr），或换图床
-- [ ] 流式输出（SSE 推 summary / gaps 增量）
-- [ ] 前端 vitest / playwright
+- [x] **AI 评估加速**：服务端先 fetch 图片转 base64 传给 DashScope（避免 DashScope 再去拉 loremflickr），或换图床
+- [x] 流式输出（SSE 推 summary / gaps 增量）
+- [x] 前端 vitest
+- [ ] 前端 playwright E2E
 
 ### V2 及以后
 

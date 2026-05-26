@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Added
+- **SSE 流式输出**：`POST /api/correct/stream` 用 Server-Sent Events 实时推送 AI token，前端评估阶段实时显示"已生成 N 字符"进度，体感等待明显缩短
+- **AI 自动决定复习项**：prompt schema 新增 `saveToReview` 字段，AI 对每个 gap 判断是否值得记忆，后端自动写入 vocabulary，响应带 `autoSaved` 计数
+- **图片归档到 OSS**：创建 session 时后台任务（BackgroundTask）把 loremflickr 图片拉到阿里云 OSS，key 格式 `images/{userId}/{sessionId}.jpg`，更新 `session.ossImageUrl`
+- **OSS 路径规范**：`oss_storage.py` 新增 `image_key(user_id, session_id)`、`upload_from_url(key, url)` 异步函数、`upload_bytes_async` 线程池包装；bucket 本身区分 dev/prod，key 内不重复存环境信息
+
+### Changed
+- **反馈页移除手动"添加到复习"按钮**：AI 已自动收录标注项，gap 卡片上显示"已收录"标签；section-title 显示自动保存数量
+
 ### Fixed
 - **AI 评估卡住问题**：关闭 qwen3 thinking 模式（`enable_thinking: false`），避免模型先生成大量隐藏思考 token 导致响应极慢
 - **后端 API 超时**：DashScope 调用增加 60 秒超时，超时后返回友好提示而非无限等待
