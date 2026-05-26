@@ -176,7 +176,10 @@ export default function VocabularyPage() {
             const due = isDue(w);
             return (
               <div key={w._id} className="mistake-row">
-                <div className="thumb" />
+                {w.imageUrl
+                  ? <img src={w.imageUrl} alt="" className="thumb" />
+                  : <div className="thumb" />
+                }
                 <div className="body">
                   <div className="corr-inline">
                     {w.original && <span className="strike">{w.original}</span>}

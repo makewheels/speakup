@@ -92,6 +92,13 @@ export default function Icon({ name, size = 20, color = "currentColor", stroke =
           <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
         </svg>
       );
+    case "clock":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 3" />
+        </svg>
+      );
     default:
       return null;
   }
