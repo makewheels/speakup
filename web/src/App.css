@@ -1092,6 +1092,246 @@ button { font-family: inherit; }
 }
 
 /* ──────────────────────────────────────────────
+   PAGE: History
+   ────────────────────────────────────────────── */
+
+.history-page .page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.history-page .page-head h2 {
+  font-family: var(--ff-cn);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.history-page .count-label {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}
+
+.history-list { }
+
+.history-row {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: flex-start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.history-row:last-child { border-bottom: 0; }
+
+.history-row:active { opacity: 0.7; }
+
+.history-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  flex: 0 0 64px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.93 0.013 70) 0 6px,
+      oklch(0.96 0.008 70) 6px 12px
+    );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.history-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.history-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.history-topic {
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-date {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-4);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.history-summary {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.history-summary.muted { color: var(--ink-4); }
+
+.history-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.history-meta .chip {
+  height: 20px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.history-arrow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding-top: 20px;
+}
+
+/* ──────────────────────────────────────────────
+   PAGE: Session Detail
+   ────────────────────────────────────────────── */
+
+.session-detail-page { }
+
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-bottom: 16px;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.detail-hero {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.detail-hero-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
+  object-fit: cover;
+  flex: 0 0 80px;
+}
+
+.detail-hero-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
+  flex: 0 0 80px;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.93 0.013 70) 0 6px,
+      oklch(0.96 0.008 70) 6px 12px
+    );
+}
+
+.detail-hero-info { display: flex; flex-direction: column; gap: 4px; }
+
+.detail-topic {
+  font-family: var(--ff-mono);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.detail-when {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.attempt-block { margin-bottom: 8px; }
+
+.attempt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.attempt-time {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.attempt-summary {
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.attempt-summary .eyebrow { color: oklch(0.78 0.005 60); }
+
+.attempt-summary-text {
+  font-family: var(--ff-serif);
+  font-size: 17px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.session-detail-page .section-title {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 14px 0 6px;
+}
+
+.session-detail-page .section-title .count {
+  color: var(--ink-3);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* ──────────────────────────────────────────────
    Loading / status
    ────────────────────────────────────────────── */
 
