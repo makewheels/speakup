@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Changed
+- **图片传给 DashScope 改用 OSS URL 直传**：评估时优先用 `session.ossImageUrl`（稳定内容），OSS URL 直接传给 DashScope 不再下载转 base64，省服务器出口带宽；loremflickr URL 仍走下载路径（内容每次随机）
+
 ### Security
 - **入库文件不再包含任何 IP / 主机名 / 凭据**。`CLAUDE.md`、`README.md` 改用占位描述。
 - 新增 [AGENTS.md](AGENTS.md) 作为面向所有 agent 的项目文档（遵循 agents.md 约定）。包含技术栈、项目结构、部署目标抽象描述、SSH 命令模板（具体 host 用 `<HOST>` 占位）、known deploy bugs、凭据旋转 checklist、仓库工作流约定。
