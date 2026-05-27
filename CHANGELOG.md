@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
+- **历史列表页**：`/history` 展示所有练习记录，每条显示图片缩略图、topic、时间、AI summary 摘要、差距数；支持分页加载更多
+- **会话详情页**：`/history/:sessionId` 展示单次会话的全部尝试，包括原文、改写、逐条差距分析
+- **底部导航新增"历史"标签**：使用 clock 图标，路由到 `/history`
+- **复习列表图片缩略图**：vocabulary 列表每行左侧显示对应练习图片（使用 `imageUrl` 字段）
 - **SSE 流式输出**：`POST /api/correct/stream` 用 Server-Sent Events 实时推送 AI token，前端评估阶段实时显示"已生成 N 字符"进度，体感等待明显缩短
 - **AI 自动决定复习项**：prompt schema 新增 `saveToReview` 字段，AI 对每个 gap 判断是否值得记忆，后端自动写入 vocabulary，响应带 `autoSaved` 计数
 - **图片归档到 OSS**：创建 session 时后台任务（BackgroundTask）把 loremflickr 图片拉到阿里云 OSS，key 格式 `images/{userId}/{sessionId}.jpg`，更新 `session.ossImageUrl`

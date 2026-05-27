@@ -7,6 +7,7 @@ import Icon from "../Icon.jsx";
 const TABS = [
   { to: "/practice",   label: "练习", icon: "home" },
   { to: "/vocabulary", label: "复习", icon: "book", showDue: true },
+  { to: "/history",    label: "历史", icon: "clock" },
   { to: "/me",         label: "我的", icon: "user" },
 ];
 
