@@ -14,6 +14,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **遗留风险**：git history 里仍有 ~54 处旧 IP 引用（10 个历史 commit）+ 已关闭的 PR description / commit 里也含 IP。要彻底清除需 `git filter-repo` 重写历史（高风险：改写所有 commit SHA，破坏现有 clone / fork，需强制推送），等待用户授权。
 - **建议旋转的凭据**：MongoDB 密码（在 AI 对话历史里出现过明文）。详见 [AGENTS.md 凭据旋转 checklist](AGENTS.md)。
 
+### Added
+- **gap 新增 example 字段**：每个差距点 AI 给出一句自然例句，展示 better 表达在真实对话中的用法，前端反馈页和历史详情页同步展示
+- **prompt 优化**：强制 better 只返回一个最佳表达（不再用 / 分隔多个备选）；强化中文输出要求（summary / why 必须中文）
+
 ### Fixed
 - **SSE 流式评估报"AI service timed out"**：DashScope 流结束时会发一个 `choices=[]` 的 usage chunk，直接访问 `chunk.choices[0]` 触发 IndexError，被 except 吞掉误报超时。加 `if not chunk.choices: continue` 跳过即可。同时给 except 加了错误日志，方便排查未来的真实异常
 
