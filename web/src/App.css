@@ -1309,6 +1309,14 @@ button { font-family: inherit; }
   color: var(--ink-4);
 }
 
+.recording-player {
+  width: 100%;
+  height: 36px;
+  margin: 6px 0 12px;
+  border-radius: 8px;
+  accent-color: var(--accent);
+}
+
 .attempt-summary {
   background: var(--ink);
   color: var(--bg);
