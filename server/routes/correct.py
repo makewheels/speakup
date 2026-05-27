@@ -75,7 +75,8 @@ async def correct(req: CorrectRequest):
     if not session:
         raise HTTPException(404, "会话不存在")
 
-    result = await correct_text(req.text, req.imageUrl)
+    image_url = session.get("ossImageUrl") or req.imageUrl
+    result = await correct_text(req.text, image_url)
     auto_saved = await _save_attempt_and_vocabulary(req, result)
     return {"sessionId": req.sessionId, "autoSaved": auto_saved, **result}
 
@@ -91,9 +92,11 @@ async def correct_stream(req: CorrectRequest):
     if not session:
         raise HTTPException(404, "会话不存在")
 
+    image_url = session.get("ossImageUrl") or req.imageUrl
+
     async def generate():
         full_result = None
-        async for event_type, data in correct_text_stream(req.text, req.imageUrl):
+        async for event_type, data in correct_text_stream(req.text, image_url):
             if event_type == "chunk":
                 yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
             elif event_type == "error":
