@@ -237,6 +237,9 @@ export default function PracticePage() {
                     {g.category && <span className="cat">{g.category}</span>}
                     {g.why}
                   </div>
+                  {g.example && (
+                    <div className="example">"{g.example}"</div>
+                  )}
                 </div>
               ))}
             </div>
