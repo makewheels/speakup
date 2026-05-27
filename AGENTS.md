@@ -24,20 +24,31 @@ speakup/
 │   └── src/
 │       ├── api/client.js            # fetch 封装
 │       ├── context/UserContext.jsx   # 登录状态 (localStorage)
-│       ├── pages/                    # Login, Practice, Vocabulary, Profile
+│       ├── pages/                    # Login, Practice, Vocabulary, History, SessionDetail, Profile
 │       └── components/layout/        # 底部导航
 ├── server/                    # FastAPI 后端 (uv)
 │   ├── main.py                      # 入口, lifespan 初始化
 │   ├── config.py                    # 按 APP_ENV 加载 .env
 │   ├── db/connection.py             # Motor async MongoDB
 │   ├── services/
+│   │   ├── corrector.py             # qwen3-vl-plus 看图给反馈
+│   │   ├── file_service.py          # files 集合管理，MD5 去重，OSS 上传
 │   │   ├── image_generator.py       # 按 topic 拼 loremflickr URL
-│   │   └── corrector.py             # qwen3-vl-plus 看图给反馈
+│   │   └── oss_storage.py           # 阿里云 OSS 底层封装
 │   ├── routes/                      # auth, generate, correct, sessions, vocabulary
-│   └── tests/                       # pytest, unit + integration
-├── scripts/                   # 部署辅助脚本
+│   ├── utils/
+│   │   └── id_generator.py          # 带前缀的 ID 生成（u_/s_/f_/w_）
+│   └── tests/
+│       ├── conftest.py              # 测试 DB 初始化 + cost guard fixture
+│       ├── unit/                    # 纯逻辑单元测试，全 mock，毫秒级
+│       └── integration/             # 走 HTTP + 真实 test DB，秒级
+├── docs/design/             # 设计文档（改动涉及 schema/存储/ID 时同步更新）
+│   ├── ids.md               # ID 前缀规范
+│   ├── schema.md            # MongoDB 集合 schema
+│   └── storage.md           # OSS 路径与 files 集合设计
+├── scripts/                 # 部署辅助脚本
 ├── .github/workflows/ci-cd.yml
-└── ecosystem.config.cjs       # PM2 配置
+└── ecosystem.config.cjs     # PM2 配置
 ```
 
 ## 环境隔离
@@ -159,13 +170,58 @@ tccli lighthouse DescribeFirewallRules --InstanceId <实例 id> --region ap-beij
 - DashScope key：阿里云 RAM 控制台生成新 key → 同步两处
 - SSH key：本地 `ssh-keygen` → 腾讯 Lighthouse 上传 → 删除旧 key → 更新 GitHub Secret `SSH_PRIVATE_KEY`
 
-## 仓库工作流约定
+## 开发测试流程（agent 必读）
 
-详细规则在 agent memory，简述：
+### 每次改动的标准流程
 
-1. **每次改动都开 PR**（不 push master）：`git checkout -b <type>/<slug>` → 改 → `gh pr create`
-2. **每个 PR 更 CHANGELOG.md**：`## [Unreleased]` 段，用 Keep a Changelog 分类（Added / Changed / Fixed / Removed / Security）
-3. **测试要是代码**：后端 `server/tests/`（pytest），前端 `web/src/**/*.test.jsx`（vitest），不靠 curl 一次性脚本
-4. **测试不调用大模型**：conftest 有 cost guard fixture 拒绝真实 DashScope 调用；新测试必须 mock 掉
-5. **报告"完成"前必须本机跑过对应测试**：build / pytest / vitest 全过，且功能路径手动或自动验过一遍
-6. **中文优先**：PR / commit / CHANGELOG / 文档 / 对话回复用中文。代码标识符和技术术语保持英文。
+```bash
+# 1. 从 master 开新分支
+git checkout master && git pull
+git checkout -b <type>/<slug>   # feat/ fix/ chore/ docs/
+
+# 2. 改代码
+
+# 3. 跑测试（必须全绿才能提 PR）
+cd server && uv run pytest tests/ -q          # 后端全套
+cd web && pnpm run build                      # 前端构建（捕捉类型/import 错误）
+# 有前端逻辑变更时：pnpm test run            # vitest
+
+# 4. 更新 CHANGELOG.md（## [Unreleased] 段）
+
+# 5. 提 PR
+git add <files> && git commit -m "type: 简短描述"
+gh pr create --title "..." --body "..."
+
+# 6. 自测通过后自行 merge
+gh pr merge <number> --merge --delete-branch
+git checkout master && git pull
+```
+
+### 测试分层规范
+
+| 层 | 位置 | 用途 | 外部依赖 |
+|----|------|------|----------|
+| unit | `server/tests/unit/` | 纯逻辑、解析、ID 生成、service 函数 | 全 mock（httpx/OSS/DB） |
+| integration | `server/tests/integration/` | HTTP 路由 + 真实 MongoDB | test DB（speakup-test），OSS/AI 全 mock |
+| frontend | `web/src/**/*.test.jsx` | React 组件逻辑 | vitest + jsdom |
+
+**关键约束：**
+- `conftest.py` 的 `_no_real_llm` fixture 会拒绝任何真实 DashScope 调用，测试里必须 mock `services.corrector._get_client`
+- OSS 上传（`upload_bytes_async`）和 HTTP 下载（`httpx.AsyncClient`）在测试里必须 mock，不能打真实外部服务
+- async 函数的单元测试：mock `get_db()` 返回 MagicMock 避免 Motor 事件循环冲突，用 `pytestmark = pytest.mark.asyncio`
+
+### 新增服务/路由时的 checklist
+
+- [ ] 单元测试覆盖核心逻辑（mock 外部依赖）
+- [ ] 集成测试覆盖 happy path + 边界（404、重复等）
+- [ ] `docs/design/schema.md` 同步更新（如有新集合或字段变更）
+- [ ] `docs/design/storage.md` 同步更新（如有新 OSS 路径）
+- [ ] `CHANGELOG.md` 更新
+- [ ] `pnpm run build` 通过（如有前端改动）
+
+### 仓库工作流约定
+
+1. **每次改动都开 PR**（不直接 push master）
+2. **每个 PR 更 CHANGELOG.md**：`## [Unreleased]` 段，Keep a Changelog 分类
+3. **测试要是代码**：不靠 curl 一次性脚本
+4. **中文优先**：PR / commit / CHANGELOG / 文档 / 对话回复用中文，代码标识符和技术术语保持英文
