@@ -96,18 +96,9 @@ _EMPTY = {
 }
 
 
-def _is_oss_url(url: str) -> bool:
-    return "aliyuncs.com" in url
-
-
 async def _build_messages(text: str, image_url: str) -> list:
     if image_url:
-        # OSS URLs (aliyuncs.com) are stable and accessible by DashScope directly
-        # loremflickr returns different content each request so we must download + base64
-        if _is_oss_url(image_url) or image_url.startswith("data:"):
-            image_payload = image_url
-        else:
-            image_payload = await _to_data_url(image_url)
+        image_payload = await _to_data_url(image_url)
         user_content = [
             {"type": "image_url", "image_url": {"url": image_payload}},
             {"type": "text", "text": f'The student said:\n"{text}"\n\nExpose gaps against a native speaker.'},
