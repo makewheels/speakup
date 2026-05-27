@@ -31,6 +31,8 @@ export default function PracticePage() {
   const secondsRef = useRef(0);
   const evalTimerRef = useRef(null);
   const sseControllerRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -41,8 +43,11 @@ export default function PracticePage() {
     startNewRound();
   }, [sessionId]);
 
-  // 组件卸载时取消 SSE
-  useEffect(() => () => sseControllerRef.current?.abort(), []);
+  // 组件卸载时取消 SSE 和 MediaRecorder
+  useEffect(() => () => {
+    sseControllerRef.current?.abort();
+    mediaRecorderRef.current?.stop();
+  }, []);
 
   const startNewRound = async () => {
     setPhase("loading");
@@ -52,6 +57,7 @@ export default function PracticePage() {
     setElapsed("0:00");
     secondsRef.current = 0;
     setSession(null);
+    audioChunksRef.current = null;
     try {
       const image = await api.nextImage();
       const sess = await api.createSession({
@@ -67,7 +73,7 @@ export default function PracticePage() {
     }
   };
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       alert("请使用 Chrome 浏览器");
@@ -77,6 +83,9 @@ export default function PracticePage() {
       alert("当前是 HTTP 连接，Chrome 不允许使用麦克风。\n请用 HTTPS 访问，或在本地 localhost 调试。");
       return;
     }
+
+    // 先清上一次录音
+    audioChunksRef.current = null;
 
     const recognition = new SR();
     recognition.lang = "en-US";
@@ -121,6 +130,22 @@ export default function PracticePage() {
     setAutoSaved(0);
     setPhase("recording");
 
+    // 同步启动 MediaRecorder 录音（失败不影响主流程）
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        audioChunksRef.current = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+    } catch (err) {
+      console.warn("MediaRecorder unavailable:", err);
+    }
+
     timerRef.current = setInterval(() => {
       secondsRef.current += 1;
       const mm = Math.floor(secondsRef.current / 60);
@@ -133,6 +158,8 @@ export default function PracticePage() {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     clearInterval(timerRef.current);
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
     setPhase("review");
   };
 
@@ -157,6 +184,12 @@ export default function PracticePage() {
           setResult(res);
           setAutoSaved(n);
           setPhase("feedback");
+          // 评估完成后异步上传录音（失败静默忽略）
+          if (audioChunksRef.current && session?._id) {
+            api.uploadRecording(session._id, user.userId, audioChunksRef.current)
+              .catch(console.warn);
+            audioChunksRef.current = null;
+          }
         },
         onError: (err) => {
           clearInterval(evalTimerRef.current);

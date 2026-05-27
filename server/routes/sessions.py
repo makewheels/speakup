@@ -1,11 +1,13 @@
+import time
 from datetime import datetime, timezone
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from db.connection import get_db
 from services.file_service import get_or_upload_from_url, orig_url
+from services.oss_storage import upload_bytes_async
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -67,3 +69,33 @@ async def list_sessions(userId: str = Query(...), limit: int = 20, skip: int = 0
         s["_id"] = str(s["_id"])
         sessions.append(s)
     return sessions
+
+
+@router.post("/{session_id}/recording")
+async def upload_recording(
+    session_id: str,
+    userId: str = Form(...),
+    audio: UploadFile = File(...),
+):
+    try:
+        session = await get_db().sessions.find_one(
+            {"_id": ObjectId(session_id), "userId": userId}
+        )
+    except Exception:
+        raise HTTPException(404, "会话不存在")
+    if not session:
+        raise HTTPException(404, "会话不存在")
+
+    data = await audio.read()
+    content_type = (audio.content_type or "audio/webm").split(";")[0].strip()
+    ext = "webm" if "webm" in content_type else "ogg"
+    ts = int(time.time() * 1000)
+    key = f"recordings/{userId}/{session_id}/{ts}.{ext}"
+
+    url = await upload_bytes_async(key, data, content_type)
+    now = datetime.now(timezone.utc)
+    await get_db().sessions.update_one(
+        {"_id": ObjectId(session_id)},
+        {"$push": {"recordings": {"url": url, "createdAt": now}}},
+    )
+    return {"url": url}
