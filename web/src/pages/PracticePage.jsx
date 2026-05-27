@@ -171,13 +171,11 @@ export default function PracticePage() {
     const autoSavedGaps = result.gaps?.filter((g) => g.saveToReview) ?? [];
     return (
       <div className="practice-page fb-page fade-in">
-        <div className="scene-thumb">
+        <div className="su-img" style={{ marginBottom: 14 }}>
           {session?.imageUrl && <img src={session.imageUrl} alt="scene" />}
-          <div className="info">
-            <div className="eyebrow">scene</div>
-            <div className="topic">{session?.topic || "—"}</div>
-            <div className="when">刚刚</div>
-          </div>
+          {session?.topic && (
+            <div className="caption">{session.topic}</div>
+          )}
         </div>
 
         {result.summary && (
