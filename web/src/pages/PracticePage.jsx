@@ -200,8 +200,13 @@ export default function PracticePage() {
     );
   };
 
+  const CAT_ZH = { grammar: "语法", naturalness: "自然度", vocabulary: "用词", register: "语体" };
+
   if (phase === "feedback" && result) {
-    const autoSavedGaps = result.gaps?.filter((g) => g.saveToReview) ?? [];
+    const gaps = result.gaps ?? [];
+    const heroGap = gaps.find((g) => g.saveToReview) ?? gaps[0];
+    const restGaps = heroGap ? gaps.filter((g) => g !== heroGap) : [];
+
     return (
       <div className="practice-page fb-page fade-in">
         <div className="su-img" style={{ marginBottom: 14 }}>
@@ -213,68 +218,44 @@ export default function PracticePage() {
 
         {result.summary && (
           <div className="summary-card">
-            <div className="eyebrow">summary</div>
             <p className="text">{result.summary}</p>
           </div>
         )}
 
-        {transcript && (
-          <section className="su-card you-card" style={{ marginBottom: 12 }}>
-            <div className="card-eyebrow">
-              <span className="eyebrow">你说的</span>
-            </div>
-            <div className="en">{transcript}</div>
-          </section>
+        {heroGap && (
+          <div className="hero-gap">
+            <div className="eyebrow">今日重点</div>
+            <div className="hero-better">{heroGap.better}</div>
+            <div className="hero-original">你说的：{heroGap.original}</div>
+            {heroGap.why && <div className="hero-why">{heroGap.why}</div>}
+            {heroGap.example && <div className="hero-example">"{heroGap.example}"</div>}
+          </div>
         )}
 
         {result.nativeVersion && (
-          <section className="su-card native-card" style={{ marginBottom: 18 }}>
+          <section className="su-card native-card" style={{ marginBottom: 14 }}>
             <div className="card-eyebrow">
-              <span className="eyebrow" style={{ color: "var(--accent)" }}>more native</span>
-              <span className="chip accent">改写</span>
+              <span className="eyebrow" style={{ color: "var(--accent)" }}>更地道的说法</span>
             </div>
             <div className="en">{result.nativeVersion}</div>
           </section>
         )}
 
-        {result.gaps?.length > 0 && (
-          <>
-            <h3 className="section-title">
-              差距点<span className="count">· {result.gaps.length} 处</span>
-              {autoSavedGaps.length > 0 && (
-                <span className="count" style={{ color: "var(--accent)", marginLeft: 8 }}>
-                  · {autoSavedGaps.length} 项已加入复习
-                </span>
-              )}
-            </h3>
-            <div style={{ marginBottom: 18 }}>
-              {result.gaps.map((g, i) => (
-                <div key={i} className="su-corr">
-                  <div className="from">{g.original}</div>
-                  <div className="arrow">→</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div className="to">{g.better}</div>
-                    {g.saveToReview && (
-                      <span title="已加入复习" style={{
-                        fontSize: 11, color: "var(--accent)", fontFamily: "var(--ff-ui)",
-                        background: "color-mix(in srgb, var(--accent) 12%, transparent)",
-                        padding: "1px 6px", borderRadius: 4, whiteSpace: "nowrap",
-                      }}>
-                        已收录
-                      </span>
-                    )}
-                  </div>
-                  <div className="reason">
-                    {g.category && <span className="cat">{g.category}</span>}
-                    {g.why}
-                  </div>
-                  {g.example && (
-                    <div className="example">"{g.example}"</div>
-                  )}
+        {restGaps.length > 0 && (
+          <div className="rest-gaps">
+            <div className="eyebrow" style={{ marginBottom: 8 }}>其他差距点</div>
+            {restGaps.map((g, i) => (
+              <div key={i} className="rest-gap-row">
+                <div className="rest-gap-top">
+                  <span className="rest-original">{g.original}</span>
+                  <span className="rest-arrow">→</span>
+                  <span className="rest-better">{g.better}</span>
+                  {g.category && <span className="cat">{CAT_ZH[g.category] ?? g.category}</span>}
                 </div>
-              ))}
-            </div>
-          </>
+                {g.why && <div className="rest-why">{g.why}</div>}
+              </div>
+            ))}
+          </div>
         )}
 
         <div className="actions-stack">
