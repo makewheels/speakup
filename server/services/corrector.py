@@ -1,5 +1,7 @@
 import base64
 import json
+import re
+from typing import AsyncGenerator
 
 import httpx
 from openai import AsyncOpenAI
@@ -8,6 +10,8 @@ from config import DASHSCOPE_API_KEY
 
 _client = None
 
+_API_TIMEOUT = 60.0
+
 
 def _get_client():
     global _client
@@ -15,18 +19,13 @@ def _get_client():
         _client = AsyncOpenAI(
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             api_key=DASHSCOPE_API_KEY,
+            timeout=_API_TIMEOUT,
         )
     return _client
 
 
 async def _to_data_url(image_url: str, timeout: float = 20.0) -> str:
-    """Fetch the image and inline it as a data URL.
-
-    DashScope otherwise re-fetches the original URL on its end; for slow
-    image hosts (e.g. loremflickr from mainland China) that re-fetch dominates
-    the request. Bypassing it by sending bytes directly is materially faster.
-    Falls back to the original URL on any failure so the call still works.
-    """
+    """Fetch the image and inline it as a data URL so DashScope skips its own slow re-fetch."""
     if not image_url or image_url.startswith("data:"):
         return image_url
     if not image_url.startswith(("http://", "https://")):
@@ -64,8 +63,9 @@ WHAT NOT TO DO:
 - Do NOT correct trivial typos or speech-recognition artifacts if meaning is clear.
 
 LANGUAGE OF FEEDBACK:
-- `summary`, `nativeVersion`, gap `original`/`better`: English.
-- gap `why`: default English. Switch to Chinese ONLY when a grammar concept is materially clearer in Chinese. Do not mix within one `why`.
+- `summary`: Chinese.
+- `nativeVersion`, gap `original`/`better`: English.
+- gap `why`: Chinese. Keep English terms or short phrases inline when they clarify meaning.
 
 OUTPUT: strict JSON only, no markdown fences, no commentary.
 
@@ -77,12 +77,14 @@ OUTPUT: strict JSON only, no markdown fences, no commentary.
       "original": "what they said (exact or close paraphrase)",
       "better": "the native version of that piece",
       "why": "1-2 sentences why a native says it this way",
-      "category": "grammar"
+      "category": "grammar",
+      "saveToReview": true
     }
   ]
 }
 
-`category` must be one of: "grammar", "naturalness", "vocabulary", "register"."""
+`category` must be one of: "grammar", "naturalness", "vocabulary", "register".
+`saveToReview`: set true if this gap pattern is common enough in daily speech that memorizing it will noticeably improve fluency; set false for minor one-off style variants."""
 
 
 _EMPTY = {
@@ -92,15 +94,8 @@ _EMPTY = {
 }
 
 
-async def correct_text(text: str, image_url: str = "") -> dict:
-    if not text or len(text.strip().split()) < 3:
-        return {
-            **_EMPTY,
-            "summary": "Try saying more — describe what you see in detail.",
-        }
-
+async def _build_messages(text: str, image_url: str) -> list:
     if image_url:
-        # Pre-fetch ourselves and inline as data URL so DashScope skips its own (slow) image fetch.
         image_payload = await _to_data_url(image_url)
         user_content = [
             {"type": "image_url", "image_url": {"url": image_payload}},
@@ -108,29 +103,75 @@ async def correct_text(text: str, image_url: str = "") -> dict:
         ]
     else:
         user_content = f'The student said:\n"{text}"\n\nExpose gaps against a native speaker.'
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
 
-    resp = await _get_client().chat.completions.create(
-        model="qwen3.6-plus",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
-        temperature=0.3,
-        max_tokens=2000,
-    )
 
-    raw = (resp.choices[0].message.content or "").replace("```json", "").replace("```", "").strip()
-
+def _parse_result(raw: str) -> dict:
+    raw = raw.replace("```json", "").replace("```", "").strip()
+    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
     try:
         result = json.loads(raw)
     except json.JSONDecodeError:
-        return {
-            **_EMPTY,
-            "summary": "Evaluation failed. Try again.",
-        }
-
+        return {**_EMPTY, "summary": "Evaluation failed. Try again."}
     return {
         "summary": result.get("summary", ""),
         "nativeVersion": result.get("nativeVersion", ""),
         "gaps": result.get("gaps", []),
     }
+
+
+async def correct_text(text: str, image_url: str = "") -> dict:
+    if not text or len(text.strip().split()) < 3:
+        return {**_EMPTY, "summary": "Try saying more — describe what you see in detail."}
+
+    messages = await _build_messages(text, image_url)
+    try:
+        resp = await _get_client().chat.completions.create(
+            model="qwen3.6-plus",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=2000,
+            extra_body={"enable_thinking": False},
+        )
+    except Exception:
+        return {**_EMPTY, "summary": "AI service timed out. Please try again."}
+
+    raw = (resp.choices[0].message.content or "")
+    return _parse_result(raw)
+
+
+async def correct_text_stream(
+    text: str, image_url: str = ""
+) -> AsyncGenerator[tuple[str, dict], None]:
+    """流式版本，yield (event_type, data) 元组：
+    - ("chunk", {"text": "..."})  — 原始 token
+    - ("done",  {summary, nativeVersion, gaps})
+    - ("error", {"message": "..."})
+    """
+    if not text or len(text.strip().split()) < 3:
+        yield "done", {**_EMPTY, "summary": "Try saying more — describe what you see in detail."}
+        return
+
+    messages = await _build_messages(text, image_url)
+    try:
+        stream = await _get_client().chat.completions.create(
+            model="qwen3.6-plus",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=2000,
+            extra_body={"enable_thinking": False},
+            stream=True,
+        )
+        full_text = ""
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content or ""
+            if delta:
+                full_text += delta
+                yield "chunk", {"text": delta}
+
+        yield "done", _parse_result(full_text)
+    except Exception:
+        yield "error", {"message": "AI service timed out. Please try again."}
