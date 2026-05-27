@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
 
 from db.connection import get_db
-from services.oss_storage import image_key, upload_from_url
+from services.file_service import get_or_upload_from_url, orig_url
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -16,14 +16,13 @@ class CreateSessionRequest(BaseModel):
     imageUrl: str = ""
 
 
-async def _archive_image(session_id: str, user_id: str, image_url: str) -> None:
-    """后台任务：把图片拉到 OSS 并更新 session.ossImageUrl。失败静默忽略。"""
+async def _archive_image(session_id: str, image_url: str, topic: str) -> None:
+    """后台任务：把图片归档到 files 集合 + OSS，更新 session.fileId / ossImageUrl。失败静默忽略。"""
     try:
-        key = image_key(user_id, session_id)
-        oss_url = await upload_from_url(key, image_url)
+        file_doc = await get_or_upload_from_url(image_url, source="loremflickr", topic=topic)
         await get_db().sessions.update_one(
             {"_id": ObjectId(session_id)},
-            {"$set": {"ossImageUrl": oss_url}},
+            {"$set": {"fileId": file_doc["_id"], "ossImageUrl": orig_url(file_doc)}},
         )
     except Exception:
         pass
@@ -43,7 +42,7 @@ async def create_session(req: CreateSessionRequest, background_tasks: Background
     doc["_id"] = session_id
 
     if req.imageUrl:
-        background_tasks.add_task(_archive_image, session_id, req.userId, req.imageUrl)
+        background_tasks.add_task(_archive_image, session_id, req.imageUrl, req.topic)
 
     return doc
 
