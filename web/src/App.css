@@ -444,6 +444,16 @@ button { font-family: inherit; }
   line-height: 1.6;
 }
 
+.su-corr .example {
+  grid-column: 1 / -1;
+  font-family: var(--ff-serif);
+  font-size: 14px;
+  color: var(--accent);
+  font-style: italic;
+  padding-top: 2px;
+  line-height: 1.55;
+}
+
 .su-corr .reason .cat {
   font-family: var(--ff-mono);
   font-size: 11px;
