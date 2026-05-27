@@ -15,6 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **建议旋转的凭据**：MongoDB 密码（在 AI 对话历史里出现过明文）。详见 [AGENTS.md 凭据旋转 checklist](AGENTS.md)。
 
 ### Added
+- **file_service 测试**：新增 `tests/unit/test_file_service.py`（上传新图、MD5 去重跳过、OSS key 格式、mime 类型扩展名）和 `tests/unit/test_id_generator.py`（前缀、唯一性、时间戳格式、长度）
+- **AGENTS.md 开发测试流程**：补充测试分层规范、每次改动 checklist、async 单元测试注意事项
 - **files 集合 + ID 前缀体系**：新增 `files` MongoDB 集合统一管理图片/视频文件；ID 改为 `{prefix}_{毫秒时间戳}{6位随机hex}` 格式（`u_` / `s_` / `f_` / `w_`），参考 video-2022 规范；OSS 路径改为 `files/{fileId}/orig.jpg`，预留 `thumb` / `512` 等变体位置
 - **MD5 内容去重**：图片上传前算 MD5 查 files 集合，相同内容只存一份 OSS，不重复上传
 - **设计文档**：新增 `docs/design/ids.md`、`docs/design/storage.md`、`docs/design/schema.md`
