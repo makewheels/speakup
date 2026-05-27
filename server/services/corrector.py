@@ -167,11 +167,15 @@ async def correct_text_stream(
         )
         full_text = ""
         async for chunk in stream:
+            if not chunk.choices:
+                continue
             delta = chunk.choices[0].delta.content or ""
             if delta:
                 full_text += delta
                 yield "chunk", {"text": delta}
 
         yield "done", _parse_result(full_text)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("correct_text_stream error: %s: %s", type(e).__name__, e)
         yield "error", {"message": "AI service timed out. Please try again."}
