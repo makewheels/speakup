@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.file_service import get_or_upload_from_url, orig_url
-from services.oss_storage import upload_bytes_async
+from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -49,6 +49,14 @@ async def create_session(req: CreateSessionRequest, background_tasks: Background
     return doc
 
 
+def _sign_recordings(session: dict) -> dict:
+    """把 recordings 里的 key 替换为临时签名 URL（1 小时有效）。"""
+    for rec in session.get("recordings", []):
+        if "key" in rec:
+            rec["url"] = oss_signed_url(rec["key"])
+    return session
+
+
 @router.get("/{sid}")
 async def get_session(sid: str):
     try:
@@ -58,7 +66,7 @@ async def get_session(sid: str):
     if not session:
         raise HTTPException(404, "会话不存在")
     session["_id"] = str(session["_id"])
-    return session
+    return _sign_recordings(session)
 
 
 @router.get("")
@@ -92,10 +100,11 @@ async def upload_recording(
     ts = int(time.time() * 1000)
     key = f"recordings/{userId}/{session_id}/{ts}.{ext}"
 
-    url = await upload_bytes_async(key, data, content_type)
+    await upload_bytes_async(key, data, content_type)
     now = datetime.now(timezone.utc)
     await get_db().sessions.update_one(
         {"_id": ObjectId(session_id)},
-        {"$push": {"recordings": {"url": url, "createdAt": now}}},
+        {"$push": {"recordings": {"key": key, "createdAt": now}}},
     )
-    return {"url": url}
+    signed = oss_signed_url(key)
+    return {"url": signed}
