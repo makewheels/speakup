@@ -8,8 +8,26 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.corrector import correct_text, correct_text_stream
+from services.oss_storage import get_url as oss_signed_url
 
 router = APIRouter(prefix="/api/correct", tags=["correct"])
+
+
+async def _get_image_url(session: dict, req_image_url: str) -> str:
+    """获取 AI 评估用图片 URL：优先生成 OSS 签名 URL（1 小时有效，任何人可下载），
+    否则用 session 存储的原始 URL 或请求传入的 URL。
+    签名 URL 绕过 bucket ACL 限制，_to_data_url 能正常下载转 base64 送给 DashScope。
+    """
+    file_id = session.get("fileId")
+    if file_id:
+        try:
+            file_doc = await get_db().files.find_one({"_id": file_id})
+            if file_doc:
+                key = file_doc["variants"]["orig"]["key"]
+                return oss_signed_url(key)
+        except Exception:
+            pass
+    return session.get("imageUrl") or req_image_url
 
 
 class CorrectRequest(BaseModel):
@@ -75,7 +93,7 @@ async def correct(req: CorrectRequest):
     if not session:
         raise HTTPException(404, "会话不存在")
 
-    image_url = session.get("ossImageUrl") or req.imageUrl
+    image_url = await _get_image_url(session, req.imageUrl)
     result = await correct_text(req.text, image_url)
     auto_saved = await _save_attempt_and_vocabulary(req, result)
     return {"sessionId": req.sessionId, "autoSaved": auto_saved, **result}
@@ -92,7 +110,7 @@ async def correct_stream(req: CorrectRequest):
     if not session:
         raise HTTPException(404, "会话不存在")
 
-    image_url = session.get("ossImageUrl") or req.imageUrl
+    image_url = await _get_image_url(session, req.imageUrl)
 
     async def generate():
         full_result = None
