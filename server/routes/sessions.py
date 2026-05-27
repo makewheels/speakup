@@ -60,7 +60,7 @@ async def get_session(sid: str):
     return session
 
 
-@router.get("/")
+@router.get("")
 async def list_sessions(userId: str = Query(...), limit: int = 20, skip: int = 0):
     cursor = get_db().sessions.find({"userId": userId}).sort("createdAt", -1).skip(skip).limit(limit)
     sessions = []

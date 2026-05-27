@@ -53,6 +53,7 @@ async def _save_attempt_and_vocabulary(req: CorrectRequest, result: dict) -> int
             "note": gap.get("why", ""),
             "contextSentence": result.get("nativeVersion", ""),
             "sessionId": req.sessionId,
+            "imageUrl": req.imageUrl,
             "createdAt": now,
             "nextReviewAt": now,
             "reviewCount": 0,
