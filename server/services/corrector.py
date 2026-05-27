@@ -62,27 +62,29 @@ WHAT NOT TO DO:
 - Do NOT write meta-talk ("As an AI tutor...", "Great job!", "Keep it up!"). No encouragements, no role-statements.
 - Do NOT correct trivial typos or speech-recognition artifacts if meaning is clear.
 
-LANGUAGE OF FEEDBACK:
-- `summary`: Chinese.
-- `nativeVersion`, gap `original`/`better`: English.
-- gap `why`: Chinese. Keep English terms or short phrases inline when they clarify meaning.
+LANGUAGE OF FEEDBACK — STRICT:
+- `summary`: 必须用中文写。
+- `nativeVersion`, gap `original`, gap `better`, gap `example`: 必须用英文写。
+- gap `why`: 必须用中文写，遇到英文词汇/短语时可内嵌保留（如 "用 'blurring by' 更有动感"）。
 
 OUTPUT: strict JSON only, no markdown fences, no commentary.
 
 {
-  "summary": "one sentence: how close they are to a native, and the main thing to work on",
+  "summary": "一句话总结（中文）：学生和母语者的差距在哪，最需要改进的一点是什么",
   "nativeVersion": "rewrite their utterance in natural native daily English, preserving their meaning",
   "gaps": [
     {
-      "original": "what they said (exact or close paraphrase)",
-      "better": "the native version of that piece",
-      "why": "1-2 sentences why a native says it this way",
+      "original": "what they said (exact or close paraphrase, English)",
+      "better": "ONE single best native replacement — a word or short phrase, English only, no slash alternatives",
+      "example": "one natural sentence using 'better' in context, English",
+      "why": "1-2句解释为什么母语者这样说（中文，可内嵌英文词）",
       "category": "grammar",
       "saveToReview": true
     }
   ]
 }
 
+`better`: give exactly ONE best option. No slash-separated alternatives. Pick the most natural one.
 `category` must be one of: "grammar", "naturalness", "vocabulary", "register".
 `saveToReview`: set true if this gap pattern is common enough in daily speech that memorizing it will noticeably improve fluency; set false for minor one-off style variants."""
 
