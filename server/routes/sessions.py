@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+
 from bson import ObjectId
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from pydantic import BaseModel
+
 from db.connection import get_db
+from services.file_service import get_or_upload_from_url, orig_url
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -13,8 +16,20 @@ class CreateSessionRequest(BaseModel):
     imageUrl: str = ""
 
 
+async def _archive_image(session_id: str, image_url: str, topic: str) -> None:
+    """后台任务：把图片归档到 files 集合 + OSS，更新 session.fileId / ossImageUrl。失败静默忽略。"""
+    try:
+        file_doc = await get_or_upload_from_url(image_url, source="loremflickr", topic=topic)
+        await get_db().sessions.update_one(
+            {"_id": ObjectId(session_id)},
+            {"$set": {"fileId": file_doc["_id"], "ossImageUrl": orig_url(file_doc)}},
+        )
+    except Exception:
+        pass
+
+
 @router.post("")
-async def create_session(req: CreateSessionRequest):
+async def create_session(req: CreateSessionRequest, background_tasks: BackgroundTasks):
     doc = {
         "userId": req.userId,
         "topic": req.topic,
@@ -23,7 +38,12 @@ async def create_session(req: CreateSessionRequest):
         "createdAt": datetime.now(timezone.utc),
     }
     result = await get_db().sessions.insert_one(doc)
-    doc["_id"] = str(result.inserted_id)
+    session_id = str(result.inserted_id)
+    doc["_id"] = session_id
+
+    if req.imageUrl:
+        background_tasks.add_task(_archive_image, session_id, req.imageUrl, req.topic)
+
     return doc
 
 
@@ -39,7 +59,7 @@ async def get_session(sid: str):
     return session
 
 
-@router.get("/")
+@router.get("")
 async def list_sessions(userId: str = Query(...), limit: int = 20, skip: int = 0):
     cursor = get_db().sessions.find({"userId": userId}).sort("createdAt", -1).skip(skip).limit(limit)
     sessions = []

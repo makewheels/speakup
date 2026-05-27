@@ -15,6 +15,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **建议旋转的凭据**：MongoDB 密码（在 AI 对话历史里出现过明文）。详见 [AGENTS.md 凭据旋转 checklist](AGENTS.md)。
 
 ### Added
+- **files 集合 + ID 前缀体系**：新增 `files` MongoDB 集合统一管理图片/视频文件；ID 改为 `{prefix}_{毫秒时间戳}{6位随机hex}` 格式（`u_` / `s_` / `f_` / `w_`），参考 video-2022 规范；OSS 路径改为 `files/{fileId}/orig.jpg`，预留 `thumb` / `512` 等变体位置
+- **MD5 内容去重**：图片上传前算 MD5 查 files 集合，相同内容只存一份 OSS，不重复上传
+- **设计文档**：新增 `docs/design/ids.md`、`docs/design/storage.md`、`docs/design/schema.md`
+- **历史列表页**：`/history` 展示所有练习记录，每条显示图片缩略图、topic、时间、AI summary 摘要、差距数；支持分页加载更多
+- **会话详情页**：`/history/:sessionId` 展示单次会话的全部尝试，包括原文、改写、逐条差距分析
+- **底部导航新增"历史"标签**：使用 clock 图标，路由到 `/history`
+- **复习列表图片缩略图**：vocabulary 列表每行左侧显示对应练习图片（使用 `imageUrl` 字段）
+- **SSE 流式输出**：`POST /api/correct/stream` 用 Server-Sent Events 实时推送 AI token，前端评估阶段实时显示"已生成 N 字符"进度，体感等待明显缩短
+- **AI 自动决定复习项**：prompt schema 新增 `saveToReview` 字段，AI 对每个 gap 判断是否值得记忆，后端自动写入 vocabulary，响应带 `autoSaved` 计数
+- **图片归档到 OSS**：创建 session 时后台任务（BackgroundTask）把 loremflickr 图片拉到阿里云 OSS，key 格式 `images/{userId}/{sessionId}.jpg`，更新 `session.ossImageUrl`
+- **OSS 路径规范**：`oss_storage.py` 新增 `image_key(user_id, session_id)`、`upload_from_url(key, url)` 异步函数、`upload_bytes_async` 线程池包装；bucket 本身区分 dev/prod，key 内不重复存环境信息
+
+### Changed
+- **反馈页移除手动"添加到复习"按钮**：AI 已自动收录标注项，gap 卡片上显示"已收录"标签；section-title 显示自动保存数量
+
+### Fixed
+- **AI 评估卡住问题**：关闭 qwen3 thinking 模式（`enable_thinking: false`），避免模型先生成大量隐藏思考 token 导致响应极慢
+- **后端 API 超时**：DashScope 调用增加 60 秒超时，超时后返回友好提示而非无限等待
+- **前端请求超时**：所有 fetch 请求增加 90 秒 AbortController 超时，超时后提示用户重试
+- **防御 `<think>` 标签**：解析 AI 响应时剥离可能混入的 thinking 标签，避免 JSON 解析失败
+- **CI Node.js 20 弃用警告**：升级 `actions/checkout` v4→v5、`setup-node` v4→v5、`setup-uv` v6→v7
+- **麦克风 HTTP 拦截**：HTTP 下 Chrome 静默拒绝麦克风权限且不弹窗，增加协议检测和明确提示
+- **HTTPS 恢复**：腾讯云 443 端口 TLS 被网络层拦截，改用 8443 端口提供 HTTPS；HTTP 自动 301 跳转到 `https://:8443`
+- **部署目录缺失**：rsync 推送 `web/dist` 前未创建目标目录导致部署失败，改为 rsync 前先 mkdir + client→web 迁移
+
+### Changed
+- **AI 反馈改中文**：summary 和 gap.why 改用中文输出，original/better/nativeVersion 保持英文
+- **纠正区字体放大**：from/to 13px→15px、reason 12px→14px、arrow 11px→13px、category 10px→11px
+- **前端文件夹重命名**：`client/` → `web/`，CI/CD 和部署路径同步更新
+
+### Security
+- **入库文件不再包含任何 IP / 主机名 / 凭据**。`CLAUDE.md`、`README.md` 改用占位描述。
+- 新增 [AGENTS.md](AGENTS.md) 作为面向所有 agent 的项目文档（遵循 agents.md 约定）。包含技术栈、项目结构、部署目标抽象描述、SSH 命令模板（具体 host 用 `<HOST>` 占位）、known deploy bugs、凭据旋转 checklist、仓库工作流约定。
+- `CLAUDE.md` 改为 symlink → `AGENTS.md`，Claude Code 仍能读到。两份文档合一。
+- `.gitignore` 加 `.claude/settings.local.json`（Claude Code 本地权限缓存，含历史 SSH 命令明文 IP，不应入库）。
+- **遗留风险**：git history 里仍有 ~54 处旧 IP 引用（10 个历史 commit）+ 已关闭的 PR description / commit 里也含 IP。要彻底清除需 `git filter-repo` 重写历史（高风险：改写所有 commit SHA，破坏现有 clone / fork，需强制推送），等待用户授权。
+- **建议旋转的凭据**：MongoDB 密码（在 AI 对话历史里出现过明文）。详见 [AGENTS.md 凭据旋转 checklist](AGENTS.md)。
+
+### Added
+- **阿里云 OSS 集成**：创建 dev/prod bucket（speakup-dev, speakup-prod），RAM 用户 speakup-oss + 仅限 speakup bucket 的 IAM 策略，oss2 SDK 服务模块 `oss_storage.py`
 - **前端 vitest 测试**：`client/src/**/*.test.jsx`，11 个用例覆盖 Icon 渲染 + LoginPage 表单校验 / 提交，807ms 跑完。CI 在 `test-client` job 里跑。
 - **差距框架（gap-exposure）** 取代"纠错"作为产品本质 — see `SPEC.md` §2
 - 新 AI 输出 schema：`{summary, nativeVersion, gaps[{original, better, why, category}]}`

@@ -33,7 +33,7 @@ uv sync
 uv run python main.py      # http://localhost:3001
 
 # 前端
-cd client
+cd web
 pnpm install
 pnpm run dev               # http://localhost:5173
 ```
@@ -63,7 +63,7 @@ git push  # 自动触发部署
 
 ```
 speakup/
-├── client/               # React 前端
+├── web/               # React 前端
 │   └── src/pages/        # Login, Practice, History, Vocabulary
 ├── server/               # FastAPI 后端
 │   ├── main.py           # 入口

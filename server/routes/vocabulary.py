@@ -41,7 +41,7 @@ async def add_words(req: AddWordsRequest):
     return {"added": added}
 
 
-@router.get("/")
+@router.get("")
 async def list_vocabulary(userId: str = Query(...), due: bool = False):
     filter = {"userId": userId}
     if due:

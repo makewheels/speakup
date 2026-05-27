@@ -4,6 +4,8 @@ import Layout from "./components/layout/Layout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import PracticePage from "./pages/PracticePage.jsx";
 import VocabularyPage from "./pages/VocabularyPage.jsx";
+import HistoryPage from "./pages/HistoryPage.jsx";
+import SessionDetailPage from "./pages/SessionDetailPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import "./App.css";
 
@@ -22,6 +24,8 @@ function AppRoutes() {
         <Route path="/practice" element={<PracticePage />} />
         <Route path="/practice/:sessionId" element={<PracticePage />} />
         <Route path="/vocabulary" element={<VocabularyPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/history/:sessionId" element={<SessionDetailPage />} />
         <Route path="/me" element={<ProfilePage />} />
       </Route>
     </Routes>
