@@ -6,6 +6,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Added
+- **录音上传 OSS**：练习时 MediaRecorder 与 Web Speech API 并行录音，AI 评估完成后自动上传到 OSS（`recordings/{userId}/{sessionId}/{ts}.webm`），失败静默忽略
+- **历史页录音回放**：会话详情页每次尝试下方展示原生 `<audio>` 播放器，有录音才显示
+- **后端录音端点**：`POST /api/sessions/{id}/recording` 接收音频 Blob，校验用户归属后上传 OSS
+
+### Fixed
+- **AI 错误消息区分超时 vs 其他错误**：之前任何异常都显示 "timed out"，现在区分超时（Timeout 类异常）和其他错误（如 DashScope 400）给出不同提示
+
 ### Changed
 - **图片传给 DashScope 改用 OSS URL 直传**：评估时优先用 `session.ossImageUrl`（稳定内容），OSS URL 直接传给 DashScope 不再下载转 base64，省服务器出口带宽；loremflickr URL 仍走下载路径（内容每次随机）
 
