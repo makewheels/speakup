@@ -15,6 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **建议旋转的凭据**：MongoDB 密码（在 AI 对话历史里出现过明文）。详见 [AGENTS.md 凭据旋转 checklist](AGENTS.md)。
 
 ### Added
+- **prompt 强化口语化方向**：明确要求 better / example 给"咖啡馆英语"而非教科书答案，禁止学术/书面词汇（如用 "wiped out" 不用 "fatigued"，用 "It's freezing" 不用 "extremely cold"）
 - **gap 新增 example 字段**：每个差距点 AI 给出一句自然例句，展示 better 表达在真实对话中的用法，前端反馈页和历史详情页同步展示
 - **prompt 优化**：强制 better 只返回一个最佳表达（不再用 / 分隔多个备选）；强化中文输出要求（summary / why 必须中文）
 
