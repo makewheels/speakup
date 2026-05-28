@@ -1389,77 +1389,81 @@ button { font-family: inherit; }
   font-family: var(--ff-cn);
 }
 
-/* ── 反馈页：今日重点 hero gap ─────────────────────────────────── */
+/* ── 反馈页：gap 对比卡片 ──────────────────────────────────────── */
 .hero-gap {
-  background: var(--surface);
+  background: var(--bg-elev);
   border: 1.5px solid var(--accent);
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 14px;
 }
-.hero-better {
-  font-family: var(--ff-en);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--ink-1);
-  margin: 6px 0 3px;
-  line-height: 1.3;
+
+/* 左右对比行 */
+.gap-compare {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
 }
-.hero-original {
-  font-family: var(--ff-cn);
-  font-size: 12px;
-  color: var(--ink-4);
-  text-decoration: line-through;
-  margin-bottom: 8px;
-}
-.hero-why {
-  font-family: var(--ff-cn);
-  font-size: 14px;
-  color: var(--ink-2);
-  line-height: 1.6;
-}
-.hero-example {
+.gap-compare.compact { margin-bottom: 0; }
+.gap-side { flex: 1; min-width: 0; }
+.gap-col-label {
   font-family: var(--ff-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+  margin-bottom: 4px;
+}
+.gap-original-text {
+  font-family: var(--ff-mono);
+  font-size: 15px;
+  color: var(--ink-3);
+  text-decoration: line-through;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.gap-original-text.sm { font-size: 13px; }
+.gap-better-text {
+  font-family: var(--ff-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.gap-better-text.sm { font-size: 15px; font-weight: 600; }
+.gap-chevron {
+  color: var(--ink-4);
+  font-size: 14px;
+  padding-top: 18px;
+  flex-shrink: 0;
+}
+.gap-compare.compact .gap-chevron { padding-top: 0; align-self: center; }
+
+/* 解释 & 例句 */
+.gap-why {
+  font-family: var(--ff-cn);
   font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.7;
+  margin-top: 8px;
+}
+.gap-why.sm { font-size: 12px; color: var(--ink-3); }
+.gap-example {
+  font-family: var(--ff-mono);
+  font-size: 12px;
   color: var(--accent);
   font-style: italic;
-  margin-top: 8px;
+  margin-top: 6px;
   line-height: 1.5;
 }
 
-/* ── 反馈页：其他差距点轻量列表 ───────────────────────────────── */
-.rest-gaps {
-  margin-bottom: 18px;
-}
+/* ── 反馈页：其他差距点列表 ────────────────────────────────────── */
+.rest-gaps { margin-bottom: 18px; }
 .rest-gap-row {
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border);
-}
-.rest-gap-top {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-.rest-original {
-  font-family: var(--ff-mono);
-  font-size: 13px;
-  color: var(--ink-4);
-  text-decoration: line-through;
-}
-.rest-arrow { font-size: 12px; color: var(--ink-4); }
-.rest-better {
-  font-family: var(--ff-en);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink-1);
-}
-.rest-why {
-  font-family: var(--ff-cn);
-  font-size: 12px;
-  color: var(--ink-3);
-  margin-top: 3px;
-  line-height: 1.5;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
 }
 
 /* ── 复习页：词汇卡片 ─────────────────────────────────────────── */
@@ -1468,14 +1472,14 @@ button { font-family: inherit; }
   align-items: flex-start;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 .vocab-body { flex: 1; min-width: 0; }
 .vocab-word {
-  font-family: var(--ff-en);
+  font-family: var(--ff-mono);
   font-size: 19px;
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
   margin-bottom: 2px;
   line-height: 1.3;
 }
@@ -1503,7 +1507,7 @@ button { font-family: inherit; }
   font-size: 10px;
   padding: 2px 7px;
   border-radius: 4px;
-  background: var(--surface-2, #f5f0e8);
+  background: var(--bg-mute);
   color: var(--ink-3);
 }
 .vocab-status.due {

@@ -1,12 +1,11 @@
 """Pure logic tests for the corrector — no Mongo, no real LLM, no real image fetch."""
 
 import asyncio
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.corrector import correct_text, correct_text_stream
+from services.corrector import CorrectResult, GapItem, correct_text, correct_text_stream
 
 
 @pytest.fixture(autouse=True)
@@ -22,16 +21,12 @@ def _no_image_fetch(monkeypatch):
     monkeypatch.setattr("services.corrector._to_data_url", _identity)
 
 
-def _fake_llm(content: str):
-    """Build a fake AsyncOpenAI client whose chat completion returns `content`."""
-    fake_msg = MagicMock()
-    fake_msg.content = content
-    fake_choice = MagicMock()
-    fake_choice.message = fake_msg
-    fake_resp = MagicMock()
-    fake_resp.choices = [fake_choice]
+def _fake_llm(result: CorrectResult):
+    """Build a fake LangChain client whose structured output returns the given CorrectResult."""
+    fake_chain = MagicMock()
+    fake_chain.ainvoke = AsyncMock(return_value=result)
     fake_client = MagicMock()
-    fake_client.chat.completions.create = AsyncMock(return_value=fake_resp)
+    fake_client.with_structured_output = MagicMock(return_value=fake_chain)
     return fake_client
 
 
@@ -49,100 +44,77 @@ def test_empty_input_skips_llm():
 
 
 def test_valid_json_response_mapped_to_schema():
-    payload = {
-        "summary": "Solid try, one slip.",
-        "nativeVersion": "A cat is sleeping on the couch.",
-        "gaps": [
-            {
-                "original": "cat sleeping",
-                "better": "cat is sleeping",
-                "why": "needs auxiliary 'is'",
-                "category": "grammar",
-                "saveToReview": True,
-            }
-        ],
-    }
-    fake = _fake_llm(json.dumps(payload))
+    gap = GapItem(original="cat sleeping", better="cat is sleeping", why="needs auxiliary 'is'", category="grammar", saveToReview=True)
+    fake_result = CorrectResult(summary="Solid try, one slip.", nativeVersion="A cat is sleeping on the couch.", gaps=[gap])
+    fake = _fake_llm(fake_result)
     with patch("services.corrector._get_client", return_value=fake):
         result = asyncio.run(
             correct_text("There is a cat sleeping on the couch", "https://example.com/img.jpg")
         )
-    assert result["summary"] == payload["summary"]
-    assert result["nativeVersion"] == payload["nativeVersion"]
+    assert result["summary"] == fake_result.summary
+    assert result["nativeVersion"] == fake_result.nativeVersion
     assert len(result["gaps"]) == 1
     assert result["gaps"][0]["category"] == "grammar"
     assert result["gaps"][0]["saveToReview"] is True
 
 
-def test_response_wrapped_in_markdown_fences_still_parses():
-    payload = {"summary": "ok", "nativeVersion": "X", "gaps": []}
-    fenced = "```json\n" + json.dumps(payload) + "\n```"
-    fake = _fake_llm(fenced)
-    with patch("services.corrector._get_client", return_value=fake):
-        result = asyncio.run(
-            correct_text("There is a cat outside", "https://example.com/img.jpg")
-        )
-    assert result["summary"] == "ok"
-
-
-def test_malformed_json_returns_failure_message_not_crash():
-    fake = _fake_llm("not json at all, just rambling text from the model")
-    with patch("services.corrector._get_client", return_value=fake):
+def test_llm_exception_returns_error_message_not_crash():
+    fake_chain = MagicMock()
+    fake_chain.ainvoke = AsyncMock(side_effect=Exception("DashScope 400 BadRequest"))
+    fake_client = MagicMock()
+    fake_client.with_structured_output = MagicMock(return_value=fake_chain)
+    with patch("services.corrector._get_client", return_value=fake_client):
         result = asyncio.run(
             correct_text("There is a cat outside", "https://example.com/img.jpg")
         )
     assert result["gaps"] == []
-    assert "failed" in result["summary"].lower() or "fail" in result["summary"].lower()
+    assert "error" in result["summary"].lower()
 
 
 def test_image_branch_includes_image_block_in_payload():
     """When imageUrl is supplied, the chat payload must carry an image_url content block."""
-    payload = {"summary": "ok", "nativeVersion": "x", "gaps": []}
-    fake = _fake_llm(json.dumps(payload))
+    fake_result = CorrectResult(summary="ok", nativeVersion="x", gaps=[])
+    fake = _fake_llm(fake_result)
     with patch("services.corrector._get_client", return_value=fake):
         asyncio.run(correct_text("a man is walking", "https://example.com/img.jpg"))
-    call_args = fake.chat.completions.create.await_args
-    messages = call_args.kwargs["messages"]
-    user_content = messages[-1]["content"]
+    call_args = fake.with_structured_output.return_value.ainvoke.await_args
+    messages = call_args.args[0]
+    user_content = messages[-1].content
     assert isinstance(user_content, list)
     assert any(block.get("type") == "image_url" for block in user_content)
 
 
 def test_text_only_branch_when_no_image():
-    payload = {"summary": "ok", "nativeVersion": "x", "gaps": []}
-    fake = _fake_llm(json.dumps(payload))
+    fake_result = CorrectResult(summary="ok", nativeVersion="x", gaps=[])
+    fake = _fake_llm(fake_result)
     with patch("services.corrector._get_client", return_value=fake):
         asyncio.run(correct_text("a man is walking", ""))
-    call_args = fake.chat.completions.create.await_args
-    messages = call_args.kwargs["messages"]
-    assert isinstance(messages[-1]["content"], str)
+    call_args = fake.with_structured_output.return_value.ainvoke.await_args
+    messages = call_args.args[0]
+    assert isinstance(messages[-1].content, str)
 
 
-# ── correct_text_stream 单元测试 ────────────────────────────────────────────
+# ── correct_text_stream 単元测试 ────────────────────────────────────────────
 
 def _stream_chunk(text: str):
-    delta = MagicMock()
-    delta.content = text
-    choice = MagicMock()
-    choice.delta = delta
     chunk = MagicMock()
-    chunk.choices = [choice]
+    chunk.content = text
     return chunk
 
 
-def _empty_choices_chunk():
+def _empty_content_chunk():
     chunk = MagicMock()
-    chunk.choices = []
+    chunk.content = ""
     return chunk
 
 
 def _fake_stream_client(chunks):
-    async def _gen():
+    async def _gen(*args, **kwargs):
         for c in chunks:
             yield c
 
     fake = MagicMock()
-    fake.chat.completions.create = AsyncMock(return_value=_gen())
+    fake.astream = MagicMock(return_value=_gen())
     return fake
 
 
@@ -163,6 +135,7 @@ async def test_stream_short_input_yields_done_immediately():
 
 @pytest.mark.asyncio
 async def test_stream_emits_chunk_events_then_done():
+    import json
     payload = {"summary": "nice", "nativeVersion": "A cat sleeps.", "gaps": []}
     raw = json.dumps(payload)
     chunks = [_stream_chunk(c) for c in raw]
@@ -177,11 +150,12 @@ async def test_stream_emits_chunk_events_then_done():
 
 
 @pytest.mark.asyncio
-async def test_stream_skips_empty_choices_usage_chunk():
-    """DashScope sends a final usage chunk with choices=[] — must not crash."""
+async def test_stream_skips_empty_content_chunk():
+    """Chunks with empty content must not generate chunk events."""
+    import json
     payload = {"summary": "ok", "nativeVersion": "x", "gaps": []}
     raw = json.dumps(payload)
-    chunks = [_stream_chunk(raw), _empty_choices_chunk()]
+    chunks = [_stream_chunk(raw), _empty_content_chunk()]
     fake = _fake_stream_client(chunks)
     with patch("services.corrector._get_client", return_value=fake):
         events = await _collect("There is a cat sleeping here", "")
@@ -191,9 +165,9 @@ async def test_stream_skips_empty_choices_usage_chunk():
 
 @pytest.mark.asyncio
 async def test_stream_exception_yields_error_event_not_crash():
-    """Any exception in the stream (e.g. BadRequestError) → error event, not unhandled exception."""
+    """Any exception in the stream → error event, not unhandled exception."""
     fake = MagicMock()
-    fake.chat.completions.create = AsyncMock(side_effect=Exception("connection refused"))
+    fake.astream = MagicMock(side_effect=Exception("connection refused"))
     with patch("services.corrector._get_client", return_value=fake):
         events = await _collect("There is a cat sleeping here", "")
     assert len(events) == 1
