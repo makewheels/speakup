@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 FAKE_AI_RESULT = {
     "summary": "Two grammar slips, otherwise the meaning lands.",
@@ -109,3 +110,49 @@ def test_correct_rejects_other_users_session(client, user_id, session_id):
             json={"userId": other, "sessionId": session_id, "text": "x y z", "imageUrl": ""},
         )
     assert resp.status_code == 404
+
+
+# ── _get_image_url 单元测试 ──────────────────────────────────────────────────
+
+def test_get_image_url_uses_signed_url_when_file_archived(client, user_id):
+    """fileId 存在时应生成 OSS 签名 URL，而不是用 ossImageUrl（bucket private 会 403）。"""
+    from routes.correct import _get_image_url
+
+    fake_file_doc = {
+        "_id": "f_abc123",
+        "variants": {"orig": {"key": "files/f_abc123/orig.jpg", "url": "https://oss.example.com/files/f_abc123/orig.jpg"}},
+    }
+    fake_signed = "https://oss.example.com/files/f_abc123/orig.jpg?Signature=xxx&Expires=999"
+
+    session = {
+        "fileId": "f_abc123",
+        "imageUrl": "https://loremflickr.com/640/640/cat",
+        "ossImageUrl": "https://oss.example.com/files/f_abc123/orig.jpg",
+    }
+
+    with patch("routes.correct.get_db") as mock_db, \
+         patch("routes.correct.oss_signed_url", return_value=fake_signed):
+        mock_db.return_value.files.find_one = AsyncMock(return_value=fake_file_doc)
+        result = asyncio.run(_get_image_url(session, "https://req.example.com/img.jpg"))
+
+    assert result == fake_signed
+
+
+def test_get_image_url_falls_back_to_loremflickr_when_no_file(client, user_id):
+    """fileId 不存在时用 session.imageUrl（loremflickr），不用 ossImageUrl。"""
+    from routes.correct import _get_image_url
+
+    session = {
+        "imageUrl": "https://loremflickr.com/640/640/cat",
+        "ossImageUrl": "https://oss.example.com/private.jpg",
+    }
+    result = asyncio.run(_get_image_url(session, "https://req.example.com/img.jpg"))
+    assert result == "https://loremflickr.com/640/640/cat"
+
+
+def test_get_image_url_falls_back_to_req_when_session_has_no_imageurl(client, user_id):
+    """session 没有 imageUrl 时用请求里的 imageUrl。"""
+    from routes.correct import _get_image_url
+
+    result = asyncio.run(_get_image_url({}, "https://req.example.com/img.jpg"))
+    assert result == "https://req.example.com/img.jpg"

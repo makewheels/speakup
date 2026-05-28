@@ -138,8 +138,10 @@ async def correct_text(text: str, image_url: str = "") -> dict:
             max_tokens=2000,
             extra_body={"enable_thinking": False},
         )
-    except Exception:
-        return {**_EMPTY, "summary": "AI service timed out. Please try again."}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("correct_text error: %s: %s", type(e).__name__, e)
+        return {**_EMPTY, "summary": "AI service error. Please try again."}
 
     raw = (resp.choices[0].message.content or "")
     return _parse_result(raw)
@@ -180,4 +182,5 @@ async def correct_text_stream(
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("correct_text_stream error: %s: %s", type(e).__name__, e)
-        yield "error", {"message": "AI service timed out. Please try again."}
+        msg = "AI service timed out. Please try again." if "timeout" in type(e).__name__.lower() else f"AI service error ({type(e).__name__}). Please try again."
+        yield "error", {"message": msg}
