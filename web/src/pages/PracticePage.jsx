@@ -224,18 +224,27 @@ export default function PracticePage() {
 
         {heroGap && (
           <div className="hero-gap">
-            <div className="eyebrow">今日重点</div>
-            <div className="hero-better">{heroGap.better}</div>
-            <div className="hero-original">你说的：{heroGap.original}</div>
-            {heroGap.why && <div className="hero-why">{heroGap.why}</div>}
-            {heroGap.example && <div className="hero-example">"{heroGap.example}"</div>}
+            <div className="eyebrow" style={{ marginBottom: 10 }}>今日重点</div>
+            <div className="gap-compare">
+              <div className="gap-side">
+                <div className="gap-col-label">你说的</div>
+                <div className="gap-original-text">{heroGap.original}</div>
+              </div>
+              <div className="gap-chevron">→</div>
+              <div className="gap-side">
+                <div className="gap-col-label" style={{ color: "var(--accent)" }}>更地道</div>
+                <div className="gap-better-text">{heroGap.better}</div>
+              </div>
+            </div>
+            {heroGap.why && <div className="gap-why">{heroGap.why}</div>}
+            {heroGap.example && <div className="gap-example">"{heroGap.example}"</div>}
           </div>
         )}
 
         {result.nativeVersion && (
           <section className="su-card native-card" style={{ marginBottom: 14 }}>
             <div className="card-eyebrow">
-              <span className="eyebrow" style={{ color: "var(--accent)" }}>更地道的说法</span>
+              <span className="eyebrow" style={{ color: "var(--accent)" }}>整句改写</span>
             </div>
             <div className="en">{result.nativeVersion}</div>
           </section>
@@ -243,16 +252,20 @@ export default function PracticePage() {
 
         {restGaps.length > 0 && (
           <div className="rest-gaps">
-            <div className="eyebrow" style={{ marginBottom: 8 }}>其他差距点</div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>其他差距点</div>
             {restGaps.map((g, i) => (
               <div key={i} className="rest-gap-row">
-                <div className="rest-gap-top">
-                  <span className="rest-original">{g.original}</span>
-                  <span className="rest-arrow">→</span>
-                  <span className="rest-better">{g.better}</span>
+                <div className="gap-compare compact">
+                  <div className="gap-side">
+                    <div className="gap-original-text sm">{g.original}</div>
+                  </div>
+                  <div className="gap-chevron">→</div>
+                  <div className="gap-side">
+                    <div className="gap-better-text sm">{g.better}</div>
+                  </div>
                   {g.category && <span className="cat">{CAT_ZH[g.category] ?? g.category}</span>}
                 </div>
-                {g.why && <div className="rest-why">{g.why}</div>}
+                {g.why && <div className="gap-why sm">{g.why}</div>}
               </div>
             ))}
           </div>

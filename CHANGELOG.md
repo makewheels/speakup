@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Changed
+- **corrector.py 迁移至 LangChain**：`correct_text` 改用 `ChatOpenAI.with_structured_output(CorrectResult)` 强制模型输出符合 Pydantic schema 的 JSON，彻底消除手工 JSON 解析失败风险；`correct_text_stream` 改用 `astream()` 流式收 token，末尾用 Pydantic 验证；新增 `GapItem` / `CorrectResult` Pydantic 模型作为输出 schema
+
 ### Added
 - **录音上传 OSS**：练习时 MediaRecorder 与 Web Speech API 并行录音，AI 评估完成后自动上传到 OSS（`recordings/{userId}/{sessionId}/{ts}.webm`），失败静默忽略
 - **历史页录音回放**：会话详情页每次尝试下方展示原生 `<audio>` 播放器，有录音才显示

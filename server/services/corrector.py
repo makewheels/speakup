@@ -1,24 +1,43 @@
 import base64
-import json
 import re
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Literal
 
 import httpx
-from openai import AsyncOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
 
 from config import DASHSCOPE_API_KEY
 
-_client = None
-
 _API_TIMEOUT = 60.0
+_client: ChatOpenAI | None = None
 
 
-def _get_client():
+class GapItem(BaseModel):
+    original: str = ""
+    better: str = ""
+    example: str = ""
+    why: str = ""
+    category: Literal["grammar", "naturalness", "vocabulary", "register"] = "vocabulary"
+    saveToReview: bool = False
+
+
+class CorrectResult(BaseModel):
+    summary: str = ""
+    nativeVersion: str = ""
+    gaps: list[GapItem] = Field(default_factory=list)
+
+
+def _get_client() -> ChatOpenAI:
     global _client
     if _client is None:
-        _client = AsyncOpenAI(
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            api_key=DASHSCOPE_API_KEY,
+        _client = ChatOpenAI(
+            openai_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            openai_api_key=DASHSCOPE_API_KEY,
+            model="qwen3.6-plus",
+            temperature=0.3,
+            max_tokens=2000,
+            model_kwargs={"extra_body": {"enable_thinking": False}},
             timeout=_API_TIMEOUT,
         )
     return _client
@@ -63,14 +82,14 @@ WHAT NOT TO DO:
 - Do NOT correct trivial typos or speech-recognition artifacts if meaning is clear.
 
 LANGUAGE OF FEEDBACK — STRICT:
-- `summary`: 必须用中文写。
+- `summary`: 必须用中文写，严格不超过25字，一句话，不要列举多个问题。
 - `nativeVersion`, gap `original`, gap `better`, gap `example`: 必须用英文写。
 - gap `why`: 必须用中文写，遇到英文词汇/短语时可内嵌保留（如 "用 'blurring by' 更有动感"）。
 
 OUTPUT: strict JSON only, no markdown fences, no commentary.
 
 {
-  "summary": "一句话总结（中文）：学生和母语者的差距在哪，最需要改进的一点是什么",
+  "summary": "一句话（中文，最多25字）：最关键的一个差距是什么",
   "nativeVersion": "rewrite their utterance in natural native daily English, preserving their meaning",
   "gaps": [
     {
@@ -106,8 +125,8 @@ async def _build_messages(text: str, image_url: str) -> list:
     else:
         user_content = f'The student said:\n"{text}"\n\nExpose gaps against a native speaker.'
     return [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": user_content},
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=user_content),
     ]
 
 
@@ -115,14 +134,10 @@ def _parse_result(raw: str) -> dict:
     raw = raw.replace("```json", "").replace("```", "").strip()
     raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
     try:
-        result = json.loads(raw)
-    except json.JSONDecodeError:
+        result = CorrectResult.model_validate_json(raw)
+    except Exception:
         return {**_EMPTY, "summary": "Evaluation failed. Try again."}
-    return {
-        "summary": result.get("summary", ""),
-        "nativeVersion": result.get("nativeVersion", ""),
-        "gaps": result.get("gaps", []),
-    }
+    return result.model_dump()
 
 
 async def correct_text(text: str, image_url: str = "") -> dict:
@@ -131,20 +146,13 @@ async def correct_text(text: str, image_url: str = "") -> dict:
 
     messages = await _build_messages(text, image_url)
     try:
-        resp = await _get_client().chat.completions.create(
-            model="qwen3.6-plus",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=2000,
-            extra_body={"enable_thinking": False},
-        )
+        result: CorrectResult = await _get_client().with_structured_output(CorrectResult).ainvoke(messages)
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("correct_text error: %s: %s", type(e).__name__, e)
         return {**_EMPTY, "summary": "AI service error. Please try again."}
 
-    raw = (resp.choices[0].message.content or "")
-    return _parse_result(raw)
+    return result.model_dump()
 
 
 async def correct_text_stream(
@@ -161,19 +169,9 @@ async def correct_text_stream(
 
     messages = await _build_messages(text, image_url)
     try:
-        stream = await _get_client().chat.completions.create(
-            model="qwen3.6-plus",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=2000,
-            extra_body={"enable_thinking": False},
-            stream=True,
-        )
         full_text = ""
-        async for chunk in stream:
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta.content or ""
+        async for chunk in _get_client().astream(messages):
+            delta = chunk.content or ""
             if delta:
                 full_text += delta
                 yield "chunk", {"text": delta}
