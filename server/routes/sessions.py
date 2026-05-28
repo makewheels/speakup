@@ -1,11 +1,13 @@
+import time
 from datetime import datetime, timezone
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from db.connection import get_db
 from services.file_service import get_or_upload_from_url, orig_url
+from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -47,6 +49,14 @@ async def create_session(req: CreateSessionRequest, background_tasks: Background
     return doc
 
 
+def _sign_recordings(session: dict) -> dict:
+    """把 recordings 里的 key 替换为临时签名 URL（1 小时有效）。"""
+    for rec in session.get("recordings", []):
+        if "key" in rec:
+            rec["url"] = oss_signed_url(rec["key"])
+    return session
+
+
 @router.get("/{sid}")
 async def get_session(sid: str):
     try:
@@ -56,7 +66,7 @@ async def get_session(sid: str):
     if not session:
         raise HTTPException(404, "会话不存在")
     session["_id"] = str(session["_id"])
-    return session
+    return _sign_recordings(session)
 
 
 @router.get("")
@@ -67,3 +77,34 @@ async def list_sessions(userId: str = Query(...), limit: int = 20, skip: int = 0
         s["_id"] = str(s["_id"])
         sessions.append(s)
     return sessions
+
+
+@router.post("/{session_id}/recording")
+async def upload_recording(
+    session_id: str,
+    userId: str = Form(...),
+    audio: UploadFile = File(...),
+):
+    try:
+        session = await get_db().sessions.find_one(
+            {"_id": ObjectId(session_id), "userId": userId}
+        )
+    except Exception:
+        raise HTTPException(404, "会话不存在")
+    if not session:
+        raise HTTPException(404, "会话不存在")
+
+    data = await audio.read()
+    content_type = (audio.content_type or "audio/webm").split(";")[0].strip()
+    ext = "webm" if "webm" in content_type else "ogg"
+    ts = int(time.time() * 1000)
+    key = f"recordings/{userId}/{session_id}/{ts}.{ext}"
+
+    await upload_bytes_async(key, data, content_type)
+    now = datetime.now(timezone.utc)
+    await get_db().sessions.update_one(
+        {"_id": ObjectId(session_id)},
+        {"$push": {"recordings": {"key": key, "createdAt": now}}},
+    )
+    signed = oss_signed_url(key)
+    return {"url": signed}

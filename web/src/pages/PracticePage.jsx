@@ -31,6 +31,8 @@ export default function PracticePage() {
   const secondsRef = useRef(0);
   const evalTimerRef = useRef(null);
   const sseControllerRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -41,8 +43,11 @@ export default function PracticePage() {
     startNewRound();
   }, [sessionId]);
 
-  // 组件卸载时取消 SSE
-  useEffect(() => () => sseControllerRef.current?.abort(), []);
+  // 组件卸载时取消 SSE 和 MediaRecorder
+  useEffect(() => () => {
+    sseControllerRef.current?.abort();
+    mediaRecorderRef.current?.stop();
+  }, []);
 
   const startNewRound = async () => {
     setPhase("loading");
@@ -52,6 +57,7 @@ export default function PracticePage() {
     setElapsed("0:00");
     secondsRef.current = 0;
     setSession(null);
+    audioChunksRef.current = null;
     try {
       const image = await api.nextImage();
       const sess = await api.createSession({
@@ -67,7 +73,7 @@ export default function PracticePage() {
     }
   };
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       alert("请使用 Chrome 浏览器");
@@ -77,6 +83,9 @@ export default function PracticePage() {
       alert("当前是 HTTP 连接，Chrome 不允许使用麦克风。\n请用 HTTPS 访问，或在本地 localhost 调试。");
       return;
     }
+
+    // 先清上一次录音
+    audioChunksRef.current = null;
 
     const recognition = new SR();
     recognition.lang = "en-US";
@@ -121,6 +130,22 @@ export default function PracticePage() {
     setAutoSaved(0);
     setPhase("recording");
 
+    // 同步启动 MediaRecorder 录音（失败不影响主流程）
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        audioChunksRef.current = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+    } catch (err) {
+      console.warn("MediaRecorder unavailable:", err);
+    }
+
     timerRef.current = setInterval(() => {
       secondsRef.current += 1;
       const mm = Math.floor(secondsRef.current / 60);
@@ -133,6 +158,8 @@ export default function PracticePage() {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     clearInterval(timerRef.current);
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
     setPhase("review");
   };
 
@@ -157,6 +184,12 @@ export default function PracticePage() {
           setResult(res);
           setAutoSaved(n);
           setPhase("feedback");
+          // 评估完成后异步上传录音（失败静默忽略）
+          if (audioChunksRef.current && session?._id) {
+            api.uploadRecording(session._id, user.userId, audioChunksRef.current)
+              .catch(console.warn);
+            audioChunksRef.current = null;
+          }
         },
         onError: (err) => {
           clearInterval(evalTimerRef.current);
@@ -167,8 +200,13 @@ export default function PracticePage() {
     );
   };
 
+  const CAT_ZH = { grammar: "语法", naturalness: "自然度", vocabulary: "用词", register: "语体" };
+
   if (phase === "feedback" && result) {
-    const autoSavedGaps = result.gaps?.filter((g) => g.saveToReview) ?? [];
+    const gaps = result.gaps ?? [];
+    const heroGap = gaps.find((g) => g.saveToReview) ?? gaps[0];
+    const restGaps = heroGap ? gaps.filter((g) => g !== heroGap) : [];
+
     return (
       <div className="practice-page fb-page fade-in">
         <div className="su-img" style={{ marginBottom: 14 }}>
@@ -180,68 +218,44 @@ export default function PracticePage() {
 
         {result.summary && (
           <div className="summary-card">
-            <div className="eyebrow">summary</div>
             <p className="text">{result.summary}</p>
           </div>
         )}
 
-        {transcript && (
-          <section className="su-card you-card" style={{ marginBottom: 12 }}>
-            <div className="card-eyebrow">
-              <span className="eyebrow">你说的</span>
-            </div>
-            <div className="en">{transcript}</div>
-          </section>
+        {heroGap && (
+          <div className="hero-gap">
+            <div className="eyebrow">今日重点</div>
+            <div className="hero-better">{heroGap.better}</div>
+            <div className="hero-original">你说的：{heroGap.original}</div>
+            {heroGap.why && <div className="hero-why">{heroGap.why}</div>}
+            {heroGap.example && <div className="hero-example">"{heroGap.example}"</div>}
+          </div>
         )}
 
         {result.nativeVersion && (
-          <section className="su-card native-card" style={{ marginBottom: 18 }}>
+          <section className="su-card native-card" style={{ marginBottom: 14 }}>
             <div className="card-eyebrow">
-              <span className="eyebrow" style={{ color: "var(--accent)" }}>more native</span>
-              <span className="chip accent">改写</span>
+              <span className="eyebrow" style={{ color: "var(--accent)" }}>更地道的说法</span>
             </div>
             <div className="en">{result.nativeVersion}</div>
           </section>
         )}
 
-        {result.gaps?.length > 0 && (
-          <>
-            <h3 className="section-title">
-              差距点<span className="count">· {result.gaps.length} 处</span>
-              {autoSavedGaps.length > 0 && (
-                <span className="count" style={{ color: "var(--accent)", marginLeft: 8 }}>
-                  · {autoSavedGaps.length} 项已加入复习
-                </span>
-              )}
-            </h3>
-            <div style={{ marginBottom: 18 }}>
-              {result.gaps.map((g, i) => (
-                <div key={i} className="su-corr">
-                  <div className="from">{g.original}</div>
-                  <div className="arrow">→</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div className="to">{g.better}</div>
-                    {g.saveToReview && (
-                      <span title="已加入复习" style={{
-                        fontSize: 11, color: "var(--accent)", fontFamily: "var(--ff-ui)",
-                        background: "color-mix(in srgb, var(--accent) 12%, transparent)",
-                        padding: "1px 6px", borderRadius: 4, whiteSpace: "nowrap",
-                      }}>
-                        已收录
-                      </span>
-                    )}
-                  </div>
-                  <div className="reason">
-                    {g.category && <span className="cat">{g.category}</span>}
-                    {g.why}
-                  </div>
-                  {g.example && (
-                    <div className="example">"{g.example}"</div>
-                  )}
+        {restGaps.length > 0 && (
+          <div className="rest-gaps">
+            <div className="eyebrow" style={{ marginBottom: 8 }}>其他差距点</div>
+            {restGaps.map((g, i) => (
+              <div key={i} className="rest-gap-row">
+                <div className="rest-gap-top">
+                  <span className="rest-original">{g.original}</span>
+                  <span className="rest-arrow">→</span>
+                  <span className="rest-better">{g.better}</span>
+                  {g.category && <span className="cat">{CAT_ZH[g.category] ?? g.category}</span>}
                 </div>
-              ))}
-            </div>
-          </>
+                {g.why && <div className="rest-why">{g.why}</div>}
+              </div>
+            ))}
+          </div>
         )}
 
         <div className="actions-stack">

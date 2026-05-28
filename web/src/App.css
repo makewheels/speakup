@@ -1309,6 +1309,14 @@ button { font-family: inherit; }
   color: var(--ink-4);
 }
 
+.recording-player {
+  width: 100%;
+  height: 36px;
+  margin: 6px 0 12px;
+  border-radius: 8px;
+  accent-color: var(--accent);
+}
+
 .attempt-summary {
   background: var(--ink);
   color: var(--bg);
@@ -1379,4 +1387,130 @@ button { font-family: inherit; }
   margin: 8px 0 0;
   text-align: center;
   font-family: var(--ff-cn);
+}
+
+/* ── 反馈页：今日重点 hero gap ─────────────────────────────────── */
+.hero-gap {
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.hero-better {
+  font-family: var(--ff-en);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-1);
+  margin: 6px 0 3px;
+  line-height: 1.3;
+}
+.hero-original {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-4);
+  text-decoration: line-through;
+  margin-bottom: 8px;
+}
+.hero-why {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.hero-example {
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  color: var(--accent);
+  font-style: italic;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* ── 反馈页：其他差距点轻量列表 ───────────────────────────────── */
+.rest-gaps {
+  margin-bottom: 18px;
+}
+.rest-gap-row {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.rest-gap-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.rest-original {
+  font-family: var(--ff-mono);
+  font-size: 13px;
+  color: var(--ink-4);
+  text-decoration: line-through;
+}
+.rest-arrow { font-size: 12px; color: var(--ink-4); }
+.rest-better {
+  font-family: var(--ff-en);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.rest-why {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* ── 复习页：词汇卡片 ─────────────────────────────────────────── */
+.vocab-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.vocab-body { flex: 1; min-width: 0; }
+.vocab-word {
+  font-family: var(--ff-en);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink-1);
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+.vocab-original {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-4);
+  text-decoration: line-through;
+  margin-bottom: 4px;
+}
+.vocab-note {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.vocab-status {
+  display: inline-block;
+  font-family: var(--ff-cn);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface-2, #f5f0e8);
+  color: var(--ink-3);
+}
+.vocab-status.due {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.vocab-status.mastered {
+  background: color-mix(in srgb, #4caf50 12%, transparent);
+  color: #388e3c;
 }

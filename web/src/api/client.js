@@ -92,6 +92,14 @@ export const api = {
 
   correct: (data) => request("/correct", { method: "POST", body: data }),
 
+  uploadRecording: (sessionId, userId, blob) => {
+    const form = new FormData();
+    form.append("userId", userId);
+    form.append("audio", blob, "recording.webm");
+    return fetch(`${BASE}/sessions/${sessionId}/recording`, { method: "POST", body: form })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("录音上传失败"))));
+  },
+
   addVocabulary: (userId, words) =>
     request("/vocabulary", { method: "POST", body: { userId, words } }),
   listVocabulary: (userId, due = false) =>

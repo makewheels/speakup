@@ -171,33 +171,27 @@ export default function VocabularyPage() {
         <div className="page-msg">这里还没有内容</div>
       ) : (
         <>
-          {filtered.map((w) => {
+          {[...filtered]
+            .sort((a, b) => {
+              const rank = (w) => isDue(w) ? 0 : isMastered(w) ? 2 : 1;
+              return rank(a) - rank(b);
+            })
+            .map((w) => {
             const mastered = isMastered(w);
             const due = isDue(w);
             return (
-              <div key={w._id} className="mistake-row">
+              <div key={w._id} className="vocab-row">
                 {w.imageUrl
                   ? <img src={w.imageUrl} alt="" className="thumb" />
                   : <div className="thumb" />
                 }
-                <div className="body">
-                  <div className="corr-inline">
-                    {w.original && <span className="strike">{w.original}</span>}
-                    {w.original && <span className="arrow">→</span>}
-                    <span className="to">{w.word}</span>
-                  </div>
-                  {w.note && (
-                    <div className="meta">
-                      <span style={{ color: "var(--ink-2)" }}>{w.note}</span>
-                    </div>
-                  )}
-                  <div className="meta">
-                    <span className="chip" style={{ height: 18, padding: "0 6px", fontSize: 10 }}>
-                      {mastered ? "已掌握" : due ? "待复习" : "复习中"}
-                    </span>
-                    <span className="dot" />
-                    <span>复习 × {w.reviewCount || 0}</span>
-                  </div>
+                <div className="vocab-body">
+                  <div className="vocab-word">{w.word}</div>
+                  {w.original && <div className="vocab-original">你说的：{w.original}</div>}
+                  {w.note && <div className="vocab-note">{w.note}</div>}
+                  <span className={`vocab-status${due ? " due" : mastered ? " mastered" : ""}`}>
+                    {mastered ? "已掌握" : due ? "待复习" : "复习中"}
+                  </span>
                 </div>
                 <button className="delete-btn" onClick={() => deleteItem(w._id)} aria-label="删除">
                   <Icon name="trash" size={16} />

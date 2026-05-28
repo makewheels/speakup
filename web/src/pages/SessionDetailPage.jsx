@@ -30,7 +30,9 @@ export default function SessionDetailPage() {
   if (!session) return <div className="page-msg">会话不存在</div>;
 
   const thumb = session.ossImageUrl || session.imageUrl || "";
-  const attempts = [...(session.attempts || [])].reverse();
+  const rawAttempts = session.attempts || [];
+  const recordings = session.recordings || [];
+  const attempts = [...rawAttempts].reverse();
 
   return (
     <div className="session-detail-page fade-in">
@@ -54,7 +56,10 @@ export default function SessionDetailPage() {
       {attempts.length === 0 ? (
         <div className="page-msg" style={{ paddingTop: 40 }}>这次练习还没有 AI 评估</div>
       ) : (
-        attempts.map((attempt, i) => (
+        attempts.map((attempt, i) => {
+          const origIdx = rawAttempts.length - 1 - i;
+          const recording = recordings[origIdx];
+          return (
           <div key={i} className="attempt-block">
             <div className="attempt-header">
               <span className="eyebrow">第 {attempts.length - i} 次尝试</span>
@@ -62,6 +67,9 @@ export default function SessionDetailPage() {
                 <span className="attempt-time">{relativeDate(attempt.createdAt)}</span>
               )}
             </div>
+            {recording?.url && (
+              <audio controls src={recording.url} className="recording-player" />
+            )}
 
             {attempt.transcript && (
               <section className="su-card you-card" style={{ marginBottom: 10 }}>
@@ -115,7 +123,8 @@ export default function SessionDetailPage() {
 
             {i < attempts.length - 1 && <hr className="hr" />}
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );
