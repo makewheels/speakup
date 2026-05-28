@@ -416,7 +416,7 @@ button { font-family: inherit; }
 .su-corr .from {
   font-family: var(--ff-mono);
   font-size: 15px;
-  color: var(--ink-3);
+  color: var(--warn);
   text-decoration: line-through;
   text-decoration-color: var(--warn);
   text-decoration-thickness: 1px;
@@ -424,15 +424,15 @@ button { font-family: inherit; }
 
 .su-corr .arrow {
   font-family: var(--ff-mono);
-  color: var(--ink-4);
-  font-size: 13px;
+  color: var(--ink-3);
+  font-size: 16px;
 }
 
 .su-corr .to {
   font-family: var(--ff-mono);
   font-size: 15px;
-  color: var(--ink);
-  font-weight: 500;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .su-corr .reason {
@@ -1408,18 +1408,19 @@ button { font-family: inherit; }
 .gap-compare.compact { margin-bottom: 0; }
 .gap-side { flex: 1; min-width: 0; }
 .gap-col-label {
-  font-family: var(--ff-mono);
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-4);
-  margin-bottom: 4px;
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  margin-bottom: 5px;
 }
+.gap-side:first-child .gap-col-label { color: var(--warn); }
 .gap-original-text {
   font-family: var(--ff-mono);
   font-size: 15px;
-  color: var(--ink-3);
+  color: var(--warn);
   text-decoration: line-through;
+  text-decoration-color: var(--warn);
   line-height: 1.4;
   word-break: break-word;
 }
@@ -1428,18 +1429,29 @@ button { font-family: inherit; }
   font-family: var(--ff-mono);
   font-size: 18px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--accent);
   line-height: 1.4;
   word-break: break-word;
 }
 .gap-better-text.sm { font-size: 15px; font-weight: 600; }
 .gap-chevron {
-  color: var(--ink-4);
-  font-size: 14px;
-  padding-top: 18px;
+  color: var(--ink-3);
+  font-size: 18px;
+  padding-top: 16px;
   flex-shrink: 0;
 }
 .gap-compare.compact .gap-chevron { padding-top: 0; align-self: center; }
+.gap-compare .cat {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 6px;
+  align-self: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 
 /* 解释 & 例句 */
 .gap-why {
@@ -1471,9 +1483,33 @@ button { font-family: inherit; }
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 0;
+  padding: 14px 0;
   border-bottom: 1px solid var(--rule);
 }
+.vocab-row:last-child { border-bottom: 0; }
+.vocab-row .thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  flex: 0 0 52px;
+  object-fit: cover;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.93 0.013 70) 0 6px,
+      oklch(0.96 0.008 70) 6px 12px
+    );
+}
+.vocab-row .delete-btn {
+  background: none;
+  border: 0;
+  color: var(--ink-4);
+  cursor: pointer;
+  padding: 4px;
+  flex: 0 0 auto;
+  align-self: center;
+}
+.vocab-row .delete-btn:hover { color: var(--warn); }
 .vocab-body { flex: 1; min-width: 0; }
 .vocab-word {
   font-family: var(--ff-mono);
