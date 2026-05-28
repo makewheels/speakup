@@ -186,6 +186,7 @@ export default function VocabularyPage() {
                   : <div className="thumb" />
                 }
                 <div className="vocab-body">
+                  {w.title && <div className="vocab-title">{w.title}</div>}
                   <div className="vocab-word">{w.word}</div>
                   {w.original && <div className="vocab-original">你说的：{w.original}</div>}
                   {w.note && <div className="vocab-note">{w.note}</div>}
