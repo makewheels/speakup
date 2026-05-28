@@ -1389,6 +1389,102 @@ button { font-family: inherit; }
   font-family: var(--ff-cn);
 }
 
+/* ── 反馈页：新布局 ────────────────────────────────────────────── */
+.fb-transcript-card {
+  background: var(--bg-mute);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.fb-native-card {
+  background: var(--bg-elev);
+  border: 1.5px solid var(--accent);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+.fb-card-label {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.fb-card-label.native { color: var(--accent); }
+.fb-transcript-text {
+  font-family: var(--ff-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0;
+}
+.fb-native-text {
+  font-family: var(--ff-serif);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0;
+}
+.fb-summary-line {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 0 0 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+.fb-gaps-section { margin-bottom: 8px; }
+.fb-section-label {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.fb-gap-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.fb-gap-row:last-child { border-bottom: 0; }
+.fb-gap-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.fb-gap-orig {
+  font-family: var(--ff-mono);
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.fb-gap-arrow {
+  color: var(--ink-4);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.fb-gap-better {
+  font-family: var(--ff-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.fb-gap-cat {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.fb-gap-why {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.7;
+  margin: 0;
+}
+
 /* ── 反馈页：gap 对比卡片 ──────────────────────────────────────── */
 .hero-gap {
   background: var(--bg-elev);
@@ -1511,6 +1607,14 @@ button { font-family: inherit; }
 }
 .vocab-row .delete-btn:hover { color: var(--warn); }
 .vocab-body { flex: 1; min-width: 0; }
+.vocab-title {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 3px;
+  letter-spacing: 0.02em;
+}
 .vocab-word {
   font-family: var(--ff-mono);
   font-size: 19px;

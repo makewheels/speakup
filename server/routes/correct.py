@@ -66,6 +66,7 @@ async def _save_attempt_and_vocabulary(req: CorrectRequest, result: dict) -> int
             continue
         await get_db().vocabulary.insert_one({
             "userId": req.userId,
+            "title": gap.get("title", ""),
             "word": word,
             "original": gap.get("original", ""),
             "note": gap.get("why", ""),

@@ -14,6 +14,7 @@ _client: ChatOpenAI | None = None
 
 
 class GapItem(BaseModel):
+    title: str = ""
     original: str = ""
     better: str = ""
     example: str = ""
@@ -93,6 +94,7 @@ OUTPUT: strict JSON only, no markdown fences, no commentary.
   "nativeVersion": "rewrite their utterance in natural native daily English, preserving their meaning",
   "gaps": [
     {
+      "title": "2-5字中文标签，概括这个差距点的语法/表达规律，例如：复数形式、进行时用法、主谓一致、可数名词、语气词",
       "original": "what they said (exact or close paraphrase, English)",
       "better": "ONE single best native replacement — the way a real person would actually say it in conversation, not the textbook version. English only, no slash alternatives",
       "example": "one short casual sentence a native would actually say out loud, using 'better' naturally. English only",
