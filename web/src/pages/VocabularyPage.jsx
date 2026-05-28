@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUser } from "../context/UserContext.jsx";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
@@ -17,6 +17,9 @@ export default function VocabularyPage() {
   const [reviewMode, setReviewMode] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const deleteTimerRef = useRef(null);
 
   const fetchItems = () => {
     api.listVocabulary(user.userId)
@@ -68,6 +71,19 @@ export default function VocabularyPage() {
   const deleteItem = async (id) => {
     await api.deleteWord(id, user.userId);
     setItems((prev) => prev.filter((w) => w._id !== id));
+    setPendingDeleteId(null);
+  };
+
+  const requestDelete = (e, id) => {
+    e.stopPropagation();
+    if (pendingDeleteId === id) {
+      clearTimeout(deleteTimerRef.current);
+      deleteItem(id);
+    } else {
+      clearTimeout(deleteTimerRef.current);
+      setPendingDeleteId(id);
+      deleteTimerRef.current = setTimeout(() => setPendingDeleteId(null), 3000);
+    }
   };
 
   if (loading) return <div className="page-msg">加载中…</div>;
@@ -179,8 +195,14 @@ export default function VocabularyPage() {
             .map((w) => {
             const mastered = isMastered(w);
             const due = isDue(w);
+            const expanded = expandedId === w._id;
+            const confirmingDelete = pendingDeleteId === w._id;
             return (
-              <div key={w._id} className="vocab-row">
+              <div
+                key={w._id}
+                className={`vocab-row${expanded ? " expanded" : ""}`}
+                onClick={() => setExpandedId(expanded ? null : w._id)}
+              >
                 {w.imageUrl
                   ? <img src={w.imageUrl} alt="" className="thumb" />
                   : <div className="thumb" />
@@ -190,12 +212,19 @@ export default function VocabularyPage() {
                   <div className="vocab-word">{w.word}</div>
                   {w.original && <div className="vocab-original">你说的：{w.original}</div>}
                   {w.note && <div className="vocab-note">{w.note}</div>}
+                  {expanded && w.contextSentence && (
+                    <div className="vocab-example">"{w.contextSentence}"</div>
+                  )}
                   <span className={`vocab-status${due ? " due" : mastered ? " mastered" : ""}`}>
                     {mastered ? "已掌握" : due ? "待复习" : "复习中"}
                   </span>
                 </div>
-                <button className="delete-btn" onClick={() => deleteItem(w._id)} aria-label="删除">
-                  <Icon name="trash" size={16} />
+                <button
+                  className={`delete-btn${confirmingDelete ? " confirming" : ""}`}
+                  onClick={(e) => requestDelete(e, w._id)}
+                  aria-label="删除"
+                >
+                  {confirmingDelete ? "确认" : <Icon name="trash" size={16} />}
                 </button>
               </div>
             );
