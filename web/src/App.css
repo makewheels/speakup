@@ -416,7 +416,7 @@ button { font-family: inherit; }
 .su-corr .from {
   font-family: var(--ff-mono);
   font-size: 15px;
-  color: var(--ink-3);
+  color: var(--warn);
   text-decoration: line-through;
   text-decoration-color: var(--warn);
   text-decoration-thickness: 1px;
@@ -424,15 +424,15 @@ button { font-family: inherit; }
 
 .su-corr .arrow {
   font-family: var(--ff-mono);
-  color: var(--ink-4);
-  font-size: 13px;
+  color: var(--ink-3);
+  font-size: 16px;
 }
 
 .su-corr .to {
   font-family: var(--ff-mono);
   font-size: 15px;
-  color: var(--ink);
-  font-weight: 500;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .su-corr .reason {
@@ -1134,7 +1134,7 @@ button { font-family: inherit; }
   gap: 12px;
   padding: 14px 0;
   border-bottom: 1px solid var(--rule);
-  align-items: flex-start;
+  align-items: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1172,22 +1172,30 @@ button { font-family: inherit; }
   min-width: 0;
 }
 
-.history-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 6px;
-  margin-bottom: 4px;
+.history-headline {
+  font-family: var(--ff-serif), var(--ff-cn);
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.45;
+  margin: 0 0 7px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.history-topic {
-  font-family: var(--ff-mono);
+.history-headline.muted {
+  font-family: var(--ff-cn);
   font-size: 13px;
-  color: var(--ink);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--ink-4);
+  -webkit-line-clamp: 1;
+}
+
+.history-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .history-date {
@@ -1198,27 +1206,17 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 
-.history-summary {
-  font-family: var(--ff-cn);
-  font-size: 12px;
-  color: var(--ink-2);
-  line-height: 1.5;
-  margin: 0 0 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.history-tag {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  background: var(--bg-mute);
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
-.history-summary.muted { color: var(--ink-4); }
-
-.history-meta {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.history-meta .chip {
+.history-sub .chip {
   height: 20px;
   padding: 0 8px;
   font-size: 10px;
@@ -1228,7 +1226,6 @@ button { font-family: inherit; }
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding-top: 20px;
 }
 
 /* ──────────────────────────────────────────────
@@ -1389,128 +1386,332 @@ button { font-family: inherit; }
   font-family: var(--ff-cn);
 }
 
-/* ── 反馈页：今日重点 hero gap ─────────────────────────────────── */
+/* ── 反馈页：新布局 ────────────────────────────────────────────── */
+.fb-transcript-card {
+  background: var(--bg-mute);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.fb-native-card {
+  background: var(--bg-elev);
+  border: 1.5px solid var(--accent);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+.fb-card-label {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.fb-card-label.native { color: var(--accent); }
+.fb-transcript-text {
+  font-family: var(--ff-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0;
+}
+.fb-native-text {
+  font-family: var(--ff-serif);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0;
+}
+.fb-summary-line {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 0 0 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+.fb-gaps-section { margin-bottom: 8px; }
+.fb-section-label {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+.fb-gap-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.fb-gap-row:last-child { border-bottom: 0; }
+.fb-gap-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.fb-gap-orig {
+  font-family: var(--ff-mono);
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.fb-gap-arrow {
+  color: var(--ink-4);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.fb-gap-better {
+  font-family: var(--ff-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.fb-gap-cat {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  color: var(--ink-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.fb-gap-why {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ── 反馈页：gap 对比卡片 ──────────────────────────────────────── */
 .hero-gap {
-  background: var(--surface);
+  background: var(--bg-elev);
   border: 1.5px solid var(--accent);
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 14px;
 }
-.hero-better {
-  font-family: var(--ff-en);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--ink-1);
-  margin: 6px 0 3px;
-  line-height: 1.3;
-}
-.hero-original {
-  font-family: var(--ff-cn);
-  font-size: 12px;
-  color: var(--ink-4);
-  text-decoration: line-through;
-  margin-bottom: 8px;
-}
-.hero-why {
-  font-family: var(--ff-cn);
-  font-size: 14px;
-  color: var(--ink-2);
-  line-height: 1.6;
-}
-.hero-example {
-  font-family: var(--ff-mono);
-  font-size: 13px;
-  color: var(--accent);
-  font-style: italic;
-  margin-top: 8px;
-  line-height: 1.5;
-}
 
-/* ── 反馈页：其他差距点轻量列表 ───────────────────────────────── */
-.rest-gaps {
-  margin-bottom: 18px;
-}
-.rest-gap-row {
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border);
-}
-.rest-gap-top {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-.rest-original {
-  font-family: var(--ff-mono);
-  font-size: 13px;
-  color: var(--ink-4);
-  text-decoration: line-through;
-}
-.rest-arrow { font-size: 12px; color: var(--ink-4); }
-.rest-better {
-  font-family: var(--ff-en);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink-1);
-}
-.rest-why {
-  font-family: var(--ff-cn);
-  font-size: 12px;
-  color: var(--ink-3);
-  margin-top: 3px;
-  line-height: 1.5;
-}
-
-/* ── 复习页：词汇卡片 ─────────────────────────────────────────── */
-.vocab-row {
+/* 左右对比行 */
+.gap-compare {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  margin-bottom: 10px;
 }
-.vocab-body { flex: 1; min-width: 0; }
-.vocab-word {
-  font-family: var(--ff-en);
-  font-size: 19px;
+.gap-compare.compact { margin-bottom: 0; }
+.gap-side { flex: 1; min-width: 0; }
+.gap-col-label {
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  margin-bottom: 5px;
+}
+.gap-side:first-child .gap-col-label { color: var(--warn); }
+.gap-original-text {
+  font-family: var(--ff-mono);
+  font-size: 15px;
+  color: var(--warn);
+  text-decoration: line-through;
+  text-decoration-color: var(--warn);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.gap-original-text.sm { font-size: 13px; }
+.gap-better-text {
+  font-family: var(--ff-mono);
+  font-size: 18px;
   font-weight: 700;
-  color: var(--ink-1);
-  margin-bottom: 2px;
-  line-height: 1.3;
+  color: var(--accent);
+  line-height: 1.4;
+  word-break: break-word;
 }
-.vocab-original {
+.gap-better-text.sm { font-size: 15px; font-weight: 600; }
+.gap-chevron {
+  color: var(--ink-3);
+  font-size: 18px;
+  padding-top: 16px;
+  flex-shrink: 0;
+}
+.gap-compare.compact .gap-chevron { padding-top: 0; align-self: center; }
+.gap-compare .cat {
   font-family: var(--ff-cn);
   font-size: 11px;
   color: var(--ink-4);
-  text-decoration: line-through;
-  margin-bottom: 4px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 6px;
+  align-self: center;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
-.vocab-note {
+
+/* 解释 & 例句 */
+.gap-why {
   font-family: var(--ff-cn);
   font-size: 13px;
   color: var(--ink-2);
+  line-height: 1.7;
+  margin-top: 8px;
+}
+.gap-why.sm { font-size: 12px; color: var(--ink-3); }
+.gap-example {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--accent);
+  font-style: italic;
+  margin-top: 6px;
   line-height: 1.5;
-  margin-bottom: 6px;
+}
+
+/* ── 反馈页：其他差距点列表 ────────────────────────────────────── */
+.rest-gaps { margin-bottom: 18px; }
+.rest-gap-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ── 复习页：词汇卡片 ─────────────────────────────────────────── */
+/* 复习页 · 左图右文卡 —— 点击进原图重练 */
+.review-card {
+  display: flex;
+  align-items: stretch;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  margin-bottom: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, box-shadow 0.18s ease;
+}
+.review-card:active { transform: scale(0.99); }
+.review-card.no-link { cursor: default; }
+.review-card.no-link:active { transform: none; }
+
+.review-card-img {
+  flex: 0 0 96px;
+  width: 96px;
+  align-self: stretch;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.93 0.013 70) 0 6px,
+      oklch(0.96 0.008 70) 6px 12px
+    );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.review-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.review-card-img-ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.review-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 11px 6px 11px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.review-said {
+  font-family: var(--ff-sans);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.4;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.review-better {
+  font-family: var(--ff-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.vocab-status {
-  display: inline-block;
+.review-better .arrow {
+  color: var(--accent);
+  font-weight: 500;
+  margin-right: 4px;
+}
+.review-why {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.45;
+  margin-top: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.review-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.review-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--ff-cn);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.review-status {
+  margin-left: auto;
   font-family: var(--ff-cn);
   font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: var(--surface-2, #f5f0e8);
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-mute);
   color: var(--ink-3);
+  white-space: nowrap;
 }
-.vocab-status.due {
+.review-status.due {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent);
 }
-.vocab-status.mastered {
-  background: color-mix(in srgb, #4caf50 12%, transparent);
+.review-status.mastered {
+  background: color-mix(in srgb, #4caf50 14%, transparent);
   color: #388e3c;
 }
+
+.review-del {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 38px;
+  border: 0;
+  background: none;
+  color: var(--ink-4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  transition: color 0.15s;
+}
+.review-del:hover { color: var(--warn); }
+.review-del.confirming { color: var(--warn); font-weight: 600; }

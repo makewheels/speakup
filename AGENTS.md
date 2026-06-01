@@ -77,6 +77,7 @@ git push  # GitHub Actions → rsync → PM2 reload
 - `.env` 文件不在版本控制中, rsync 时排除
 - pnpm 全局 store: `~/Library/pnpm/store/v10`
 - uv 全局 cache: `~/.cache/uv`
+- **不要重复启动 dev server**：前端默认跑在 :5173，启动前先 `lsof -ti :5173` 检查是否已有进程；有则直接用，不要再 `pnpm run dev`
 
 ## 已知不足（待迭代）
 

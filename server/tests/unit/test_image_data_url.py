@@ -83,22 +83,19 @@ def test_non_image_content_type_defaults_to_jpeg():
 
 def test_correct_text_inlines_image_before_sending_to_llm():
     """End-to-end-ish: correct_text should pass a data URL (not the original) to the LLM."""
-    import json
+    from services.corrector import CorrectResult, correct_text
 
-    from services.corrector import correct_text
-
-    fake_resp = MagicMock()
-    fake_resp.choices = [MagicMock(message=MagicMock(content=json.dumps({
-        "summary": "ok", "nativeVersion": "x", "gaps": [],
-    })))]
+    fake_result = CorrectResult(summary="ok", nativeVersion="x", gaps=[])
+    fake_chain = MagicMock()
+    fake_chain.ainvoke = AsyncMock(return_value=fake_result)
     fake_llm = MagicMock()
-    fake_llm.chat.completions.create = AsyncMock(return_value=fake_resp)
+    fake_llm.with_structured_output = MagicMock(return_value=fake_chain)
 
     fetched = b"FAKE-JPEG-BYTES"
     with patch("services.corrector.httpx.AsyncClient", _fake_httpx_client(fetched)), \
          patch("services.corrector._get_client", return_value=fake_llm):
         asyncio.run(correct_text("A cat on the table.", "https://loremflickr.com/640/640/cat"))
 
-    messages = fake_llm.chat.completions.create.await_args.kwargs["messages"]
-    image_block = next(b for b in messages[-1]["content"] if b.get("type") == "image_url")
+    messages = fake_chain.ainvoke.await_args.args[0]
+    image_block = next(b for b in messages[-1].content if isinstance(b, dict) and b.get("type") == "image_url")
     assert image_block["image_url"]["url"].startswith("data:image/jpeg;base64,")

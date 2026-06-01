@@ -204,73 +204,60 @@ export default function PracticePage() {
 
   if (phase === "feedback" && result) {
     const gaps = result.gaps ?? [];
-    const heroGap = gaps.find((g) => g.saveToReview) ?? gaps[0];
-    const restGaps = heroGap ? gaps.filter((g) => g !== heroGap) : [];
 
     return (
       <div className="practice-page fb-page fade-in">
-        <div className="su-img" style={{ marginBottom: 14 }}>
+        <div className="su-img" style={{ marginBottom: 16 }}>
           {session?.imageUrl && <img src={session.imageUrl} alt="scene" />}
-          {session?.topic && (
-            <div className="caption">{session.topic}</div>
-          )}
+          {session?.topic && <div className="caption">{session.topic}</div>}
         </div>
 
-        {result.summary && (
-          <div className="summary-card">
-            <p className="text">{result.summary}</p>
-          </div>
-        )}
-
-        {heroGap && (
-          <div className="hero-gap">
-            <div className="eyebrow">今日重点</div>
-            <div className="hero-better">{heroGap.better}</div>
-            <div className="hero-original">你说的：{heroGap.original}</div>
-            {heroGap.why && <div className="hero-why">{heroGap.why}</div>}
-            {heroGap.example && <div className="hero-example">"{heroGap.example}"</div>}
+        {transcript && (
+          <div className="fb-transcript-card">
+            <div className="fb-card-label">你说的</div>
+            <p className="fb-transcript-text">{transcript}</p>
           </div>
         )}
 
         {result.nativeVersion && (
-          <section className="su-card native-card" style={{ marginBottom: 14 }}>
-            <div className="card-eyebrow">
-              <span className="eyebrow" style={{ color: "var(--accent)" }}>更地道的说法</span>
-            </div>
-            <div className="en">{result.nativeVersion}</div>
-          </section>
+          <div className="fb-native-card">
+            <div className="fb-card-label native">更地道的说法</div>
+            <p className="fb-native-text">{result.nativeVersion}</p>
+          </div>
         )}
 
-        {restGaps.length > 0 && (
-          <div className="rest-gaps">
-            <div className="eyebrow" style={{ marginBottom: 8 }}>其他差距点</div>
-            {restGaps.map((g, i) => (
-              <div key={i} className="rest-gap-row">
-                <div className="rest-gap-top">
-                  <span className="rest-original">{g.original}</span>
-                  <span className="rest-arrow">→</span>
-                  <span className="rest-better">{g.better}</span>
-                  {g.category && <span className="cat">{CAT_ZH[g.category] ?? g.category}</span>}
+        {result.summary && (
+          <p className="fb-summary-line">{result.summary}</p>
+        )}
+
+        {gaps.length > 0 && (
+          <div className="fb-gaps-section">
+            <div className="fb-section-label">差距点 · {gaps.length} 处</div>
+            {gaps.map((g, i) => (
+              <div key={i} className="fb-gap-row">
+                <div className="fb-gap-pair">
+                  <span className="fb-gap-orig">{g.original}</span>
+                  <span className="fb-gap-arrow">→</span>
+                  <span className="fb-gap-better">{g.better}</span>
+                  {g.category && <span className="fb-gap-cat">{CAT_ZH[g.category] ?? g.category}</span>}
                 </div>
-                {g.why && <div className="rest-why">{g.why}</div>}
+                {g.why && <p className="fb-gap-why">{g.why}</p>}
               </div>
             ))}
           </div>
         )}
 
-        <div className="actions-stack">
-          <div className="actions-row">
-            <button
-              className="su-btn su-btn-secondary"
-              onClick={() => { setResult(null); setTranscript(""); setPhase("ready"); setAutoSaved(0); }}
-              style={{ flex: 1, height: 48 }}
-            >
-              <Icon name="refresh" size={16} />&nbsp;重说
-            </button>
-            <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
-              下一张&nbsp;<Icon name="next" size={16} />
-            </button>
-          </div>
+        <div className="actions-row" style={{ marginTop: 8 }}>
+          <button
+            className="su-btn su-btn-secondary"
+            onClick={() => { setResult(null); setTranscript(""); setPhase("ready"); setAutoSaved(0); }}
+            style={{ flex: 1, height: 48 }}
+          >
+            <Icon name="refresh" size={16} />&nbsp;重说
+          </button>
+          <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
+            下一张&nbsp;<Icon name="next" size={16} />
+          </button>
         </div>
       </div>
     );

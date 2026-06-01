@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
@@ -11,12 +12,15 @@ const FILTERS = [
 
 export default function VocabularyPage() {
   const { user } = useUser();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [reviewMode, setReviewMode] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const deleteTimerRef = useRef(null);
 
   const fetchItems = () => {
     api.listVocabulary(user.userId)
@@ -68,6 +72,19 @@ export default function VocabularyPage() {
   const deleteItem = async (id) => {
     await api.deleteWord(id, user.userId);
     setItems((prev) => prev.filter((w) => w._id !== id));
+    setPendingDeleteId(null);
+  };
+
+  const requestDelete = (e, id) => {
+    e.stopPropagation();
+    if (pendingDeleteId === id) {
+      clearTimeout(deleteTimerRef.current);
+      deleteItem(id);
+    } else {
+      clearTimeout(deleteTimerRef.current);
+      setPendingDeleteId(id);
+      deleteTimerRef.current = setTimeout(() => setPendingDeleteId(null), 3000);
+    }
   };
 
   if (loading) return <div className="page-msg">加载中…</div>;
@@ -179,22 +196,58 @@ export default function VocabularyPage() {
             .map((w) => {
             const mastered = isMastered(w);
             const due = isDue(w);
+            const confirmingDelete = pendingDeleteId === w._id;
+            const sceneImg = w.sceneImageUrl || w.imageUrl;
+            const canRepractice = !!w.sessionId;
             return (
-              <div key={w._id} className="vocab-row">
-                {w.imageUrl
-                  ? <img src={w.imageUrl} alt="" className="thumb" />
-                  : <div className="thumb" />
-                }
-                <div className="vocab-body">
-                  <div className="vocab-word">{w.word}</div>
-                  {w.original && <div className="vocab-original">你说的：{w.original}</div>}
-                  {w.note && <div className="vocab-note">{w.note}</div>}
-                  <span className={`vocab-status${due ? " due" : mastered ? " mastered" : ""}`}>
-                    {mastered ? "已掌握" : due ? "待复习" : "复习中"}
-                  </span>
+              <div
+                key={w._id}
+                className={`review-card${canRepractice ? "" : " no-link"}`}
+                onClick={() => canRepractice && navigate(`/practice/${w.sessionId}`)}
+              >
+                <div className="review-card-img">
+                  {sceneImg ? (
+                    <img
+                      src={sceneImg}
+                      alt={w.topic || ""}
+                      loading="lazy"
+                      onError={(e) => {
+                        if (w.sceneFallbackUrl && e.target.src !== w.sceneFallbackUrl) {
+                          e.target.src = w.sceneFallbackUrl;
+                        } else {
+                          e.target.style.display = "none";
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="review-card-img-ph">
+                      <Icon name="home" size={22} color="var(--ink-4)" stroke={1.4} />
+                    </div>
+                  )}
                 </div>
-                <button className="delete-btn" onClick={() => deleteItem(w._id)} aria-label="删除">
-                  <Icon name="trash" size={16} />
+                <div className="review-card-body">
+                  {w.original && <div className="review-said">{w.original}</div>}
+                  <div className="review-better">
+                    <span className="arrow">→</span> {w.word}
+                  </div>
+                  {w.note && <div className="review-why">{w.note}</div>}
+                  <div className="review-foot">
+                    {canRepractice && (
+                      <span className="review-cta">
+                        <Icon name="refresh" size={12} color="var(--accent)" /> 原图重练
+                      </span>
+                    )}
+                    <span className={`review-status${due ? " due" : mastered ? " mastered" : ""}`}>
+                      {mastered ? "已掌握" : due ? "待复习" : "复习中"}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  className={`review-del${confirmingDelete ? " confirming" : ""}`}
+                  onClick={(e) => requestDelete(e, w._id)}
+                  aria-label="删除"
+                >
+                  {confirmingDelete ? "确认" : <Icon name="trash" size={15} />}
                 </button>
               </div>
             );

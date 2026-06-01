@@ -77,27 +77,27 @@ export default function HistoryPage() {
             <div key={s._id} className="history-row" onClick={() => navigate(`/history/${s._id}`)}>
               <div className="history-thumb">
                 {thumb
-                  ? <img src={thumb} alt={s.topic} />
+                  ? <img
+                      src={thumb}
+                      alt={s.topic}
+                      onError={(e) => {
+                        if (s.imageUrl && e.target.src !== s.imageUrl) e.target.src = s.imageUrl;
+                        else e.target.style.display = "none";
+                      }}
+                    />
                   : <Icon name="home" size={22} color="var(--ink-4)" stroke={1.4} />
                 }
               </div>
               <div className="history-body">
-                <div className="history-top">
-                  <span className="history-topic">{s.topic || "练习"}</span>
-                  <span className="history-date">{relativeDate(s.createdAt)}</span>
-                </div>
                 {summary ? (
-                  <p className="history-summary">{summary}</p>
+                  <p className="history-headline">{summary}</p>
                 ) : (
-                  <p className="history-summary muted">暂无 AI 评估</p>
+                  <p className="history-headline muted">未评估 · 看了图没开口</p>
                 )}
-                <div className="history-meta">
-                  {s.attempts?.length > 0 && (
-                    <span className="chip">{s.attempts.length} 次尝试</span>
-                  )}
-                  {gapCount > 0 && (
-                    <span className="chip warn">{gapCount} 处差距</span>
-                  )}
+                <div className="history-sub">
+                  <span className="history-date">{relativeDate(s.createdAt)}</span>
+                  {s.topic && <span className="history-tag">{s.topic}</span>}
+                  {gapCount > 0 && <span className="chip warn">{gapCount} 处差距</span>}
                 </div>
               </div>
               <div className="history-arrow">
