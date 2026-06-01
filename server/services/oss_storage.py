@@ -64,6 +64,15 @@ def get_url(key: str) -> str:
     return _get_bucket().sign_url("GET", key, 3600)
 
 
+def sign_public_url(url: str, expires: int = 3600) -> str:
+    """把 _public_url 形式的无签名公网链接转成签名 URL（私有桶可访问）。
+    非本 bucket 的 URL（如 loremflickr 热链）原样返回。"""
+    prefix = _public_url("")
+    if url and url.startswith(prefix):
+        return _get_bucket().sign_url("GET", url[len(prefix):], expires)
+    return url
+
+
 def delete(key: str) -> None:
     _get_bucket().delete_object(key)
 

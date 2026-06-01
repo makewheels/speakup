@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
+- **复习页「原图重练」**：复习卡片点击进入 `/practice/:sessionId`，对当初那张原图重新描述一遍（复用练习流程）；旧数据无 `sessionId` 的词条不可点
+- **复习接口关联场景图**：`GET /api/vocabulary` 用复习项的 `sessionId` 回查 session，返回签名后的 OSS 场景图（`sceneImageUrl` / `sceneFallbackUrl` / `topic`），供复习卡展示
+- **OSS 签名工具** `sign_public_url`：把私有桶无签名公网链转成 1 小时签名 URL
+
+### Changed
+- **复习页改「左图右文」卡片**：96px 场景缩略图在左，右侧"你说的 → 地道版 + why"对比，底部"原图重练"入口 + 状态胶囊，删除按钮收到右侧独立窄列
+- **历史页标题改用 AI summary**：每条历史以 AI 评估的一句话 summary 作标题（serif 字体），topic 关键词降级为小标签；无评估的 session 显示"未评估 · 看了图没开口"
+- **UI 清晰度全面提升**：反馈页 gap 对比卡片左侧"你说的"改为橙红色（--warn），右侧"更地道"改为蓝色（--accent），错/对一眼可辨；历史详情页 gap 行颜色同步统一；复习页词汇卡片补上缩略图尺寸样式和删除按钮悬停色；`.su-corr` 从/到颜色与反馈页保持一致
+- **corrector.py 迁移至 LangChain**：`correct_text` 改用 `ChatOpenAI.with_structured_output(CorrectResult)` 强制模型输出符合 Pydantic schema 的 JSON，彻底消除手工 JSON 解析失败风险；`correct_text_stream` 改用 `astream()` 流式收 token，末尾用 Pydantic 验证；新增 `GapItem` / `CorrectResult` Pydantic 模型作为输出 schema
+
+### Added
 - **录音上传 OSS**：练习时 MediaRecorder 与 Web Speech API 并行录音，AI 评估完成后自动上传到 OSS（`recordings/{userId}/{sessionId}/{ts}.webm`），失败静默忽略
 - **历史页录音回放**：会话详情页每次尝试下方展示原生 `<audio>` 播放器，有录音才显示
 - **后端录音端点**：`POST /api/sessions/{id}/recording` 接收音频 Blob，校验用户归属后上传 OSS

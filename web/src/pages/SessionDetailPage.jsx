@@ -42,7 +42,15 @@ export default function SessionDetailPage() {
 
       <div className="detail-hero">
         {thumb ? (
-          <img src={thumb} alt={session.topic} className="detail-hero-img" />
+          <img
+            src={thumb}
+            alt={session.topic}
+            className="detail-hero-img"
+            onError={(e) => {
+              if (session.imageUrl && e.target.src !== session.imageUrl) e.target.src = session.imageUrl;
+              else e.target.style.display = "none";
+            }}
+          />
         ) : (
           <div className="detail-hero-placeholder" />
         )}
