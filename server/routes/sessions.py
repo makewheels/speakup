@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.file_service import get_or_upload_from_url, orig_url
-from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
+from services.oss_storage import get_url as oss_signed_url, sign_public_url, upload_bytes_async
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -57,6 +57,14 @@ def _sign_recordings(session: dict) -> dict:
     return session
 
 
+def _sign_image(session: dict) -> dict:
+    """把归档到私有桶的 ossImageUrl 换成签名 URL，浏览器才能直接加载。"""
+    oss = session.get("ossImageUrl")
+    if oss:
+        session["ossImageUrl"] = sign_public_url(oss)
+    return session
+
+
 @router.get("/{sid}")
 async def get_session(sid: str):
     try:
@@ -66,7 +74,7 @@ async def get_session(sid: str):
     if not session:
         raise HTTPException(404, "会话不存在")
     session["_id"] = str(session["_id"])
-    return _sign_recordings(session)
+    return _sign_image(_sign_recordings(session))
 
 
 @router.get("")
@@ -75,7 +83,7 @@ async def list_sessions(userId: str = Query(...), limit: int = 20, skip: int = 0
     sessions = []
     async for s in cursor:
         s["_id"] = str(s["_id"])
-        sessions.append(s)
+        sessions.append(_sign_image(s))
     return sessions
 
 

@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from bson import ObjectId
 from db.connection import get_db
+from services.oss_storage import sign_public_url
 
 router = APIRouter(prefix="/api/vocabulary", tags=["vocabulary"])
 
@@ -51,6 +52,33 @@ async def list_vocabulary(userId: str = Query(...), due: bool = False):
     async for item in cursor:
         item["_id"] = str(item["_id"])
         items.append(item)
+
+    # 关联 session 补场景图（签名 OSS 优先，loremflickr 兜底）+ topic，供复习卡展示与原图重练
+    oid_map = {}
+    for sid in {i.get("sessionId") for i in items if i.get("sessionId")}:
+        try:
+            oid_map[ObjectId(sid)] = sid
+        except Exception:
+            pass
+    scenes = {}
+    if oid_map:
+        async for s in get_db().sessions.find(
+            {"_id": {"$in": list(oid_map)}},
+            {"ossImageUrl": 1, "imageUrl": 1, "topic": 1},
+        ):
+            loremflickr = s.get("imageUrl", "")
+            oss = s.get("ossImageUrl")
+            scenes[oid_map[s["_id"]]] = {
+                "image": sign_public_url(oss) if oss else loremflickr,
+                "fallback": loremflickr,
+                "topic": s.get("topic", ""),
+            }
+    for i in items:
+        sc = scenes.get(i.get("sessionId"))
+        own = i.get("imageUrl", "")
+        i["sceneImageUrl"] = (sc["image"] if sc else "") or own
+        i["sceneFallbackUrl"] = (sc["fallback"] if sc else "") or own
+        i["topic"] = sc["topic"] if sc else ""
     return items
 
 
