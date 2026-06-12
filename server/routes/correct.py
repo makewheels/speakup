@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 from datetime import datetime, timezone
 
 from bson import ObjectId
@@ -7,45 +9,52 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
-from services.corrector import correct_text, correct_text_stream
-from services.oss_storage import get_url as oss_signed_url
+from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream
+from services.scenario_service import generate_custom_scenario
 
 router = APIRouter(prefix="/api/correct", tags=["correct"])
 
-
-async def _get_image_url(session: dict, req_image_url: str) -> str:
-    """获取 AI 评估用图片 URL：优先生成 OSS 签名 URL（1 小时有效，任何人可下载），
-    否则用 session 存储的原始 URL 或请求传入的 URL。
-    签名 URL 绕过 bucket ACL 限制，_to_data_url 能正常下载转 base64 送给 DashScope。
-    """
-    file_id = session.get("fileId")
-    if file_id:
-        try:
-            file_doc = await get_db().files.find_one({"_id": file_id})
-            if file_doc:
-                key = file_doc["variants"]["orig"]["key"]
-                return oss_signed_url(key)
-        except Exception:
-            pass
-    return session.get("imageUrl") or req_image_url
+logger = logging.getLogger(__name__)
 
 
 class CorrectRequest(BaseModel):
     userId: str
     sessionId: str
     text: str
-    imageUrl: str = ""
 
 
-async def _save_attempt_and_vocabulary(req: CorrectRequest, result: dict) -> int:
+async def _load_session(req: CorrectRequest) -> dict:
+    try:
+        session = await get_db().sessions.find_one(
+            {"_id": ObjectId(req.sessionId), "userId": req.userId}
+        )
+    except Exception:
+        raise HTTPException(404, "会话不存在")
+    if not session:
+        raise HTTPException(404, "会话不存在")
+    return session
+
+
+def _round_context(session: dict) -> tuple[dict | None, dict | None, int]:
+    """从 session 取（场景, 上一轮 attempt, 本轮轮次）。轮次从 1 开始，封顶 MAX_ROUNDS。"""
+    scenario = session.get("scenario")
+    attempts = session.get("attempts", [])
+    round_no = min(len(attempts) + 1, MAX_ROUNDS)
+    prev = attempts[-1] if attempts else None
+    return scenario, prev, round_no
+
+
+async def _save_attempt_and_vocabulary(req: CorrectRequest, result: dict, round_no: int) -> int:
     """写入 session.attempts，并自动保存 saveToReview=true 的 gap 到 vocabulary。
     返回实际新增的复习项数量。
     """
     attempt = {
         "transcript": req.text,
+        "round": round_no,
         "summary": result["summary"],
         "nativeVersion": result["nativeVersion"],
         "gaps": result["gaps"],
+        "progress": result.get("progress"),
         "createdAt": datetime.now(timezone.utc),
     }
     await get_db().sessions.update_one(
@@ -72,7 +81,7 @@ async def _save_attempt_and_vocabulary(req: CorrectRequest, result: dict) -> int
             "note": gap.get("why", ""),
             "contextSentence": result.get("nativeVersion", ""),
             "sessionId": req.sessionId,
-            "imageUrl": req.imageUrl,
+            "imageUrl": "",
             "createdAt": now,
             "nextReviewAt": now,
             "reviewCount": 0,
@@ -83,39 +92,38 @@ async def _save_attempt_and_vocabulary(req: CorrectRequest, result: dict) -> int
     return auto_saved
 
 
+def _schedule_custom_scenario(user_id: str) -> None:
+    """因材施教：后台静默生成定制题（出错 → 反向出题），失败只记日志。"""
+    async def _run():
+        try:
+            doc = await generate_custom_scenario(user_id)
+            if doc:
+                logger.info("custom scenario generated for %s: %s", user_id, doc["slug"])
+        except Exception as e:
+            logger.warning("custom scenario generation failed for %s: %s", user_id, e)
+
+    asyncio.create_task(_run())
+
+
 @router.post("")
 async def correct(req: CorrectRequest):
-    try:
-        session = await get_db().sessions.find_one(
-            {"_id": ObjectId(req.sessionId), "userId": req.userId}
-        )
-    except Exception:
-        raise HTTPException(404, "会话不存在")
-    if not session:
-        raise HTTPException(404, "会话不存在")
-
-    image_url = await _get_image_url(session, req.imageUrl)
-    result = await correct_text(req.text, image_url)
-    auto_saved = await _save_attempt_and_vocabulary(req, result)
-    return {"sessionId": req.sessionId, "autoSaved": auto_saved, **result}
+    session = await _load_session(req)
+    scenario, prev, round_no = _round_context(session)
+    result = await correct_text(req.text, scenario, prev, round_no)
+    auto_saved = await _save_attempt_and_vocabulary(req, result, round_no)
+    if auto_saved:
+        _schedule_custom_scenario(req.userId)
+    return {"sessionId": req.sessionId, "autoSaved": auto_saved, "round": round_no, **result}
 
 
 @router.post("/stream")
 async def correct_stream(req: CorrectRequest):
-    try:
-        session = await get_db().sessions.find_one(
-            {"_id": ObjectId(req.sessionId), "userId": req.userId}
-        )
-    except Exception:
-        raise HTTPException(404, "会话不存在")
-    if not session:
-        raise HTTPException(404, "会话不存在")
-
-    image_url = await _get_image_url(session, req.imageUrl)
+    session = await _load_session(req)
+    scenario, prev, round_no = _round_context(session)
 
     async def generate():
         full_result = None
-        async for event_type, data in correct_text_stream(req.text, image_url):
+        async for event_type, data in correct_text_stream(req.text, scenario, prev, round_no):
             if event_type == "chunk":
                 yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
             elif event_type == "error":
@@ -125,8 +133,10 @@ async def correct_stream(req: CorrectRequest):
                 full_result = data
 
         if full_result:
-            auto_saved = await _save_attempt_and_vocabulary(req, full_result)
-            yield f"data: {json.dumps({'type': 'done', 'result': full_result, 'autoSaved': auto_saved})}\n\n"
+            auto_saved = await _save_attempt_and_vocabulary(req, full_result, round_no)
+            if auto_saved:
+                _schedule_custom_scenario(req.userId)
+            yield f"data: {json.dumps({'type': 'done', 'result': full_result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
 
     return StreamingResponse(
         generate(),

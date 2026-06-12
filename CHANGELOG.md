@@ -6,6 +6,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Added
+- **场景任务模式（核心玩法重做）**：练习不再是"看图描述"，而是"场景 + 冲突 + 任务"——看图进入情境（如咖啡店做错单且赶飞机），开口用英语解决问题；AI 按"native 在这个场景会怎么说"评价
+- **场景题库**：`scenarios` 集合全局共享、与用户解耦；`server/scripts/generate_scenarios.py` 预生成题目（手写场景文案 + 通义万相 wanx-v1 写实配图入 OSS），首批 3 题（咖啡店错单/深夜酒店查无预订/房东拖修暖气）；`GET /api/scenarios/next` 按"定制题 > 未练公共题 > 轮换"派题
+- **三轮重说闭环**：同一场景最多说 3 轮；第 2 轮起 corrector 自动带上一轮 attempt 对比，返回 `progress {verdict: passed/improved/stuck, fixed[], remaining[], comment}`；前端过关大字、✅ 已用上 / ⏳ 还没用上 chips、重录时顶部提示条列出待用表达，3 轮强制"下一个场景"
+- **因材施教定制题**：评估产生新复习项后，后台静默用错题本中最该复习的表达反向出题（Qwen 出场景 + 万相配图），生成只派给该用户的定制题（`ownerUserId` + `targetWords`），上限攒 2 道未练
+- **地道说法发音**：`web/src/utils/tts.js`（浏览器 speechSynthesis），nativeVersion 和每个 gap better 旁 🔊 常速 / 🐢 0.75x 慢速
+- **attempt 关联录音**：录音上传带 `attemptIndex`，回看历史可听每轮自己的原声；OSS 路径参考 video-2022 规范改为 `recordings/{userId}/{yyyyMM}/{sessionId}/{ts}.{ext}`
+
+### Changed
+- **corrector 改纯文本评估**：场景图是按文案生成的，评估时直接喂场景文案（地点/情境/任务/targetWords），不再下载图片转 base64，更快更省
+- **session 快照场景**：创建会话存 scenario 快照（where/story/mission/targetWords）+ 题目图 fileId，题目日后修改不影响历史回看
+
+### Removed
+- 旧"随机图描述"模式整体下线：`routes/generate.py`、`services/image_generator.py`、loremflickr 依赖与图片归档后台任务
+
 ### Security
 - 入库文件（README / AGENTS.md / CHANGELOG）中的真实生产域名全部移除，改为占位符——域名属于配置，与 IP/凭据同等对待不进代码
 

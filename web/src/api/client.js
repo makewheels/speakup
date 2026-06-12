@@ -84,7 +84,7 @@ export function correctStream(data, { onChunk, onDone, onError } = {}) {
 export const api = {
   login: (phone) => request("/auth/login", { method: "POST", body: { phone } }),
 
-  nextImage: () => request("/generate/next", { method: "POST" }),
+  nextScenario: (userId) => request(`/scenarios/next?userId=${userId}`),
 
   createSession: (data) => request("/sessions", { method: "POST", body: data }),
   getSession: (id) => request(`/sessions/${id}`),
@@ -92,9 +92,10 @@ export const api = {
 
   correct: (data) => request("/correct", { method: "POST", body: data }),
 
-  uploadRecording: (sessionId, userId, blob) => {
+  uploadRecording: (sessionId, userId, blob, attemptIndex = -1) => {
     const form = new FormData();
     form.append("userId", userId);
+    form.append("attemptIndex", attemptIndex);
     form.append("audio", blob, "recording.webm");
     return fetch(`${BASE}/sessions/${sessionId}/recording`, { method: "POST", body: form })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("录音上传失败"))));
