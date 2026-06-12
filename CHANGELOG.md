@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Security
+- 入库文件（README / AGENTS.md / CHANGELOG）中的真实生产域名全部移除，改为占位符——域名属于配置，与 IP/凭据同等对待不进代码
+
 ### Added
 - **复习页「原图重练」**：复习卡片点击进入 `/practice/:sessionId`，对当初那张原图重新描述一遍（复用练习流程）；旧数据无 `sessionId` 的词条不可点
 - **复习接口关联场景图**：`GET /api/vocabulary` 用复习项的 `sessionId` 回查 session，返回签名后的 OSS 场景图（`sceneImageUrl` / `sceneFallbackUrl` / `topic`），供复习卡展示
@@ -103,7 +106,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - `CHANGELOG.md`（本文件）
 
 ### Changed
-- 生产域名 `speakup.example.com` → `speakup.example.com`，对齐产品名。Aliyun DNS / Nginx / TLS 证书已就位。HTTP 已通；HTTPS 受未备案影响在 TLS 握手层被中间件拦截，需后续 ICP 备案才能恢复。
+- 生产域名更换为与产品名对齐的新域名（具体值不入库）。Aliyun DNS / Nginx / TLS 证书已就位。HTTP 已通；HTTPS 受未备案影响在 TLS 握手层被中间件拦截，需后续 ICP 备案才能恢复。
 
 ### Fixed
 - 部署流水线 rsync 不再把本地 `.venv` 推到远端（之前会用本地 macOS Python 路径覆盖远端 Linux venv，导致 PM2 启动失败 502）。`.venv` 加进 `--exclude` 列表。
