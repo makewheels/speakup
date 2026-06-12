@@ -1,6 +1,6 @@
 # SpeakUp — AI 英语口语练习应用
 
-看图片 → 说英语 → AI (VLM) 看图给反馈。生产域名 `speakup.a4.fit`。
+看图片 → 说英语 → AI (VLM) 看图给反馈。生产域名不入库（属配置，见 DNS 控制台 / 部署配置）。
 
 > 本文件遵循 [AGENTS.md](https://agents.md) 约定，是面向所有 AI agent（Claude Code / Cursor / 其他）的项目说明。`CLAUDE.md` symlink 到这里。
 
@@ -131,7 +131,7 @@ cd /opt/speakup/server && rm -rf .venv && uv sync
 pm2 restart speakup-server
 
 # Aliyun DNS（本机 `aliyun configure list` 已配 default profile）
-aliyun alidns DescribeDomainRecords --DomainName a4.fit
+aliyun alidns DescribeDomainRecords --DomainName <主域名>
 
 # 腾讯 Lighthouse（本机 tccli 已配 default profile, region ap-beijing）
 tccli lighthouse DescribeInstances --region ap-beijing
@@ -152,8 +152,8 @@ tccli lighthouse DescribeFirewallRules --InstanceId <实例 id> --region ap-beij
 
 - 腾讯云网络层拦截了 443 端口的 TLS 流量（TCP 通、Client Hello 后无 Server Hello），所有 SSL 端口中只有 443 被阻断
 - **当前方案**：Nginx 在 **8443** 端口提供 HTTPS，HTTP:80 自动 301 跳转到 `https://:8443`
-- SSL 证书：Let's Encrypt，certbot 自动续期，覆盖 `speak.a4.fit` + `speakup.a4.fit`
-- 老域名 `speak.a4.fit` 同样指向此服务器，同样走 8443
+- SSL 证书：Let's Encrypt，certbot 自动续期，同时覆盖新旧两个生产域名
+- 老域名同样指向此服务器，同样走 8443
 - 长期方案：ICP 备案后恢复 443 端口
 
 ## 凭据旋转 checklist
