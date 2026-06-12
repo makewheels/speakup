@@ -1,30 +1,42 @@
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 FAKE_AI_RESULT = {
-    "summary": "Two grammar slips, otherwise the meaning lands.",
-    "nativeVersion": "A few people are cooking in a sunlit kitchen.",
+    "summary": "请求语气太硬，催促方式不像母语者。",
+    "nativeVersion": "Could you remake it? I'm kind of in a rush.",
     "gaps": [
         {
-            "original": "some peoples",
-            "better": "some people",
-            "why": "'people' is already plural.",
-            "category": "grammar",
+            "original": "please change it fast",
+            "better": "Could you remake it?",
+            "why": "命令式听起来在指责，先用 Could you 提请求。",
+            "category": "register",
             "saveToReview": True,
         },
         {
-            "original": "she is make coffee",
-            "better": "she is making coffee",
-            "why": "be + V-ing for present continuous.",
-            "category": "grammar",
+            "original": "my plane will fly soon",
+            "better": "my flight's in an hour",
+            "why": "母语者说航班用 flight + 时间点。",
+            "category": "naturalness",
             "saveToReview": False,
         },
     ],
+    "progress": None,
+}
+
+FAKE_ROUND2_RESULT = {
+    "summary": "好了很多。",
+    "nativeVersion": "Could you remake it? I'm in a rush.",
+    "gaps": [],
+    "progress": {
+        "verdict": "passed",
+        "fixed": ["Could you remake it?"],
+        "remaining": [],
+        "comment": "过关",
+    },
 }
 
 
-def _mock_correct():
-    return patch("routes.correct.correct_text", new=AsyncMock(return_value=FAKE_AI_RESULT))
+def _mock_correct(result=FAKE_AI_RESULT):
+    return patch("routes.correct.correct_text", new=AsyncMock(return_value=result))
 
 
 def test_correct_returns_layered_schema(client, user_id, session_id):
@@ -34,29 +46,24 @@ def test_correct_returns_layered_schema(client, user_id, session_id):
             json={
                 "userId": user_id,
                 "sessionId": session_id,
-                "text": "There is some peoples in the kitchen.",
-                "imageUrl": "https://example.com/img.jpg",
+                "text": "Please change it fast, my plane will fly soon.",
             },
         )
     assert resp.status_code == 200
     data = resp.json()
     assert data["summary"]
     assert data["nativeVersion"]
+    assert data["round"] == 1
     assert len(data["gaps"]) == 2
     g = data["gaps"][0]
     assert set(g.keys()) >= {"original", "better", "why", "category", "saveToReview"}
 
 
-def test_correct_persists_attempt_into_session(client, user_id, session_id):
+def test_correct_persists_attempt_with_round(client, user_id, session_id):
     with _mock_correct():
         client.post(
             "/api/correct",
-            json={
-                "userId": user_id,
-                "sessionId": session_id,
-                "text": "test text here ok",
-                "imageUrl": "https://example.com/img.jpg",
-            },
+            json={"userId": user_id, "sessionId": session_id, "text": "test text here ok"},
         )
     sess = client.get(f"/api/sessions/{session_id}").json()
     assert len(sess["attempts"]) == 1
@@ -64,25 +71,61 @@ def test_correct_persists_attempt_into_session(client, user_id, session_id):
     assert a["transcript"] == "test text here ok"
     assert a["summary"] == FAKE_AI_RESULT["summary"]
     assert a["gaps"] == FAKE_AI_RESULT["gaps"]
+    assert a["round"] == 1
     assert "createdAt" in a
+
+
+def test_second_call_passes_prev_attempt_and_round2(client, user_id, session_id):
+    """重说闭环：第二次评估必须带上一轮 attempt 和 round=2 给 corrector。"""
+    mock = AsyncMock(return_value=FAKE_AI_RESULT)
+    with patch("routes.correct.correct_text", new=mock):
+        client.post(
+            "/api/correct",
+            json={"userId": user_id, "sessionId": session_id, "text": "first attempt text"},
+        )
+        client.post(
+            "/api/correct",
+            json={"userId": user_id, "sessionId": session_id, "text": "second attempt text"},
+        )
+
+    first_args = mock.await_args_list[0].args
+    second_args = mock.await_args_list[1].args
+    # (text, scenario, prev_attempt, round)
+    assert first_args[2] is None and first_args[3] == 1
+    assert second_args[2] is not None
+    assert second_args[2]["transcript"] == "first attempt text"
+    assert second_args[3] == 2
+    # 场景上下文（来自 session 快照）也要传进去
+    assert second_args[1]["mission"]
+
+
+def test_progress_persisted_in_attempt(client, user_id, session_id):
+    with _mock_correct():
+        client.post(
+            "/api/correct",
+            json={"userId": user_id, "sessionId": session_id, "text": "first attempt text"},
+        )
+    with _mock_correct(FAKE_ROUND2_RESULT):
+        resp = client.post(
+            "/api/correct",
+            json={"userId": user_id, "sessionId": session_id, "text": "second attempt text"},
+        )
+    assert resp.json()["progress"]["verdict"] == "passed"
+    sess = client.get(f"/api/sessions/{session_id}").json()
+    assert sess["attempts"][1]["progress"]["verdict"] == "passed"
 
 
 def test_correct_autosaves_flagged_gaps_to_vocabulary(client, user_id, session_id):
     with _mock_correct():
         resp = client.post(
             "/api/correct",
-            json={
-                "userId": user_id,
-                "sessionId": session_id,
-                "text": "There is some peoples in the kitchen.",
-                "imageUrl": "https://example.com/img.jpg",
-            },
+            json={"userId": user_id, "sessionId": session_id, "text": "Please change it fast now."},
         )
     assert resp.json()["autoSaved"] == 1  # only gap[0] has saveToReview=True
 
     vocab = client.get(f"/api/vocabulary/?userId={user_id}").json()
     assert len(vocab) == 1
-    assert vocab[0]["word"] == "some people"
+    assert vocab[0]["word"] == "Could you remake it?"
 
 
 def test_correct_no_duplicate_vocab_on_retry(client, user_id, session_id):
@@ -90,16 +133,11 @@ def test_correct_no_duplicate_vocab_on_retry(client, user_id, session_id):
         for _ in range(2):
             client.post(
                 "/api/correct",
-                json={
-                    "userId": user_id,
-                    "sessionId": session_id,
-                    "text": "There is some peoples.",
-                    "imageUrl": "",
-                },
+                json={"userId": user_id, "sessionId": session_id, "text": "There is some peoples."},
             )
     vocab = client.get(f"/api/vocabulary/?userId={user_id}").json()
     words = [v["word"] for v in vocab]
-    assert words.count("some people") == 1
+    assert words.count("Could you remake it?") == 1
 
 
 def test_correct_rejects_other_users_session(client, user_id, session_id):
@@ -107,52 +145,6 @@ def test_correct_rejects_other_users_session(client, user_id, session_id):
     with _mock_correct():
         resp = client.post(
             "/api/correct",
-            json={"userId": other, "sessionId": session_id, "text": "x y z", "imageUrl": ""},
+            json={"userId": other, "sessionId": session_id, "text": "x y z"},
         )
     assert resp.status_code == 404
-
-
-# ── _get_image_url 单元测试 ──────────────────────────────────────────────────
-
-def test_get_image_url_uses_signed_url_when_file_archived(client, user_id):
-    """fileId 存在时应生成 OSS 签名 URL，而不是用 ossImageUrl（bucket private 会 403）。"""
-    from routes.correct import _get_image_url
-
-    fake_file_doc = {
-        "_id": "f_abc123",
-        "variants": {"orig": {"key": "files/f_abc123/orig.jpg", "url": "https://oss.example.com/files/f_abc123/orig.jpg"}},
-    }
-    fake_signed = "https://oss.example.com/files/f_abc123/orig.jpg?Signature=xxx&Expires=999"
-
-    session = {
-        "fileId": "f_abc123",
-        "imageUrl": "https://loremflickr.com/640/640/cat",
-        "ossImageUrl": "https://oss.example.com/files/f_abc123/orig.jpg",
-    }
-
-    with patch("routes.correct.get_db") as mock_db, \
-         patch("routes.correct.oss_signed_url", return_value=fake_signed):
-        mock_db.return_value.files.find_one = AsyncMock(return_value=fake_file_doc)
-        result = asyncio.run(_get_image_url(session, "https://req.example.com/img.jpg"))
-
-    assert result == fake_signed
-
-
-def test_get_image_url_falls_back_to_loremflickr_when_no_file(client, user_id):
-    """fileId 不存在时用 session.imageUrl（loremflickr），不用 ossImageUrl。"""
-    from routes.correct import _get_image_url
-
-    session = {
-        "imageUrl": "https://loremflickr.com/640/640/cat",
-        "ossImageUrl": "https://oss.example.com/private.jpg",
-    }
-    result = asyncio.run(_get_image_url(session, "https://req.example.com/img.jpg"))
-    assert result == "https://loremflickr.com/640/640/cat"
-
-
-def test_get_image_url_falls_back_to_req_when_session_has_no_imageurl(client, user_id):
-    """session 没有 imageUrl 时用请求里的 imageUrl。"""
-    from routes.correct import _get_image_url
-
-    result = asyncio.run(_get_image_url({}, "https://req.example.com/img.jpg"))
-    assert result == "https://req.example.com/img.jpg"

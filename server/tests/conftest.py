@@ -55,9 +55,36 @@ def user_id(client):
 
 
 @pytest.fixture
-def session_id(client, user_id):
+def scenario_id(client):
+    """直接往 test DB 插一个公共场景（题库由脚本离线生成，无创建 API）。"""
+    mc = MongoClient("mongodb://localhost:27017/")
+    db = mc[TEST_DB_NAME]
+    db.files.insert_one({
+        "_id": "f_test_scene",
+        "md5": "x", "mimeType": "image/jpeg", "source": "wanx-v1", "topic": "test",
+        "variants": {"orig": {"key": "files/f_test_scene/orig.jpg",
+                              "url": "https://oss.example.com/files/f_test_scene/orig.jpg"}},
+        "status": "active",
+    })
+    db.scenarios.insert_one({
+        "_id": "sc_test_coffee",
+        "slug": "test-coffee",
+        "where": "☕️ 测试咖啡店",
+        "story": "你点的热拿铁被做成了冰美式。",
+        "mission": "让店员重做，并表明你赶时间。",
+        "difficulty": 1,
+        "imageFileId": "f_test_scene",
+        "ownerUserId": None,
+        "status": "active",
+    })
+    mc.close()
+    return "sc_test_coffee"
+
+
+@pytest.fixture
+def session_id(client, user_id, scenario_id):
     resp = client.post(
         "/api/sessions",
-        json={"userId": user_id, "topic": "daily", "imageUrl": "https://example.com/img.jpg"},
+        json={"userId": user_id, "scenarioId": scenario_id},
     )
     return resp.json()["_id"]

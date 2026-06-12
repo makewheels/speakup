@@ -2,16 +2,29 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
 import { api, correctStream } from "../api/client.js";
+import { speak } from "../utils/tts.js";
 import Icon from "../components/Icon.jsx";
 
+const MAX_ROUNDS = 3;
+
 const PROMPTS = {
-  loading:    "准备图片中…",
-  ready:      "看着图，用英语描述",
+  loading:    "准备场景中…",
+  ready:      "进入情境，开口完成任务",
   recording:  "正在听…",
-  review:     "看一眼，要不要让 AI 看？",
-  evaluating: "AI 正在看你的描述…",
+  review:     "看一眼，要不要让 AI 评？",
+  evaluating: "AI 正在评你的表达…",
   feedback:   "",
 };
+
+function SpeakBtns({ text }) {
+  if (!text) return null;
+  return (
+    <span className="spk-btns">
+      <button className="spk-btn" title="播放" onClick={() => speak(text)}>🔊</button>
+      <button className="spk-btn" title="慢速" onClick={() => speak(text, 0.75)}>🐢</button>
+    </span>
+  );
+}
 
 export default function PracticePage() {
   const { sessionId } = useParams();
@@ -23,6 +36,8 @@ export default function PracticePage() {
   const [elapsed, setElapsed] = useState("0:00");
   const [result, setResult] = useState(null);
   const [autoSaved, setAutoSaved] = useState(0);
+  const [round, setRound] = useState(1);
+  const [hintGaps, setHintGaps] = useState([]);
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
 
@@ -36,8 +51,11 @@ export default function PracticePage() {
 
   useEffect(() => {
     if (sessionId) {
-      api.getSession(sessionId).then(setSession).catch(console.error);
-      setPhase("ready");
+      api.getSession(sessionId).then((s) => {
+        setSession(s);
+        setRound(Math.min((s.attempts?.length ?? 0) + 1, MAX_ROUNDS));
+        setPhase("ready");
+      }).catch(console.error);
       return;
     }
     startNewRound();
@@ -54,23 +72,35 @@ export default function PracticePage() {
     setResult(null);
     setTranscript("");
     setAutoSaved(0);
+    setRound(1);
+    setHintGaps([]);
     setElapsed("0:00");
     secondsRef.current = 0;
     setSession(null);
     audioChunksRef.current = null;
     try {
-      const image = await api.nextImage();
+      const scenario = await api.nextScenario(user.userId);
       const sess = await api.createSession({
         userId: user.userId,
-        topic: image.topic,
-        imageUrl: image.imageUrl,
+        scenarioId: scenario.scenarioId,
       });
-      setSession(sess);
+      setSession({ ...sess, isCustom: scenario.isCustom });
       setPhase("ready");
     } catch (err) {
-      alert("图片加载失败：" + err.message);
+      alert("场景加载失败：" + err.message);
       setPhase("ready");
     }
+  };
+
+  // 同一场景再说一遍：保留 session，带着上一轮差距提示重录
+  const retrySame = () => {
+    setHintGaps((result?.gaps ?? []).filter((g) => g.better));
+    setResult(null);
+    setTranscript("");
+    setAutoSaved(0);
+    setRound((r) => Math.min(r + 1, MAX_ROUNDS));
+    setPhase("ready");
+    window.scrollTo(0, 0);
   };
 
   const startRecording = useCallback(async () => {
@@ -175,18 +205,18 @@ export default function PracticePage() {
         userId: user.userId,
         sessionId: session._id,
         text: transcript.trim(),
-        imageUrl: session.imageUrl || "",
       },
       {
         onChunk: (text) => setStreamingLen((n) => n + text.length),
-        onDone: ({ result: res, autoSaved: n }) => {
+        onDone: ({ result: res, autoSaved: n, round: r }) => {
           clearInterval(evalTimerRef.current);
           setResult(res);
           setAutoSaved(n);
+          if (r) setRound(r);
           setPhase("feedback");
-          // 评估完成后异步上传录音（失败静默忽略）
+          // 评估完成后异步上传录音，关联到本轮 attempt（失败静默忽略）
           if (audioChunksRef.current && session?._id) {
-            api.uploadRecording(session._id, user.userId, audioChunksRef.current)
+            api.uploadRecording(session._id, user.userId, audioChunksRef.current, (r ?? round) - 1)
               .catch(console.warn);
             audioChunksRef.current = null;
           }
@@ -202,15 +232,49 @@ export default function PracticePage() {
 
   const CAT_ZH = { grammar: "语法", naturalness: "自然度", vocabulary: "用词", register: "语体" };
 
+  const scenario = session?.scenario;
+
+  const ScenarioCard = () => (
+    <div className="sc-card">
+      <div className="sc-where">
+        {scenario?.where || session?.topic || "场景"}
+        {session?.isCustom && <span className="sc-custom-tag">为你定制</span>}
+        <span className="sc-round-tag">第 {round} / {MAX_ROUNDS} 轮</span>
+      </div>
+      {scenario?.story && <p className="sc-story">{scenario.story}</p>}
+      {scenario?.mission && <p className="sc-mission">🎯 {scenario.mission}</p>}
+    </div>
+  );
+
   if (phase === "feedback" && result) {
     const gaps = result.gaps ?? [];
+    const progress = result.progress;
+    const passed = progress?.verdict === "passed";
+    const lastRound = round >= MAX_ROUNDS;
 
     return (
       <div className="practice-page fb-page fade-in">
-        <div className="su-img" style={{ marginBottom: 16 }}>
-          {session?.imageUrl && <img src={session.imageUrl} alt="scene" />}
-          {session?.topic && <div className="caption">{session.topic}</div>}
-        </div>
+        <ScenarioCard />
+
+        {passed && <div className="fb-passed">这轮说得地道了 ✓</div>}
+
+        {progress && (
+          <div className="fb-progress">
+            {progress.comment && <p className="fb-progress-comment">{progress.comment}</p>}
+            {progress.fixed?.length > 0 && (
+              <div className="fb-progress-list fixed">
+                <span className="label">✅ 这次用上了</span>
+                {progress.fixed.map((x, i) => <span key={i} className="chip">{x}</span>)}
+              </div>
+            )}
+            {progress.remaining?.length > 0 && (
+              <div className="fb-progress-list remaining">
+                <span className="label">⏳ 还没用上</span>
+                {progress.remaining.map((x, i) => <span key={i} className="chip">{x}</span>)}
+              </div>
+            )}
+          </div>
+        )}
 
         {transcript && (
           <div className="fb-transcript-card">
@@ -221,8 +285,8 @@ export default function PracticePage() {
 
         {result.nativeVersion && (
           <div className="fb-native-card">
-            <div className="fb-card-label native">更地道的说法</div>
-            <p className="fb-native-text">{result.nativeVersion}</p>
+            <div className="fb-card-label native">Native 会这么说</div>
+            <p className="fb-native-text">{result.nativeVersion}<SpeakBtns text={result.nativeVersion} /></p>
           </div>
         )}
 
@@ -239,6 +303,7 @@ export default function PracticePage() {
                   <span className="fb-gap-orig">{g.original}</span>
                   <span className="fb-gap-arrow">→</span>
                   <span className="fb-gap-better">{g.better}</span>
+                  <SpeakBtns text={g.better} />
                   {g.category && <span className="fb-gap-cat">{CAT_ZH[g.category] ?? g.category}</span>}
                 </div>
                 {g.why && <p className="fb-gap-why">{g.why}</p>}
@@ -247,33 +312,51 @@ export default function PracticePage() {
           </div>
         )}
 
+        {autoSaved > 0 && (
+          <p className="fb-autosaved">已把 {autoSaved} 个表达放进复习</p>
+        )}
+
         <div className="actions-row" style={{ marginTop: 8 }}>
-          <button
-            className="su-btn su-btn-secondary"
-            onClick={() => { setResult(null); setTranscript(""); setPhase("ready"); setAutoSaved(0); }}
-            style={{ flex: 1, height: 48 }}
-          >
-            <Icon name="refresh" size={16} />&nbsp;重说
-          </button>
-          <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
-            下一张&nbsp;<Icon name="next" size={16} />
-          </button>
+          {passed || lastRound ? (
+            <button className="su-btn su-btn-primary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
+              下一个场景&nbsp;<Icon name="next" size={16} />
+            </button>
+          ) : (
+            <>
+              <button className="su-btn su-btn-primary" onClick={retrySame} style={{ flex: 2, height: 48 }}>
+                <Icon name="refresh" size={16} />&nbsp;再说一遍（第 {round + 1} 轮）
+              </button>
+              <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
+                下一个&nbsp;<Icon name="next" size={16} />
+              </button>
+            </>
+          )}
         </div>
+        {!passed && lastRound && (
+          <p className="fb-rounds-out">{MAX_ROUNDS} 轮到了，别恋战——这些表达已进复习，下个场景继续。</p>
+        )}
       </div>
     );
   }
 
   return (
     <div className="practice-page">
-      <div className="topbar">
-        <span className="scene-tag">{session?.topic ? `scene · ${session.topic}` : "scene"}</span>
-      </div>
-
       <div className={"su-img" + (phase === "loading" ? " loading" : "")}>
-        {phase !== "loading" && session?.imageUrl && (
-          <img src={session.imageUrl} alt="scene" />
+        {phase !== "loading" && session?.ossImageUrl && (
+          <img src={session.ossImageUrl} alt="scene" />
         )}
       </div>
+
+      {phase !== "loading" && <ScenarioCard />}
+
+      {hintGaps.length > 0 && phase !== "loading" && (
+        <div className="sc-hintbar">
+          💡 这次试着用上：
+          {hintGaps.map((g, i) => (
+            <span key={i} className="sc-hint-item"><b>{g.better}</b><SpeakBtns text={g.better} /></span>
+          ))}
+        </div>
+      )}
 
       <p className="su-prompt">{PROMPTS[phase]}</p>
 
@@ -333,7 +416,7 @@ export default function PracticePage() {
               <Icon name="refresh" size={16} />&nbsp;重说
             </button>
             <button className="su-btn su-btn-primary disabled" style={{ flex: 2 }}>
-              <span className="spin" />&nbsp;AI 正在看你的描述… {evalElapsed > 0 && <span style={{ marginLeft: 4, opacity: 0.8 }}>({evalElapsed}s)</span>}
+              <span className="spin" />&nbsp;AI 正在评你的表达… {evalElapsed > 0 && <span style={{ marginLeft: 4, opacity: 0.8 }}>({evalElapsed}s)</span>}
             </button>
           </div>
           <p style={{
@@ -343,11 +426,9 @@ export default function PracticePage() {
             {streamingLen > 0
               ? `AI 正在写… 已生成 ${streamingLen} 字符`
               : evalElapsed < 15
-              ? "正在让 AI 看图片..."
+              ? "正在对照场景任务评估..."
               : evalElapsed < 40
               ? "正在对比母语者会怎么说..."
-              : evalElapsed < 75
-              ? "图片有点慢，再等等..."
               : "比预期久。如果太久没结果可以试着重说。"}
           </p>
         </>
