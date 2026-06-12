@@ -1,8 +1,6 @@
-import base64
 import re
 from typing import AsyncGenerator, Literal
 
-import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
@@ -11,6 +9,8 @@ from config import DASHSCOPE_API_KEY
 
 _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
+
+MAX_ROUNDS = 3
 
 
 class GapItem(BaseModel):
@@ -23,10 +23,18 @@ class GapItem(BaseModel):
     saveToReview: bool = False
 
 
+class ProgressInfo(BaseModel):
+    verdict: Literal["passed", "improved", "stuck"] = "improved"
+    fixed: list[str] = Field(default_factory=list)
+    remaining: list[str] = Field(default_factory=list)
+    comment: str = ""
+
+
 class CorrectResult(BaseModel):
     summary: str = ""
     nativeVersion: str = ""
     gaps: list[GapItem] = Field(default_factory=list)
+    progress: ProgressInfo | None = None
 
 
 def _get_client() -> ChatOpenAI:
@@ -44,60 +52,40 @@ def _get_client() -> ChatOpenAI:
     return _client
 
 
-async def _to_data_url(image_url: str, timeout: float = 20.0) -> str:
-    """Fetch the image and inline it as a data URL so DashScope skips its own slow re-fetch."""
-    if not image_url or image_url.startswith("data:"):
-        return image_url
-    if not image_url.startswith(("http://", "https://")):
-        return image_url
-    try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as c:
-            resp = await c.get(image_url)
-            resp.raise_for_status()
-            mime = resp.headers.get("content-type", "image/jpeg").split(";", 1)[0].strip()
-            if not mime.startswith("image/"):
-                mime = "image/jpeg"
-            b64 = base64.b64encode(resp.content).decode("ascii")
-            return f"data:{mime};base64,{b64}"
-    except Exception:
-        return image_url
+SYSTEM_PROMPT = """You are an English coach helping a Chinese adult learner practice SPEAKING in real-life situations.
 
+THE SETUP: the learner is given a scenario (a place, a situation, a mission they must accomplish by speaking English). You receive the scenario and what they actually said.
 
-SYSTEM_PROMPT = """You are an English coach helping a Chinese adult learner.
-
-YOUR JOB: Expose the GAP between what they said and how a native speaker would naturally say it. Target register is "Starbucks-neighbor English" — the way real people talk to each other, not how textbooks teach it. Casual, spoken, alive. NOT academic, NOT formal, NOT "correct but stiff".
-
-WHAT YOU RECEIVE: an image they were describing, and what they actually said in English.
+YOUR JOB: Expose the GAP between what they said and how a native speaker would handle the SAME mission in this scenario. Real spoken English — casual, alive, situation-appropriate. NOT academic, NOT textbook-stiff.
 
 WHAT TO DO:
-1. Read their text. Imagine how a native speaker would naturally express the SAME idea while looking at this image.
-2. Identify the gaps — where their phrasing differs from natural native speech. Sort by importance (most impactful first).
-3. Each gap explains WHY a native says it that way — not just "this is correct, that is wrong".
-4. Number of gaps is not fixed. If they spoke close to native, list 1-2 details. If many gaps exist, list all real ones. Do not pad with trivia.
+1. Judge their utterance as a real reply inside the scenario: does it accomplish the mission the way a native would?
+2. Identify gaps — phrasing a native would not use, wrong register for the situation, missing moves (e.g. softening a request, stating urgency). Sort by impact.
+3. Each gap explains WHY a native says it that way.
+4. If they spoke close to native, list at most 1-2 real gaps — an empty gaps list is allowed. Do not pad with trivia.
 
 WHAT NOT TO DO:
-- Do NOT invent things not in the image or not in their utterance.
 - Do NOT change the core IDEA they tried to express — only how it's expressed.
-- Do NOT push rare, "impressive", or academic vocabulary. If a native wouldn't say it at a coffee shop, don't suggest it.
-- Do NOT write meta-talk ("As an AI tutor...", "Great job!", "Keep it up!"). No encouragements, no role-statements.
+- Do NOT push rare or academic vocabulary.
+- Do NOT write meta-talk or encouragements ("Great job!").
 - Do NOT correct trivial typos or speech-recognition artifacts if meaning is clear.
 
 LANGUAGE OF FEEDBACK — STRICT:
-- `summary`: 必须用中文写，严格不超过25字，一句话，不要列举多个问题。
+- `summary`: 必须用中文写，严格不超过25字，一句话。
 - `nativeVersion`, gap `original`, gap `better`, gap `example`: 必须用英文写。
-- gap `why`: 必须用中文写，遇到英文词汇/短语时可内嵌保留（如 "用 'blurring by' 更有动感"）。
+- gap `why`: 必须用中文写，遇到英文词汇/短语时可内嵌保留。
 
 OUTPUT: strict JSON only, no markdown fences, no commentary.
 
 {
-  "summary": "一句话（中文，最多25字）：最关键的一个差距是什么",
-  "nativeVersion": "rewrite their utterance in natural native daily English, preserving their meaning",
+  "summary": "一句话（中文，最多25字）：最关键的一个差距",
+  "nativeVersion": "how a native would say it to accomplish this mission, preserving the learner's intent",
   "gaps": [
     {
-      "title": "2-5字中文标签，概括这个差距点的语法/表达规律，例如：复数形式、进行时用法、主谓一致、可数名词、语气词",
+      "title": "2-5字中文标签，例如：请求语气、过去时态、催促方式",
       "original": "what they said (exact or close paraphrase, English)",
-      "better": "ONE single best native replacement — the way a real person would actually say it in conversation, not the textbook version. English only, no slash alternatives",
-      "example": "one short casual sentence a native would actually say out loud, using 'better' naturally. English only",
+      "better": "ONE single best native replacement, English only, no slash alternatives",
+      "example": "one short sentence a native would actually say in this scenario, using 'better' naturally",
       "why": "1-2句解释为什么母语者这样说（中文，可内嵌英文词）",
       "category": "grammar",
       "saveToReview": true
@@ -105,31 +93,75 @@ OUTPUT: strict JSON only, no markdown fences, no commentary.
   ]
 }
 
-`better`: give exactly ONE best option. No slash-separated alternatives. Pick the most natural one.
 `category` must be one of: "grammar", "naturalness", "vocabulary", "register".
-`saveToReview`: set true if this gap pattern is common enough in daily speech that memorizing it will noticeably improve fluency; set false for minor one-off style variants."""
+`saveToReview`: true if memorizing this expression will noticeably improve daily fluency; false for minor one-off style variants."""
+
+RETRY_PROMPT = """
+
+THIS IS ROUND {round} — A RETRY OF THE SAME SCENARIO. Their previous attempt and the gaps you pointed out last time:
+Previous attempt: "{prev_text}"
+Previous gaps (original -> better): {prev_gaps}
+
+Compare THIS attempt against the previous one. Add a REQUIRED "progress" field to your JSON output:
+
+"progress": {{
+  "verdict": "passed | improved | stuck",
+  "fixed": ["a suggested expression they successfully used this time — each array item ONE plain string, no arrows"],
+  "remaining": ["a suggested expression still not used — each item ONE plain string"],
+  "comment": "一句中文点评，不超过20字"
+}}
+
+verdict rules:
+- "passed": no major gaps left — it now sounds like a native handling this mission. Be generous: minor style nits do not block passing.
+- "improved": clearly better but real gaps remain.
+- "stuck": the same problems persist.
+In "gaps", only list NEW or still-unfixed gaps. Focus on what remains; do not repeat what they already fixed."""
 
 
 _EMPTY = {
     "summary": "",
     "nativeVersion": "",
     "gaps": [],
+    "progress": None,
 }
 
 
-async def _build_messages(text: str, image_url: str) -> list:
-    if image_url:
-        image_payload = await _to_data_url(image_url)
-        user_content = [
-            {"type": "image_url", "image_url": {"url": image_payload}},
-            {"type": "text", "text": f'The student said:\n"{text}"\n\nExpose gaps against a native speaker.'},
-        ]
-    else:
-        user_content = f'The student said:\n"{text}"\n\nExpose gaps against a native speaker.'
-    return [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=user_content),
-    ]
+def _scenario_block(scenario: dict | None) -> str:
+    if not scenario:
+        return ""
+    target = ""
+    if scenario.get("targetWords"):
+        target = f"\nExpressions this learner is training (check if they used them): {', '.join(scenario['targetWords'])}"
+    return (
+        f"SCENARIO:\n"
+        f"- 地点: {scenario.get('where', '')}\n"
+        f"- 情境: {scenario.get('story', '')}\n"
+        f"- 任务: {scenario.get('mission', '')}{target}\n\n"
+    )
+
+
+def _build_messages(
+    text: str,
+    scenario: dict | None = None,
+    prev_attempt: dict | None = None,
+    round: int = 1,
+) -> list:
+    system = SYSTEM_PROMPT
+    if prev_attempt and round > 1:
+        gaps_brief = "; ".join(
+            f'"{g.get("original", "")}" -> "{g.get("better", "")}"'
+            for g in prev_attempt.get("gaps", [])
+        )
+        system += RETRY_PROMPT.format(
+            round=round,
+            prev_text=prev_attempt.get("transcript", ""),
+            prev_gaps=gaps_brief,
+        )
+    user = (
+        f'{_scenario_block(scenario)}The learner said:\n"{text}"\n\n'
+        "Expose gaps against how a native speaker would handle this."
+    )
+    return [SystemMessage(content=system), HumanMessage(content=user)]
 
 
 def _parse_result(raw: str) -> dict:
@@ -142,11 +174,16 @@ def _parse_result(raw: str) -> dict:
     return result.model_dump()
 
 
-async def correct_text(text: str, image_url: str = "") -> dict:
+async def correct_text(
+    text: str,
+    scenario: dict | None = None,
+    prev_attempt: dict | None = None,
+    round: int = 1,
+) -> dict:
     if not text or len(text.strip().split()) < 3:
-        return {**_EMPTY, "summary": "Try saying more — describe what you see in detail."}
+        return {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
 
-    messages = await _build_messages(text, image_url)
+    messages = _build_messages(text, scenario, prev_attempt, round)
     try:
         result: CorrectResult = await _get_client().with_structured_output(CorrectResult).ainvoke(messages)
     except Exception as e:
@@ -158,18 +195,21 @@ async def correct_text(text: str, image_url: str = "") -> dict:
 
 
 async def correct_text_stream(
-    text: str, image_url: str = ""
+    text: str,
+    scenario: dict | None = None,
+    prev_attempt: dict | None = None,
+    round: int = 1,
 ) -> AsyncGenerator[tuple[str, dict], None]:
     """流式版本，yield (event_type, data) 元组：
     - ("chunk", {"text": "..."})  — 原始 token
-    - ("done",  {summary, nativeVersion, gaps})
+    - ("done",  {summary, nativeVersion, gaps, progress})
     - ("error", {"message": "..."})
     """
     if not text or len(text.strip().split()) < 3:
-        yield "done", {**_EMPTY, "summary": "Try saying more — describe what you see in detail."}
+        yield "done", {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
         return
 
-    messages = await _build_messages(text, image_url)
+    messages = _build_messages(text, scenario, prev_attempt, round)
     try:
         full_text = ""
         async for chunk in _get_client().astream(messages):

@@ -1,24 +1,30 @@
-"""Pure logic tests for the corrector — no Mongo, no real LLM, no real image fetch."""
+"""Pure logic tests for the corrector — no Mongo, no real LLM."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.corrector import CorrectResult, GapItem, correct_text, correct_text_stream
+from services.corrector import (
+    CorrectResult,
+    GapItem,
+    ProgressInfo,
+    _build_messages,
+    _parse_result,
+    correct_text,
+    correct_text_stream,
+)
 
+SCENARIO = {
+    "where": "☕️ 咖啡店 · 西雅图",
+    "story": "你点的热拿铁被做成了冰美式。",
+    "mission": "让店员重做，并表明你赶时间。",
+}
 
-@pytest.fixture(autouse=True)
-def _no_image_fetch(monkeypatch):
-    """These tests don't care about image inlining; pass URL through.
-
-    Tests of `_to_data_url` itself live in test_image_data_url.py and
-    re-patch httpx directly.
-    """
-    async def _identity(url, **kwargs):
-        return url
-
-    monkeypatch.setattr("services.corrector._to_data_url", _identity)
+PREV_ATTEMPT = {
+    "transcript": "Please change it fast.",
+    "gaps": [{"original": "change it fast", "better": "Could you remake it?"}],
+}
 
 
 def _fake_llm(result: CorrectResult):
@@ -32,14 +38,14 @@ def _fake_llm(result: CorrectResult):
 
 def test_short_input_skips_llm_entirely():
     """Less than 3 words → fast path, no LLM call, no gaps."""
-    result = asyncio.run(correct_text("hi", ""))
+    result = asyncio.run(correct_text("hi"))
     assert result["gaps"] == []
     assert result["nativeVersion"] == ""
     assert result["summary"]  # has a "say more" hint
 
 
 def test_empty_input_skips_llm():
-    result = asyncio.run(correct_text("", ""))
+    result = asyncio.run(correct_text(""))
     assert result["gaps"] == []
 
 
@@ -48,9 +54,7 @@ def test_valid_json_response_mapped_to_schema():
     fake_result = CorrectResult(summary="Solid try, one slip.", nativeVersion="A cat is sleeping on the couch.", gaps=[gap])
     fake = _fake_llm(fake_result)
     with patch("services.corrector._get_client", return_value=fake):
-        result = asyncio.run(
-            correct_text("There is a cat sleeping on the couch", "https://example.com/img.jpg")
-        )
+        result = asyncio.run(correct_text("There is a cat sleeping on the couch", SCENARIO))
     assert result["summary"] == fake_result.summary
     assert result["nativeVersion"] == fake_result.nativeVersion
     assert len(result["gaps"]) == 1
@@ -64,34 +68,69 @@ def test_llm_exception_returns_error_message_not_crash():
     fake_client = MagicMock()
     fake_client.with_structured_output = MagicMock(return_value=fake_chain)
     with patch("services.corrector._get_client", return_value=fake_client):
-        result = asyncio.run(
-            correct_text("There is a cat outside", "https://example.com/img.jpg")
-        )
+        result = asyncio.run(correct_text("There is a cat outside", SCENARIO))
     assert result["gaps"] == []
     assert "error" in result["summary"].lower()
 
 
-def test_image_branch_includes_image_block_in_payload():
-    """When imageUrl is supplied, the chat payload must carry an image_url content block."""
-    fake_result = CorrectResult(summary="ok", nativeVersion="x", gaps=[])
-    fake = _fake_llm(fake_result)
-    with patch("services.corrector._get_client", return_value=fake):
-        asyncio.run(correct_text("a man is walking", "https://example.com/img.jpg"))
-    call_args = fake.with_structured_output.return_value.ainvoke.await_args
-    messages = call_args.args[0]
-    user_content = messages[-1].content
-    assert isinstance(user_content, list)
-    assert any(block.get("type") == "image_url" for block in user_content)
+# ── prompt 构造 ──────────────────────────────────────────────────────────────
+
+def test_scenario_block_included_in_user_message():
+    messages = _build_messages("I want a hot latte", scenario=SCENARIO)
+    user = messages[-1].content
+    assert SCENARIO["story"] in user
+    assert SCENARIO["mission"] in user
 
 
-def test_text_only_branch_when_no_image():
-    fake_result = CorrectResult(summary="ok", nativeVersion="x", gaps=[])
-    fake = _fake_llm(fake_result)
-    with patch("services.corrector._get_client", return_value=fake):
-        asyncio.run(correct_text("a man is walking", ""))
-    call_args = fake.with_structured_output.return_value.ainvoke.await_args
-    messages = call_args.args[0]
-    assert isinstance(messages[-1].content, str)
+def test_no_scenario_no_block():
+    messages = _build_messages("I want a hot latte")
+    assert "SCENARIO" not in messages[-1].content
+
+
+def test_target_words_listed_for_custom_scenario():
+    sc = {**SCENARIO, "targetWords": ["I'm in a rush", "Could you remake it"]}
+    messages = _build_messages("hello there friend", scenario=sc)
+    assert "I'm in a rush" in messages[-1].content
+
+
+def test_retry_round_injects_progress_instructions():
+    messages = _build_messages("Could you remake it? I'm in a rush", SCENARIO, PREV_ATTEMPT, round=2)
+    system = messages[0].content
+    assert "ROUND 2" in system
+    assert PREV_ATTEMPT["transcript"] in system
+    assert '"progress"' in system
+
+
+def test_first_round_has_no_progress_instructions():
+    messages = _build_messages("Could you remake it?", SCENARIO, None, round=1)
+    assert "RETRY OF THE SAME SCENARIO" not in messages[0].content
+
+
+# ── _parse_result（含 progress）────────────────────────────────────────────
+
+def test_parse_result_with_progress():
+    raw = """{"summary": "好多了", "nativeVersion": "x", "gaps": [],
+              "progress": {"verdict": "passed", "fixed": ["Could you remake it?"], "remaining": [], "comment": "过关"}}"""
+    result = _parse_result(raw)
+    assert result["progress"]["verdict"] == "passed"
+    assert result["progress"]["fixed"] == ["Could you remake it?"]
+
+
+def test_parse_result_without_progress_is_none():
+    raw = '{"summary": "ok", "nativeVersion": "x", "gaps": []}'
+    assert _parse_result(raw)["progress"] is None
+
+
+def test_parse_result_invalid_json_returns_failure_summary():
+    result = _parse_result('{"summary": broken → arrows}')
+    assert result["gaps"] == []
+    assert "fail" in result["summary"].lower()
+
+
+def test_progress_model_defaults():
+    p = ProgressInfo()
+    assert p.verdict == "improved"
+    assert p.fixed == [] and p.remaining == []
 
 
 # ── correct_text_stream 単元测试 ────────────────────────────────────────────
@@ -118,9 +157,9 @@ def _fake_stream_client(chunks):
     return fake
 
 
-async def _collect(text, image_url=""):
+async def _collect(text, scenario=None, prev=None, round=1):
     events = []
-    async for event_type, data in correct_text_stream(text, image_url):
+    async for event_type, data in correct_text_stream(text, scenario, prev, round):
         events.append((event_type, data))
     return events
 
@@ -141,12 +180,26 @@ async def test_stream_emits_chunk_events_then_done():
     chunks = [_stream_chunk(c) for c in raw]
     fake = _fake_stream_client(chunks)
     with patch("services.corrector._get_client", return_value=fake):
-        events = await _collect("There is a cat on the sofa", "http://x.jpg")
+        events = await _collect("There is a cat on the sofa", SCENARIO)
     chunk_texts = [d["text"] for t, d in events if t == "chunk"]
     done_events = [d for t, d in events if t == "done"]
     assert "".join(chunk_texts) == raw
     assert len(done_events) == 1
     assert done_events[0]["summary"] == "nice"
+
+
+@pytest.mark.asyncio
+async def test_stream_done_carries_progress_on_retry():
+    import json
+    payload = {
+        "summary": "好多了", "nativeVersion": "x", "gaps": [],
+        "progress": {"verdict": "improved", "fixed": ["a"], "remaining": ["b"], "comment": "ok"},
+    }
+    fake = _fake_stream_client([_stream_chunk(json.dumps(payload))])
+    with patch("services.corrector._get_client", return_value=fake):
+        events = await _collect("Could you remake it please now", SCENARIO, PREV_ATTEMPT, round=2)
+    done = [d for t, d in events if t == "done"][0]
+    assert done["progress"]["verdict"] == "improved"
 
 
 @pytest.mark.asyncio
@@ -158,7 +211,7 @@ async def test_stream_skips_empty_content_chunk():
     chunks = [_stream_chunk(raw), _empty_content_chunk()]
     fake = _fake_stream_client(chunks)
     with patch("services.corrector._get_client", return_value=fake):
-        events = await _collect("There is a cat sleeping here", "")
+        events = await _collect("There is a cat sleeping here")
     assert sum(1 for t, _ in events if t == "done") == 1
     assert sum(1 for t, _ in events if t == "error") == 0
 
@@ -169,7 +222,7 @@ async def test_stream_exception_yields_error_event_not_crash():
     fake = MagicMock()
     fake.astream = MagicMock(side_effect=Exception("connection refused"))
     with patch("services.corrector._get_client", return_value=fake):
-        events = await _collect("There is a cat sleeping here", "")
+        events = await _collect("There is a cat sleeping here")
     assert len(events) == 1
     assert events[0][0] == "error"
     assert "error" in events[0][1]["message"].lower()

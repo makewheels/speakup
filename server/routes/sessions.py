@@ -2,11 +2,10 @@ import time
 from datetime import datetime, timezone
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from db.connection import get_db
-from services.file_service import get_or_upload_from_url, orig_url
 from services.oss_storage import get_url as oss_signed_url, sign_public_url, upload_bytes_async
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -14,39 +13,37 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 class CreateSessionRequest(BaseModel):
     userId: str
-    topic: str
-    imageUrl: str = ""
-
-
-async def _archive_image(session_id: str, image_url: str, topic: str) -> None:
-    """后台任务：把图片归档到 files 集合 + OSS，更新 session.fileId / ossImageUrl。失败静默忽略。"""
-    try:
-        file_doc = await get_or_upload_from_url(image_url, source="loremflickr", topic=topic)
-        await get_db().sessions.update_one(
-            {"_id": ObjectId(session_id)},
-            {"$set": {"fileId": file_doc["_id"], "ossImageUrl": orig_url(file_doc)}},
-        )
-    except Exception:
-        pass
+    scenarioId: str
 
 
 @router.post("")
-async def create_session(req: CreateSessionRequest, background_tasks: BackgroundTasks):
+async def create_session(req: CreateSessionRequest):
+    scenario = await get_db().scenarios.find_one({"_id": req.scenarioId})
+    if not scenario:
+        raise HTTPException(404, "场景不存在")
+
+    file_doc = await get_db().files.find_one({"_id": scenario.get("imageFileId", "")})
+    oss_image_url = file_doc["variants"]["orig"]["url"] if file_doc else ""
+
     doc = {
         "userId": req.userId,
-        "topic": req.topic,
-        "imageUrl": req.imageUrl,
+        "scenarioId": req.scenarioId,
+        "topic": scenario.get("where", ""),
+        # 场景快照：题目以后改了也不影响历史回看
+        "scenario": {
+            "where": scenario.get("where", ""),
+            "story": scenario.get("story", ""),
+            "mission": scenario.get("mission", ""),
+            "targetWords": scenario.get("targetWords", []),
+        },
+        "fileId": scenario.get("imageFileId", ""),
+        "ossImageUrl": oss_image_url,
         "attempts": [],
         "createdAt": datetime.now(timezone.utc),
     }
     result = await get_db().sessions.insert_one(doc)
-    session_id = str(result.inserted_id)
-    doc["_id"] = session_id
-
-    if req.imageUrl:
-        background_tasks.add_task(_archive_image, session_id, req.imageUrl, req.topic)
-
-    return doc
+    doc["_id"] = str(result.inserted_id)
+    return _sign_image(doc)
 
 
 def _sign_recordings(session: dict) -> dict:
@@ -54,6 +51,9 @@ def _sign_recordings(session: dict) -> dict:
     for rec in session.get("recordings", []):
         if "key" in rec:
             rec["url"] = oss_signed_url(rec["key"])
+    for attempt in session.get("attempts", []):
+        if attempt.get("recordingKey"):
+            attempt["recordingUrl"] = oss_signed_url(attempt["recordingKey"])
     return session
 
 
@@ -92,6 +92,7 @@ async def upload_recording(
     session_id: str,
     userId: str = Form(...),
     audio: UploadFile = File(...),
+    attemptIndex: int = Form(-1),
 ):
     try:
         session = await get_db().sessions.find_one(
@@ -105,14 +106,14 @@ async def upload_recording(
     data = await audio.read()
     content_type = (audio.content_type or "audio/webm").split(";")[0].strip()
     ext = "webm" if "webm" in content_type else "ogg"
+    now = datetime.now(timezone.utc)
     ts = int(time.time() * 1000)
-    key = f"recordings/{userId}/{session_id}/{ts}.{ext}"
+    # 路径规范参考 video-2022：{资源根}/{userId}/{yyyyMM}/{sessionId}/{ts}.{ext}
+    key = f"recordings/{userId}/{now.strftime('%Y%m')}/{session_id}/{ts}.{ext}"
 
     await upload_bytes_async(key, data, content_type)
-    now = datetime.now(timezone.utc)
-    await get_db().sessions.update_one(
-        {"_id": ObjectId(session_id)},
-        {"$push": {"recordings": {"key": key, "createdAt": now}}},
-    )
-    signed = oss_signed_url(key)
-    return {"url": signed}
+    update: dict = {"$push": {"recordings": {"key": key, "attemptIndex": attemptIndex, "createdAt": now}}}
+    if 0 <= attemptIndex < len(session.get("attempts", [])):
+        update["$set"] = {f"attempts.{attemptIndex}.recordingKey": key}
+    await get_db().sessions.update_one({"_id": ObjectId(session_id)}, update)
+    return {"url": oss_signed_url(key)}
