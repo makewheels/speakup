@@ -6,6 +6,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Changed (schema 重构 — 上线前清库重来，不迁移老数据)
+- **集合 `sessions` → `practiceSessions`**：把 `sessions` 这个名字留给将来的登录会话；外键 `vocabulary.sessionId` → `practiceId`，路由 `/api/sessions` → `/api/practice-sessions`，前端 API 同步
+- **删除 `files` 集合 + file_service + file_id**：AIGC 一图一题不需要 MD5 去重；图片元信息（模型/提示词）本就在 `scenarios` 里
+- **图片不再把 URL 写死进库**：`scenarios` / `practiceSessions` 只存 `imageKey`，签名 URL 一律读取时现签（修正"ossImageUrl 直接存库"）；删掉 `imageFileId` / `ossImageUrl` / loremflickr `sourceUrl` 等随机图时代字段
+- **OSS 路径资源为根**（参考 video-2022）：场景图 `scenarios/{id}/cover.jpg`，录音 `practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm`
+- **oss_storage 瘦身**：移除随机图时代的 `image_key` / `upload_from_url` / `sign_public_url`
+- 文档同步：schema.md / storage.md / ids.md / scenario-mode.md / AGENTS.md
+
 ### Changed
 - **模型升级并改走配置**：评估 qwen3.6-plus → qwen3.7-plus；生图 wanx-v1（异步轮询）→ wan2.7-image（multimodal-generation 同步接口，10~30s 出图，质量明显更好）；模型名与接口地址不再写死，env `CHAT_MODEL` / `IMAGE_MODEL` / `DASHSCOPE_BASE_URL` 可覆盖
 - **设计文档补全**：新增 `docs/design/scenario-mode.md`（流程图/模型清单/出图策略/后台任务与删除策略总览）；schema.md 补 scenarios 集合与 sessions 新字段；storage.md 补录音路径与迁移计划；AGENTS.md 移除 loremflickr/VLM/部署等过时描述

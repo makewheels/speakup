@@ -24,7 +24,7 @@ export default function HistoryPage() {
   const PAGE = 20;
 
   useEffect(() => {
-    api.listSessions(user.userId, 0)
+    api.listPractices(user.userId, 0)
       .then((data) => {
         setSessions(data);
         setHasMore(data.length === PAGE);
@@ -34,7 +34,7 @@ export default function HistoryPage() {
   }, [user.userId]);
 
   const loadMore = () => {
-    api.listSessions(user.userId, sessions.length)
+    api.listPractices(user.userId, sessions.length)
       .then((data) => {
         setSessions((prev) => [...prev, ...data]);
         setHasMore(data.length === PAGE);
@@ -68,7 +68,7 @@ export default function HistoryPage() {
 
       <div className="history-list">
         {sessions.map((s) => {
-          const thumb = s.ossImageUrl || s.imageUrl || "";
+          const thumb = s.imageUrl || "";
           const lastAttempt = s.attempts?.[s.attempts.length - 1];
           const gapCount = lastAttempt?.gaps?.length ?? 0;
           const summary = lastAttempt?.summary || "";
@@ -80,10 +80,7 @@ export default function HistoryPage() {
                   ? <img
                       src={thumb}
                       alt={s.topic}
-                      onError={(e) => {
-                        if (s.imageUrl && e.target.src !== s.imageUrl) e.target.src = s.imageUrl;
-                        else e.target.style.display = "none";
-                      }}
+                      onError={(e) => { e.target.style.display = "none"; }}
                     />
                   : <Icon name="home" size={22} color="var(--ink-4)" stroke={1.4} />
                 }

@@ -33,19 +33,19 @@ speakup/
 │   │   ├── corrector.py             # Qwen 按场景评估口语（三轮 progress 对比）
 │   │   ├── scenario_service.py      # 派题 + 因材施教定制题后台生成
 │   │   ├── wanx.py                  # 通义万相文生图
-│   │   ├── file_service.py          # files 集合管理，MD5 去重，OSS 上传
-│   │   └── oss_storage.py           # 阿里云 OSS 底层封装
-│   ├── routes/                      # auth, scenarios, correct, sessions, vocabulary
+│   │   └── oss_storage.py           # 阿里云 OSS 底层封装（私有桶，只存 key 读时现签）
+│   ├── routes/                      # auth, scenarios, correct, practice_sessions, vocabulary
 │   ├── utils/
-│   │   └── id_generator.py          # 带前缀的 ID 生成（u_/s_/f_/w_）
+│   │   └── id_generator.py          # scenario_id() → sc_ 前缀（其余集合用 ObjectId）
 │   └── tests/
 │       ├── conftest.py              # 测试 DB 初始化 + cost guard fixture
 │       ├── unit/                    # 纯逻辑单元测试，全 mock，毫秒级
 │       └── integration/             # 走 HTTP + 真实 test DB，秒级
 ├── docs/design/             # 设计文档（改动涉及 schema/存储/ID 时同步更新）
-│   ├── ids.md               # ID 前缀规范
+│   ├── ids.md               # ID 规范
 │   ├── schema.md            # MongoDB 集合 schema
-│   └── storage.md           # OSS 路径与 files 集合设计
+│   ├── scenario-mode.md     # 场景模式总览（流程/模型/存储/后台任务）
+│   └── storage.md           # OSS 路径设计
 ├── scripts/                 # 部署辅助脚本
 ├── .github/workflows/ci-cd.yml
 └── ecosystem.config.cjs     # PM2 配置

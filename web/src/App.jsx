@@ -22,10 +22,10 @@ function AppRoutes() {
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Navigate to="/practice" replace />} />
         <Route path="/practice" element={<PracticePage />} />
-        <Route path="/practice/:sessionId" element={<PracticePage />} />
+        <Route path="/practice/:practiceId" element={<PracticePage />} />
         <Route path="/vocabulary" element={<VocabularyPage />} />
         <Route path="/history" element={<HistoryPage />} />
-        <Route path="/history/:sessionId" element={<SessionDetailPage />} />
+        <Route path="/history/:practiceId" element={<SessionDetailPage />} />
         <Route path="/me" element={<ProfilePage />} />
       </Route>
     </Routes>

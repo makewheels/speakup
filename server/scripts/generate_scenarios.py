@@ -1,4 +1,4 @@
-"""预生成场景题库：万相生图 → OSS files → scenarios 集合。
+"""预生成场景题库：万相生图 → OSS → scenarios 集合。
 
 用法（在 server/ 目录）：
     uv run python scripts/generate_scenarios.py            # 生成内置 3 个场景
@@ -9,7 +9,6 @@
 
 import argparse
 import asyncio
-import hashlib
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,8 +17,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from db.connection import connect_db, get_db
 from services.oss_storage import upload_bytes_async
-from services.wanx import PHOTO_STYLE as STYLE, WANX_MODEL, wanx_generate
-from utils.id_generator import file_id, scenario_id
+from services.scenario_service import scenario_image_key
+from services.wanx import PHOTO_STYLE as STYLE, wanx_generate
+from utils.id_generator import scenario_id
 
 SCENARIOS = [
     {
@@ -52,6 +52,7 @@ SCENARIOS = [
     },
 ]
 
+
 async def main(dry_run: bool) -> None:
     if dry_run:
         for s in SCENARIOS:
@@ -66,37 +67,24 @@ async def main(dry_run: bool) -> None:
             continue
 
         print(f"生成中: {s['slug']} …")
-        data = await wanx_generate(s["imagePrompt"])
+        image = await wanx_generate(s["imagePrompt"])
 
-        fid = file_id()
-        key = f"files/{fid}/orig.jpg"
-        oss_url = await upload_bytes_async(key, data, "image/jpeg")
-        now = datetime.now(timezone.utc)
-        await db.files.insert_one({
-            "_id": fid,
-            "md5": hashlib.md5(data).hexdigest(),
-            "mimeType": "image/jpeg",
-            "source": WANX_MODEL,
-            "sourceUrl": "",
-            "topic": s["slug"],
-            "variants": {"orig": {"key": key, "url": oss_url, "bytes": len(data)}},
-            "status": "active",
-            "createdAt": now,
-        })
-
+        sid = scenario_id()
+        key = scenario_image_key(sid)
+        await upload_bytes_async(key, image, "image/jpeg")
         await db.scenarios.insert_one({
-            "_id": scenario_id(),
+            "_id": sid,
             "slug": s["slug"],
             "where": s["where"],
             "story": s["story"],
             "mission": s["mission"],
             "difficulty": s["difficulty"],
-            "imageFileId": fid,
+            "imageKey": key,
             "imagePrompt": s["imagePrompt"],
             "status": "active",
-            "createdAt": now,
+            "createdAt": datetime.now(timezone.utc),
         })
-        print(f"完成: {s['slug']} → file {fid} ({len(data) // 1024} KB)")
+        print(f"完成: {s['slug']} → {key} ({len(image) // 1024} KB)")
 
     total = await db.scenarios.count_documents({"status": "active"})
     print(f"题库现有 {total} 个场景")

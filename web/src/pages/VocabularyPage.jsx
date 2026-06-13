@@ -197,13 +197,13 @@ export default function VocabularyPage() {
             const mastered = isMastered(w);
             const due = isDue(w);
             const confirmingDelete = pendingDeleteId === w._id;
-            const sceneImg = w.sceneImageUrl || w.imageUrl;
-            const canRepractice = !!w.sessionId;
+            const sceneImg = w.sceneImageUrl;
+            const canRepractice = !!w.practiceId;
             return (
               <div
                 key={w._id}
                 className={`review-card${canRepractice ? "" : " no-link"}`}
-                onClick={() => canRepractice && navigate(`/practice/${w.sessionId}`)}
+                onClick={() => canRepractice && navigate(`/practice/${w.practiceId}`)}
               >
                 <div className="review-card-img">
                   {sceneImg ? (
@@ -211,13 +211,7 @@ export default function VocabularyPage() {
                       src={sceneImg}
                       alt={w.topic || ""}
                       loading="lazy"
-                      onError={(e) => {
-                        if (w.sceneFallbackUrl && e.target.src !== w.sceneFallbackUrl) {
-                          e.target.src = w.sceneFallbackUrl;
-                        } else {
-                          e.target.style.display = "none";
-                        }
-                      }}
+                      onError={(e) => { e.target.style.display = "none"; }}
                     />
                   ) : (
                     <div className="review-card-img-ph">

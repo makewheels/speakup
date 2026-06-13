@@ -1,8 +1,7 @@
-"""阿里云 OSS 对象存储服务"""
+"""阿里云 OSS 对象存储服务。私有桶：只存 key，URL 一律读取时现签。"""
 
 import asyncio
 
-import httpx
 import oss2
 
 from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, OSS_BUCKET
@@ -18,59 +17,19 @@ def _get_bucket() -> oss2.Bucket:
     return _bucket
 
 
-def image_key(user_id: str, session_id: str) -> str:
-    """OSS 对象 key：images/{userId}/{sessionId}.jpg
-    bucket 本身已区分 dev/prod，key 里不重复存环境信息。
-    """
-    return f"images/{user_id}/{session_id}.jpg"
-
-
-def _public_url(key: str) -> str:
-    return f"{OSS_ENDPOINT.replace('https://', f'https://{OSS_BUCKET}.')}/{key}"
-
-
-def upload_bytes(key: str, data: bytes, content_type: str = "image/jpeg") -> str:
-    """同步上传字节数据到 OSS，返回公网 URL。"""
+def upload_bytes(key: str, data: bytes, content_type: str = "image/jpeg") -> None:
+    """同步上传字节数据到 OSS。"""
     _get_bucket().put_object(key, data, headers={"Content-Type": content_type})
-    return _public_url(key)
 
 
-async def upload_bytes_async(key: str, data: bytes, content_type: str = "image/jpeg") -> str:
+async def upload_bytes_async(key: str, data: bytes, content_type: str = "image/jpeg") -> None:
     """异步上传字节数据（在线程池运行同步 SDK）。"""
-    return await asyncio.to_thread(upload_bytes, key, data, content_type)
-
-
-async def upload_from_url(key: str, url: str, timeout: float = 20.0) -> str:
-    """从 URL 下载图片并上传到 OSS，返回公网 URL。"""
-    if not OSS_ACCESS_KEY_ID or not OSS_ACCESS_KEY_SECRET:
-        raise ValueError("OSS credentials not configured")
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as c:
-        resp = await c.get(url)
-        resp.raise_for_status()
-        content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip()
-        if not content_type.startswith("image/"):
-            content_type = "image/jpeg"
-        return await upload_bytes_async(key, resp.content, content_type)
-
-
-def upload_file(key: str, filepath: str) -> str:
-    """上传本地文件到 OSS，返回公网 URL。"""
-    _get_bucket().put_object_from_file(key, filepath)
-    return _public_url(key)
+    await asyncio.to_thread(upload_bytes, key, data, content_type)
 
 
 def get_url(key: str) -> str:
-    """生成签名 URL（1 小时有效）。"""
+    """生成签名 URL（1 小时有效），私有桶浏览器可临时访问。"""
     return _get_bucket().sign_url("GET", key, 3600)
-
-
-def sign_public_url(url: str, expires: int = 3600) -> str:
-    """把 _public_url 形式的无签名公网链接转成签名 URL（私有桶可访问）。
-    非本 bucket 的 URL（如 loremflickr 热链）原样返回。"""
-    prefix = _public_url("")
-    if url and url.startswith(prefix):
-        return _get_bucket().sign_url("GET", url[len(prefix):], expires)
-    return url
 
 
 def delete(key: str) -> None:

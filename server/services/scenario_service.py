@@ -1,6 +1,7 @@
 """场景题库服务：取题（定制题优先）+ 因材施教后台生成定制题。
 
 题目存 scenarios 集合：ownerUserId 为 None 是公共题，为 u_xxx 是只出给该用户的定制题。
+场景图存 OSS `scenarios/{scenarioId}/cover.jpg`，库里只存 imageKey，URL 读取时现签。
 """
 
 import hashlib
@@ -13,22 +14,19 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from db.connection import get_db
 from services.corrector import _get_client
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
-from services.wanx import PHOTO_STYLE, WANX_MODEL, wanx_generate
-from utils.id_generator import file_id, scenario_id
+from services.wanx import PHOTO_STYLE, wanx_generate
+from utils.id_generator import scenario_id
 
 MAX_PENDING_CUSTOM = 2  # 每个用户最多攒 2 道没练过的定制题，攒够就不再生成
 
 
-async def _signed_image_url(image_file_id: str) -> str:
-    file_doc = await get_db().files.find_one({"_id": image_file_id})
-    if not file_doc:
-        return ""
-    return oss_signed_url(file_doc["variants"]["orig"]["key"])
+def scenario_image_key(sid: str) -> str:
+    return f"scenarios/{sid}/cover.jpg"
 
 
 async def _practiced_scenario_ids(user_id: str) -> set:
     ids = set()
-    async for s in get_db().sessions.find(
+    async for s in get_db().practiceSessions.find(
         {"userId": user_id, "scenarioId": {"$exists": True}}, {"scenarioId": 1}
     ):
         ids.add(s["scenarioId"])
@@ -59,7 +57,7 @@ async def next_scenario(user_id: str) -> dict | None:
             int(hashlib.md5(f"{user_id}{datetime.now().date()}".encode()).hexdigest(), 16) % len(pool)
         ]
 
-    chosen["imageUrl"] = await _signed_image_url(chosen.get("imageFileId", ""))
+    chosen["imageUrl"] = oss_signed_url(chosen["imageKey"]) if chosen.get("imageKey") else ""
     chosen["isCustom"] = chosen.get("ownerUserId") is not None
     return chosen
 
@@ -115,29 +113,18 @@ async def generate_custom_scenario(user_id: str) -> dict | None:
     image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}")
 
     now = datetime.now(timezone.utc)
-    fid = file_id()
-    key = f"files/{fid}/orig.jpg"
-    oss_url = await upload_bytes_async(key, image, "image/jpeg")
-    await db.files.insert_one({
-        "_id": fid,
-        "md5": hashlib.md5(image).hexdigest(),
-        "mimeType": "image/jpeg",
-        "source": WANX_MODEL,
-        "sourceUrl": "",
-        "topic": "custom-scenario",
-        "variants": {"orig": {"key": key, "url": oss_url, "bytes": len(image)}},
-        "status": "active",
-        "createdAt": now,
-    })
+    sid = scenario_id()
+    key = scenario_image_key(sid)
+    await upload_bytes_async(key, image, "image/jpeg")
 
     doc = {
-        "_id": scenario_id(),
+        "_id": sid,
         "slug": f"custom-{user_id}-{int(now.timestamp())}",
         "where": spec["where"],
         "story": spec["story"],
         "mission": spec["mission"],
         "difficulty": 2,
-        "imageFileId": fid,
+        "imageKey": key,
         "imagePrompt": spec["imagePrompt"],
         "ownerUserId": user_id,
         "targetWords": words,
