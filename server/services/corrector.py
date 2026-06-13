@@ -10,7 +10,7 @@ from config import CHAT_MODEL, DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL
 _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
 
-MAX_ROUNDS = 3
+MAX_ROUNDS = 2
 
 
 class GapItem(BaseModel):
