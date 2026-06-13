@@ -7,7 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Changed
-- **镜像仓库 ACR → ghcr.io**：阿里云 ACR 个人版 RAM 子用户临时 token 只能 pull 不能 push，要 push 必须控制台手动设固定密码。改用 GitHub Container Registry：`docker/login-action@v3` + `${{ secrets.GITHUB_TOKEN }}`（自带 `packages: write`），public package 零配额零费用。删除 `ACR_AK_ID/ACR_AK_SECRET/ACR_REGISTRY/ACR_NAMESPACE` 4 个 Secrets，删除 RAM 子用户 `acr-ci` + 自定义策略 `speakup-acr`。
+- **镜像仓库回到 ACR + caddy 也搬到 ACR**：实测 ghcr.io 国内服务器拉取速度仅 24 KB/s（GFW 入境限速），caddy 公共 docker.io 国内已完全不通。改用阿里云 ACR 主账号固定密码登录（绕开 RAM 子用户临时 token 的 push 限制）；CI 每次部署同时把 `caddy:2-alpine` 从 docker.io 同步到 `b4/caddy`（首次推后续自动跳过）。docker-compose 两个镜像都走 ACR。
+
+### Changed
+- **镜像仓库 ACR → ghcr.io（已回退）**：阿里云 ACR 个人版 RAM 子用户临时 token 只能 pull 不能 push，要 push 必须控制台手动设固定密码。曾改用 GitHub Container Registry，但国内拉取速度无法接受，已回 ACR。
 
 ### Security
 - 真实生产域名从代码仓库剥离：Caddyfile 用 `{$DOMAIN}` 占位，docker-compose 注入 `DOMAIN` 环境变量，CI 写 `.env` 时从 GitHub Secret `DOMAIN` 取值；AGENTS.md / docs/deploy.md 改占位描述
