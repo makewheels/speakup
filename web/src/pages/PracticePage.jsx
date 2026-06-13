@@ -254,6 +254,11 @@ export default function PracticePage() {
 
     return (
       <div className="practice-page fb-page fade-in">
+        {session?.ossImageUrl && (
+          <div className="fb-img">
+            <img src={session.ossImageUrl} alt="scene" />
+          </div>
+        )}
         <ScenarioCard />
 
         {passed && <div className="fb-passed">这轮说得地道了 ✓</div>}
