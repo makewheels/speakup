@@ -1,0 +1,77 @@
+# 部署指南
+
+> 敏感值（IP/域名/密钥）全走 GitHub Secrets，不在本文档出现。
+> 各 Secret 的名字见 `.github/workflows/ci-cd.yml` 和仓库 Settings → Secrets。
+
+## 架构
+
+```
+GitHub Actions → 构建 Docker 镜像 → 推 ACR (b4/speakup)
+                               → SSH 到生产机 → docker compose pull && up
+speakup.a4.fit → Caddy (自动 HTTPS) → speakup:3001
+speakup:3001    → MongoDB (内网 10.0.20.14:27017)
+                                 → 阿里云 OSS speakup-prod 桶
+                                 → DashScope (Qwen 评估 + 万相配图)
+```
+
+- **镜像仓库**：阿里云 ACR 个人版 (cn-beijing)，命名空间 `b4`，仓库 `speakup`（首次 push 自动创建）。
+- **ACR 凭据**：RAM 子用户 `acr-ci` + 自定义策略 `speakup-acr`（锁到 `b4/speakup`）。`docker login` 用 AK 直接登录。
+- **回滚**：每次部署前旧 `:latest` 转成 `:previous`，回滚 = `docker tag :previous :latest && docker compose up -d`。同时每个构建都有 `:sha` 标签，可回退到任意版本。
+
+## 生产机布置
+
+```
+/opt/speakup/
+├── docker-compose.yml
+├── Caddyfile
+└── .env  （由 CI 每次部署写入，不手动编辑）
+```
+
+Docker Compose 起两个容器：`speakup`（后端+前端静态，internal 3001）、`caddy`（80/443 → speakup:3001，自动签 Let's Encrypt）。
+
+## 首次部署
+
+1. 建好 ACR 命名空间 `b4`（私有 + 自动创建仓库）——控制台操作，阿里云 CLI 不支持个人版此 API。
+2. `gh secret set` 配置所有 Secrets（已有则跳过）。
+3. 服务器是 Ubuntu 24.04，需预装 Docker（`sudo apt install docker.io docker-compose-v2`，Docker 29+）。
+4. 腾讯云防火墙开放 22、80、443 端口（80/443 给 Caddy）。
+5. `git push master` → CI 自动构建部署。
+
+## 回滚
+
+```bash
+ssh -i ~/Downloads/qcloud_lighthouse_beijing ubuntu@<HOST>
+cd /opt/speakup
+docker tag b4/speakup:previous b4/speakup:latest
+docker compose up -d
+```
+
+回退到某个历史版本：
+```bash
+docker pull registry.cn-beijing.aliyuncs.com/b4/speakup:<sha>
+docker tag registry.cn-beijing.aliyuncs.com/b4/speakup:<sha> registry.cn-beijing.aliyuncs.com/b4/speakup:latest
+docker compose up -d
+```
+
+## 常用运维
+
+```bash
+cd /opt/speakup
+
+# 看日志
+docker compose logs -f --tail=50 speakup
+docker compose logs -f caddy
+
+# 重启
+docker compose restart speakup
+
+# 清理旧镜像
+docker image prune -a -f
+```
+
+## 多服务约定
+
+这台机以后会按端口部署多个服务。每个服务：
+- 一个 `docker-compose.yml` + 各自的 Caddy（或共用一份）
+- 绑定不同端口（如 speakup=3001、article2audio=8770），compose 内部端口隔离
+- Caddy 按域名路由到不同容器（`speakup.a4.fit` → speakup:3001，以后 `article.a4.fit` → a2a:8770）

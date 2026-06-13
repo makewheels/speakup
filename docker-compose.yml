@@ -1,0 +1,33 @@
+services:
+  speakup:
+    image: registry.cn-beijing.aliyuncs.com/b4/speakup:latest
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - PORT=3001
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - DASHSCOPE_BASE_URL=${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com}
+      - CHAT_MODEL=${CHAT_MODEL:-qwen3.7-plus}
+      - IMAGE_MODEL=${IMAGE_MODEL:-wan2.7-image}
+      - MONGO_URI=${MONGO_URI}
+      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
+      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
+      - OSS_ENDPOINT=${OSS_ENDPOINT:-https://oss-cn-beijing.aliyuncs.com}
+      - OSS_BUCKET=${OSS_BUCKET_PROD}
+    expose:
+      - "3001"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

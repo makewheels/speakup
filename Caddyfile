@@ -1,0 +1,10 @@
+speakup.a4.fit {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy speakup:3001
+	}
+	handle {
+		reverse_proxy speakup:3001
+	}
+}

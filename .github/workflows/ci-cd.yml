@@ -5,6 +5,11 @@ on:
     branches: [main, master]
   pull_request:
 
+env:
+  ACR: registry.cn-beijing.aliyuncs.com
+  ACR_IMAGE: registry.cn-beijing.aliyuncs.com/${{ secrets.ACR_NAMESPACE }}/speakup
+  SERVER_DIR: /opt/speakup
+
 jobs:
   test-server:
     name: Server tests (pytest)
@@ -21,16 +26,11 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v5
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-
+      - uses: astral-sh/setup-uv@v7
+        with: { enable-cache: true }
       - name: Sync deps
         working-directory: server
         run: uv sync --frozen
-
       - name: Run pytest
         working-directory: server
         run: uv run pytest -v
@@ -40,28 +40,101 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
+        with: { version: 10 }
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
-
       - name: Install
         working-directory: web
         run: pnpm install --frozen-lockfile
-
       - name: Run vitest
         working-directory: web
         run: pnpm test
-
       - name: Build
         working-directory: web
         run: pnpm run build
 
-  # 生产环境已下线（2026-06：原服务器重装挪作他用），deploy job 移除。
-  # 将来重新部署时从 git 历史找回（PR #32 之前的 ci-cd.yml）。
+  deploy:
+    name: Build & Deploy
+    needs: [test-server, test-web]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Login to ACR
+        uses: aliyun/acr-login@v1
+        with:
+          login-server: registry.cn-beijing.aliyuncs.com
+          username: ${{ secrets.ACR_AK_ID }}
+          password: ${{ secrets.ACR_AK_SECRET }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ACR_IMAGE }}:latest
+            ${{ env.ACR_IMAGE }}:${{ github.sha }}
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+
+      - name: Sync compose + Caddyfile
+        run: |
+          rsync -az -e "ssh -o ServerAliveInterval=30" \
+            docker-compose.yml Caddyfile \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.SERVER_DIR }}/
+
+      - name: Write server .env
+        run: |
+          cat <<__ENVEOF__ | \
+            ssh -o ServerAliveInterval=30 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cat > ${{ env.SERVER_DIR }}/.env"
+          DASHSCOPE_API_KEY=${{ secrets.DASHSCOPE_API_KEY }}
+          MONGO_URI=${{ secrets.MONGO_URI }}
+          OSS_BUCKET_PROD=${{ secrets.OSS_BUCKET_PROD }}
+          OSS_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }}
+          __ENVEOF__
+
+      - name: Pull and restart
+        run: |
+          H="${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
+
+          # 登录 ACR：AK_SECRET 走 stdin，AK_ID 走命令变量（runner 日志私有不外露）
+          echo "${{ secrets.ACR_AK_SECRET }}" | \
+            ssh -o ServerAliveInterval=30 "$H" \
+            "docker login --username=${{ secrets.ACR_AK_ID }} --password-stdin ${{ env.ACR }} >/dev/null 2>&1"
+
+          ssh -o ServerAliveInterval=30 "$H" /bin/bash -s << 'PULL'
+          set -e
+          IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
+          cd /opt/speakup
+
+          # 旧 :latest → :previous（回滚用）
+          docker pull "${IMG}:latest" 2>/dev/null && \
+            docker tag "${IMG}:latest" "${IMG}:previous" || true
+
+          docker pull "${IMG}:latest"
+          docker compose down --remove-orphans 2>/dev/null || true
+          docker compose up -d --wait --wait-timeout 60
+          docker image prune -f
+          echo "=== deploy done ==="
+          docker compose ps
+          PULL
+
+      - name: Smoke check
+        run: |
+          sleep 3
+          H="${{ secrets.DEPLOY_HOST }}"
+          curl -fsS -m 8 "http://${H}:3001/api/scenarios/next?userId=u_probe" | head -c 100
+          echo

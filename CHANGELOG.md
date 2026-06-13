@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Added
+- **Docker 容器化部署**（PR #41）：Dockerfile 多阶段构建（pnpm 编前端→uv 后端）；docker-compose（speakup + Caddy 自动 HTTPS）；GitHub Actions push master → build → 推 ACR `b4/speakup`（`:latest`+`:previous` 回滚）→ SSH 部署 → smoke check
+- 生产 FastAPI 直接托管前端静态文件（`APP_ENV=production` 时 mount `static/` 目录）
+- RAM 子用户 `acr-ci` + speakup 专用策略（锁死 `b4/speakup` 仓库），凭据全部走 GitHub Secrets
+- 部署交接文档：`docs/deploy.md`
+
+### Removed
+- `ecosystem.config.cjs`（PM2 配置，生产已下线）
+
 ### Changed
 - **场景卡改表格式**：地点 / 场景 / 🎯 要说 三行，左标签列（浅底）+ 右内容列，行间分割线，格式更清晰；"要说"行高亮、要点字号加大到 19px
 - **场景给出"要用英语说什么"的具体内容**（`points` 字段）：办事/讲解类给死内容（用户只管翻译表达，不用自己编剧情，如布置任务直接列出三件事），日常/描述/观点类给提示要点。评估也会对照 points 看是否表达到位。

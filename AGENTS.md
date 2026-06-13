@@ -13,7 +13,7 @@
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
 | 场景配图 | DashScope 通义万相（env `IMAGE_MODEL`）| 题库预生成 + 定制题后台生成，存 OSS |
 | AI 评估 | DashScope Qwen（env `CHAT_MODEL`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式 |
-| 部署 | 暂无 | 生产已下线，仅本地运行；CI 只跑测试 |
+| 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR b4/speakup→SSH compose up；speakup.a4.fit HTTPS |
 
 ## 项目结构
 
@@ -46,9 +46,11 @@ speakup/
 │   ├── schema.md            # MongoDB 集合 schema
 │   ├── scenario-mode.md     # 场景模式总览（流程/模型/存储/后台任务）
 │   └── storage.md           # OSS 路径设计
-├── scripts/                 # 部署辅助脚本
-├── .github/workflows/ci-cd.yml
-└── ecosystem.config.cjs     # PM2 配置
+│   └── deploy.md            # 部署指南
+├── Dockerfile               # 多阶段构建（pnpm 前端 + uv 后端）
+├── docker-compose.yml       # speakup + Caddy 自动 HTTPS
+├── Caddyfile                # 自动证书 + 反代配置
+└── .github/workflows/ci-cd.yml
 ```
 
 ## 环境隔离
@@ -56,7 +58,7 @@ speakup/
 | 环境 | MongoDB | 启动 |
 |------|---------|------|
 | dev (本地) | localhost/speakup | `uv run python main.py` |
-| prod | 内网 IP / speakup | PM2 管理 |
+| prod | 内网 `MONGO_URI` 指向 DB 机:27017 | Docker (`docker compose up -d`) |
 
 环境由 `APP_ENV` 切换（dev/prod 默认 development）。`config.py` 加载 `.env.{APP_ENV}` 然后用 `.env` 兜底。
 
@@ -68,22 +70,23 @@ cd server && uv run python main.py     # API :3001
 cd web && pnpm run dev              # 前端 :5173 → proxy /api
 
 # 生产部署 (自动)
-git push  # GitHub Actions → rsync → PM2 reload
+git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose up
 ```
 
 ## 注意事项
 
 - 语音识别仅 Chrome (Web Speech API)
-- `.env` 文件不在版本控制中, rsync 时排除
+- `.env` 文件不在版本控制中
 - pnpm 全局 store: `~/Library/pnpm/store/v10`
 - uv 全局 cache: `~/.cache/uv`
 - **不要重复启动 dev server**：前端默认跑在 :5173，启动前先 `lsof -ti :5173` 检查是否已有进程；有则直接用，不要再 `pnpm run dev`
+- 部署详情见 `docs/deploy.md`（回滚、多服务约定、运维命令）
 
 ## 已知不足（待迭代）
 
 - 登录：手机号直接注册无验证，无 token（MVP 自用阶段）
-- 部署系统有 secrets 不透传 + 路径错位 bug，详见下文 "部署 known issues"
-- HTTPS 通过 8443 端口提供（腾讯云 443 端口被网络层拦截），HTTP 自动跳转
+- production HTTPS（speakup.a4.fit）依赖 Caddy + Let's Encrypt；腾讯云 443 端口的 TLS 阻断问题(旧生产被迫走 8443)是否影响新机待部署后实测
+- 内网 DB 连接依赖 Lighthouse 同 VPC（已确认 services→DB 机的 27017 通）
 
 ---
 
@@ -104,47 +107,15 @@ git push  # GitHub Actions → rsync → PM2 reload
 
 `gh secret list` 可以看到都设了哪些 secrets。
 
-## 部署目标抽象描述
+## 部署运维
 
-- web 实例：腾讯 Lighthouse（北京区），ubuntu 用户，PM2 + Nginx，FastAPI 在 3001
-- db 实例：同区 Lighthouse，独立机器跑 MongoDB，**走内网 IP 连接**（不走公网）
-- 同区 Lighthouse 之间默认内网互通（同 VPC）
+部署详情见 `docs/deploy.md`。要点：
 
-## 常用命令模板
-
-```bash
-# SSH 上 web（HOST 从 gh secret 或腾讯控制台取）
-ssh -i ~/Downloads/qcloud_lighthouse_beijing ubuntu@<HOST>
-
-# 看 PM2
-pm2 list
-pm2 logs speakup-server --lines 50
-
-# 改线上 server/.env（敏感值，sudo nano，不要拷贝到 chat）
-sudo nano /opt/speakup/server/.env
-pm2 restart speakup-server
-
-# 强制重建 venv（rsync 推过坏 venv 时）
-cd /opt/speakup/server && rm -rf .venv && uv sync
-pm2 restart speakup-server
-
-# Aliyun DNS（本机 `aliyun configure list` 已配 default profile）
-aliyun alidns DescribeDomainRecords --DomainName <主域名>
-
-# 腾讯 Lighthouse（本机 tccli 已配 default profile, region ap-beijing）
-tccli lighthouse DescribeInstances --region ap-beijing
-tccli lighthouse DescribeFirewallRules --InstanceId <实例 id> --region ap-beijing
-```
-
-## 部署系统 known issues
-
-需修：
-
-1. `deploy.yml` 写 `.env.production` 到 `/opt/speakup/`（根目录），但 `config.py` 读 `server/`。**路径错位**，secrets 实际没生效。
-2. `ssh ... bash << 'REMOTE'` 单引号 heredoc + ssh 不透传 GitHub Actions runner 的 env vars，导致远端 `$DASHSCOPE_API_KEY` `$MONGO_URI` 是空字符串。
-3. 现在能跑是因为 `server/.env` 是 5/24 22:00 手动放的（含真实凭据），rsync 因为 `--exclude='.env'` 没动它。
-
-正确做法（待实现）：runner 上用 secrets 生成 .env 内容，scp 到 `/opt/speakup/server/.env.production`（路径要对）。或者用 `ssh -o SetEnv=...` 显式透传。
+- 生产机：Tencent Lighthouse "services" (Ubuntu 24.04)，`/opt/speakup/` 下 docker compose up
+- Docker 容器映射 3001 内部端口，Caddy 自动 HTTPS (80/443)；腾讯云防火墙需开放 80+443
+- `docker compose logs -f speakup` 看日志；`docker compose restart` 重启
+- 回滚：旧 `:latest` 每次部署转 `:previous`，`docker tag :previous :latest && docker compose up -d` 回退一步
+- ACR 控制台：个人实例 `b4/speakup` 仓库，镜像推送查看都在那
 
 ## HTTPS
 
