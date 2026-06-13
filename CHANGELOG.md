@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Fixed
+- CI 流水线移除 Deploy to production job：生产服务器已下线（重装挪作他用），每次合 master 都 SSH 连接拒绝导致流水线标红；将来重新部署时从 git 历史找回
 - 反馈结果页加回场景图（之前评估完图片就消失，对照差距时看不到情境）
 - 场景卡 / 反馈页整体字号调大（story/mission 15→17、native 17→19、差距点 14/16→16/18、说明文字 12/13→14/15 等）
 
