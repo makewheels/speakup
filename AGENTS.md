@@ -10,11 +10,10 @@
 |---|------|------|
 | 前端 | React 19 + Vite 8 | SPA, pnpm 管理 |
 | 后端 | FastAPI + uv | Python 3.14, 异步 |
-| 数据库 | MongoDB | 腾讯 Lighthouse 独立实例（内网直连）|
-| 图片来源 | loremflickr 随机图床 | 临时方案；按 topic 取关键词 |
-| AI 反馈 | DashScope qwen3-vl-plus (VLM) | 看图 + 听描述 → JSON 反馈 |
-| 部署 | PM2 + Nginx | 腾讯 Lighthouse |
-| CI/CD | GitHub Actions | push → 自动部署 |
+| 数据库 | MongoDB | 本地 localhost（生产已下线）|
+| 场景配图 | DashScope 通义万相（env `IMAGE_MODEL`）| 题库预生成 + 定制题后台生成，存 OSS |
+| AI 评估 | DashScope Qwen（env `CHAT_MODEL`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式 |
+| 部署 | 暂无 | 生产已下线，仅本地运行；CI 只跑测试 |
 
 ## 项目结构
 
@@ -31,11 +30,12 @@ speakup/
 │   ├── config.py                    # 按 APP_ENV 加载 .env
 │   ├── db/connection.py             # Motor async MongoDB
 │   ├── services/
-│   │   ├── corrector.py             # qwen3-vl-plus 看图给反馈
+│   │   ├── corrector.py             # Qwen 按场景评估口语（三轮 progress 对比）
+│   │   ├── scenario_service.py      # 派题 + 因材施教定制题后台生成
+│   │   ├── wanx.py                  # 通义万相文生图
 │   │   ├── file_service.py          # files 集合管理，MD5 去重，OSS 上传
-│   │   ├── image_generator.py       # 按 topic 拼 loremflickr URL
 │   │   └── oss_storage.py           # 阿里云 OSS 底层封装
-│   ├── routes/                      # auth, generate, correct, sessions, vocabulary
+│   ├── routes/                      # auth, scenarios, correct, sessions, vocabulary
 │   ├── utils/
 │   │   └── id_generator.py          # 带前缀的 ID 生成（u_/s_/f_/w_）
 │   └── tests/
@@ -82,8 +82,6 @@ git push  # GitHub Actions → rsync → PM2 reload
 ## 已知不足（待迭代）
 
 - 登录：手机号直接注册无验证，无 token（MVP 自用阶段）
-- 图片：loremflickr 随机给图，场景不可控；通义万相生图 + COS 池待接
-- 模型名 `qwen3.6-plus` 待与 DashScope 实际可用模型对齐
 - 部署系统有 secrets 不透传 + 路径错位 bug，详见下文 "部署 known issues"
 - HTTPS 通过 8443 端口提供（腾讯云 443 端口被网络层拦截），HTTP 自动跳转
 
