@@ -1,6 +1,6 @@
 services:
   speakup:
-    image: ghcr.io/makewheels/speakup:latest
+    image: registry.cn-beijing.aliyuncs.com/b4/speakup:latest
     restart: unless-stopped
     environment:
       - APP_ENV=production
@@ -18,7 +18,7 @@ services:
       - "3001"
 
   caddy:
-    image: caddy:2-alpine
+    image: registry.cn-beijing.aliyuncs.com/b4/caddy:2-alpine
     restart: unless-stopped
     ports:
       - "80:80"

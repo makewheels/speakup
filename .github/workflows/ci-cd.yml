@@ -6,7 +6,9 @@ on:
   pull_request:
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  ACR: registry.cn-beijing.aliyuncs.com
+  ACR_IMAGE: registry.cn-beijing.aliyuncs.com/b4/speakup
+  CADDY_IMAGE: registry.cn-beijing.aliyuncs.com/b4/caddy
   SERVER_DIR: /opt/speakup
 
 jobs:
@@ -61,27 +63,35 @@ jobs:
     needs: [test-server, test-web]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v5
 
-      - name: Login to GHCR
+      - name: Login to ACR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ${{ env.ACR }}
+          username: ${{ secrets.ACR_AK_ID }}
+          password: ${{ secrets.ACR_AK_SECRET }}
 
-      - name: Build and push
+      - name: Build and push speakup
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.ACR_IMAGE }}:latest
+            ${{ env.ACR_IMAGE }}:${{ github.sha }}
+
+      - name: Mirror caddy:2-alpine to ACR (if missing)
+        run: |
+          if docker manifest inspect ${{ env.CADDY_IMAGE }}:2-alpine >/dev/null 2>&1; then
+            echo "caddy:2-alpine 已在 ACR，跳过同步"
+          else
+            echo "拉 docker.io/caddy:2-alpine → 推 ACR"
+            docker pull caddy:2-alpine
+            docker tag caddy:2-alpine ${{ env.CADDY_IMAGE }}:2-alpine
+            docker push ${{ env.CADDY_IMAGE }}:2-alpine
+          fi
 
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
@@ -111,9 +121,16 @@ jobs:
 
       - name: Pull and restart
         run: |
-          ssh -o ServerAliveInterval=30 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} /bin/bash -s << 'PULL'
+          H="${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
+
+          # 服务器 docker login ACR（用主账号固定密码，stdin 不入 log）
+          echo "${{ secrets.ACR_AK_SECRET }}" | \
+            ssh -o ServerAliveInterval=30 "$H" \
+            "docker login --username=${{ secrets.ACR_AK_ID }} --password-stdin ${{ env.ACR }} >/dev/null 2>&1"
+
+          ssh -o ServerAliveInterval=30 "$H" /bin/bash -s << 'PULL'
           set -e
-          IMG=ghcr.io/makewheels/speakup
+          IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
           cd /opt/speakup
 
           # 旧 :latest → :previous（回滚用）
@@ -121,6 +138,7 @@ jobs:
             docker tag "${IMG}:latest" "${IMG}:previous" || true
 
           docker pull "${IMG}:latest"
+          docker pull registry.cn-beijing.aliyuncs.com/b4/caddy:2-alpine
           docker compose down --remove-orphans 2>/dev/null || true
           docker compose up -d --wait --wait-timeout 60
           docker image prune -f
