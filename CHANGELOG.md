@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Changed
+- **模型升级并改走配置**：评估 qwen3.6-plus → qwen3.7-plus；生图 wanx-v1（异步轮询）→ wan2.7-image（multimodal-generation 同步接口，10~30s 出图，质量明显更好）；模型名与接口地址不再写死，env `CHAT_MODEL` / `IMAGE_MODEL` / `DASHSCOPE_BASE_URL` 可覆盖
+- **设计文档补全**：新增 `docs/design/scenario-mode.md`（流程图/模型清单/出图策略/后台任务与删除策略总览）；schema.md 补 scenarios 集合与 sessions 新字段；storage.md 补录音路径与迁移计划；AGENTS.md 移除 loremflickr/VLM/部署等过时描述
+
 ### Fixed
 - CI 流水线移除 Deploy to production job：生产服务器已下线（重装挪作他用），每次合 master 都 SSH 连接拒绝导致流水线标红；将来重新部署时从 git 历史找回
 - 反馈结果页加回场景图（之前评估完图片就消失，对照差距时看不到情境）

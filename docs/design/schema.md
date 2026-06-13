@@ -11,33 +11,51 @@
 }
 ```
 
+## scenarios（场景题库）
+
+```json
+{
+  "_id":         "sc_1781276...",
+  "slug":        "coffee-wrong-order",     // 幂等键；定制题为 custom-{userId}-{ts}
+  "where":       "☕️ 咖啡店 · 西雅图",
+  "story":       "你点的是热拿铁，店员却给了冰美式…",
+  "mission":     "让店员重做，并让他知道你赶时间。",
+  "difficulty":  1,
+  "imageFileId": "f_...",                  // 关联 files._id（万相生成的场景图）
+  "imagePrompt": "busy specialty coffee shop counter, ...",
+  "ownerUserId": null,                     // null=公共题；u_xxx=只派给该用户的定制题
+  "targetWords": ["could you take a look"], // 定制题：必须逼用户用上的弱点表达
+  "status":      "active | archived",
+  "createdAt":   datetime
+}
+```
+
 ## sessions
 
 ```json
 {
-  "_id":         ObjectId,          // 老数据；新数据待迁移到 s_ 前缀
-  "userId":      "ObjectId string",
-  "topic":       "city",
-  "imageUrl":    "https://loremflickr.com/...",   // 原始 URL
-  "ossImageUrl": "https://bucket.oss.../...",      // OSS 归档 URL（冗余，便于展示）
-  "fileId":      "f_1748453...",                   // 关联 files._id（新 session 才有）
+  "_id":         "s_...",
+  "userId":      "u_...",
+  "scenarioId":  "sc_...",
+  "topic":       "☕️ 咖啡店 · 西雅图",     // = scenario.where，便于列表展示
+  "scenario":    { "where": "...", "story": "...", "mission": "...", "targetWords": [] },  // 快照，题目改动不影响历史
+  "fileId":      "f_...",
+  "ossImageUrl": "https://bucket.oss.../...",
   "attempts": [
     {
-      "transcript":    "There is a tall building...",
-      "summary":       "描述了城市建筑...",
-      "nativeVersion": "A towering skyscraper...",
+      "round":         1,                  // 第几轮重说（最多 3）
+      "transcript":    "I ordered a hot latte but...",
+      "summary":       "...",
+      "nativeVersion": "...",
       "gaps": [
-        {
-          "original":    "tall building",
-          "better":      "skyscraper",
-          "why":         "更地道的单词",
-          "category":    "vocab",
-          "saveToReview": true
-        }
+        { "original": "...", "better": "...", "why": "...", "category": "vocabulary", "saveToReview": true }
       ],
+      "progress":      { "verdict": "passed | improved | stuck", "fixed": [], "remaining": [], "comment": "" },  // 第 2 轮起
+      "recordingKey":  "recordings/u_/yyyyMM/s_/ts.webm",   // 本轮录音（上传成功才有）
       "createdAt": datetime
     }
   ],
+  "recordings": [ { "key": "...", "createdAt": datetime } ],  // 未关联 attempt 的录音
   "createdAt": datetime
 }
 ```

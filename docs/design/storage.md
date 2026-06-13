@@ -3,10 +3,12 @@
 ## OSS 路径结构
 
 ```
-files/{fileId}/orig.jpg      ← 原图（现阶段唯一变体）
-files/{fileId}/thumb.jpg     ← 缩略图（待实现）
-files/{fileId}/512.jpg       ← 其他尺寸（按需扩展）
+files/{fileId}/orig.jpg                              ← 场景图原图（现阶段唯一变体）
+files/{fileId}/thumb.jpg                             ← 缩略图（待实现）
+recordings/{userId}/{yyyyMM}/{sessionId}/{ts}.webm   ← 每轮练习录音
 ```
+
+迁移计划（参考 video-2022"资源为根、类型做子目录"，见 [scenario-mode.md](scenario-mode.md)）：场景图 → `scenarios/{scenarioId}/cover.jpg`，会话产物 → `sessions/{userId}/{yyyyMM}/{sessionId}/recording|feedback/...`。
 
 - `fileId` 即 `files` 集合的 `_id`（格式见 [ids.md](ids.md)）
 - 同一张图的所有变体都在同一文件夹，方便管理和删除
