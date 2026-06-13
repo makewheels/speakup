@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Changed (错题本改名 — 上线前，不迁移老数据)
+- **集合 `vocabulary` → `reviewItems`**：错题不只是单词，更多是短语/句式，旧名体现不出"错题/复习项"；字段 `word` → `expression`
+- 路由 `/api/vocabulary` → `/api/review-items`，前端页 `/vocabulary` → `/review`，VocabularyPage → ReviewPage，API 方法 `listReviewItems` 等同步
+- 因材施教仍是这条链：大模型纠正出的点存进 `reviewItems` → 后台据此为该用户反向生成定制错题场景（`ownerUserId`）
+
 ### Changed (schema 重构 — 上线前清库重来，不迁移老数据)
 - **集合 `sessions` → `practiceSessions`**：把 `sessions` 这个名字留给将来的登录会话；外键 `vocabulary.sessionId` → `practiceId`，路由 `/api/sessions` → `/api/practice-sessions`，前端 API 同步
 - **删除 `files` 集合 + file_service + file_id**：AIGC 一图一题不需要 MD5 去重；图片元信息（模型/提示词）本就在 `scenarios` 里

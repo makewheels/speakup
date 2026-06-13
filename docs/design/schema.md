@@ -63,15 +63,17 @@
 
 > 图片与录音库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。
 
-## vocabulary（错题本 / 复习表）
+## reviewItems（错题本 / 复习项）
 
-每个 saveToReview 的 gap 落一行；SM-2 间隔重复字段调度复习，也是因材施教反向出题的来源。
+> 命名：用 `reviewItems` 而非 `vocabulary`——错题不只是单词，更多是短语/句式；字段也用 `expression` 而非 `word`。
+
+每个 saveToReview 的 gap 落一行（大模型纠正出的点）；SM-2 间隔重复字段调度复习，也是因材施教反向出题的来源。
 
 ```json
 {
   "_id":           ObjectId,
   "userId":        "ObjectId string",
-  "word":          "Could you take a look?",   // 地道说法（better）
+  "expression":    "Could you take a look?",   // 地道说法（来自 gap.better），词/短语/句式皆可
   "original":      "you see this",             // 用户原来的说法
   "note":          "更礼貌的请求",
   "contextSentence": "Could you take a look at this for me?",
@@ -85,7 +87,7 @@
 ```
 
 索引建议：
-- `vocabulary`: `{userId, nextReviewAt}` 复合索引（复习查询）
-- `vocabulary`: `{userId, word}` 唯一索引（去重）
+- `reviewItems`: `{userId, nextReviewAt}` 复合索引（复习查询）
+- `reviewItems`: `{userId, expression}` 唯一索引（去重）
 - `scenarios`: `{slug}` 唯一索引（脚本幂等）
 - `practiceSessions`: `{userId, createdAt}` 复合索引（历史列表）

@@ -123,9 +123,9 @@ def test_correct_autosaves_flagged_gaps_to_vocabulary(client, user_id, practice_
         )
     assert resp.json()["autoSaved"] == 1  # only gap[0] has saveToReview=True
 
-    vocab = client.get(f"/api/vocabulary/?userId={user_id}").json()
-    assert len(vocab) == 1
-    assert vocab[0]["word"] == "Could you remake it?"
+    items = client.get(f"/api/review-items/?userId={user_id}").json()
+    assert len(items) == 1
+    assert items[0]["expression"] == "Could you remake it?"
 
 
 def test_correct_no_duplicate_vocab_on_retry(client, user_id, practice_id):
@@ -135,9 +135,9 @@ def test_correct_no_duplicate_vocab_on_retry(client, user_id, practice_id):
                 "/api/correct",
                 json={"userId": user_id, "practiceId": practice_id, "text": "There is some peoples."},
             )
-    vocab = client.get(f"/api/vocabulary/?userId={user_id}").json()
-    words = [v["word"] for v in vocab]
-    assert words.count("Could you remake it?") == 1
+    items = client.get(f"/api/review-items/?userId={user_id}").json()
+    exprs = [v["expression"] for v in items]
+    assert exprs.count("Could you remake it?") == 1
 
 
 def test_correct_rejects_other_users_practice(client, user_id, practice_id):

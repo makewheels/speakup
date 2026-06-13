@@ -5,12 +5,12 @@ from bson import ObjectId
 from db.connection import get_db
 from services.oss_storage import get_url as oss_signed_url
 
-router = APIRouter(prefix="/api/vocabulary", tags=["vocabulary"])
+router = APIRouter(prefix="/api/review-items", tags=["review-items"])
 
 
-class AddWordsRequest(BaseModel):
+class AddItemsRequest(BaseModel):
     userId: str
-    words: list[dict]
+    items: list[dict]
 
 
 class ReviewRequest(BaseModel):
@@ -18,20 +18,22 @@ class ReviewRequest(BaseModel):
 
 
 @router.post("")
-async def add_words(req: AddWordsRequest):
+async def add_items(req: AddItemsRequest):
     now = datetime.now(timezone.utc)
     added = 0
-    for w in req.words:
-        existing = await get_db().vocabulary.find_one({"userId": req.userId, "word": w["word"]})
+    for it in req.items:
+        existing = await get_db().reviewItems.find_one(
+            {"userId": req.userId, "expression": it["expression"]}
+        )
         if existing:
             continue
-        await get_db().vocabulary.insert_one({
+        await get_db().reviewItems.insert_one({
             "userId": req.userId,
-            "word": w["word"],
-            "original": w.get("original", ""),
-            "note": w.get("note", ""),
-            "contextSentence": w.get("contextSentence", ""),
-            "practiceId": w.get("practiceId", ""),
+            "expression": it["expression"],
+            "original": it.get("original", ""),
+            "note": it.get("note", ""),
+            "contextSentence": it.get("contextSentence", ""),
+            "practiceId": it.get("practiceId", ""),
             "createdAt": now,
             "nextReviewAt": now,
             "reviewCount": 0,
@@ -43,17 +45,17 @@ async def add_words(req: AddWordsRequest):
 
 
 @router.get("")
-async def list_vocabulary(userId: str = Query(...), due: bool = False):
+async def list_items(userId: str = Query(...), due: bool = False):
     filter = {"userId": userId}
     if due:
         filter["nextReviewAt"] = {"$lte": datetime.now(timezone.utc)}
-    cursor = get_db().vocabulary.find(filter).sort("nextReviewAt", 1)
+    cursor = get_db().reviewItems.find(filter).sort("nextReviewAt", 1)
     items = []
     async for item in cursor:
         item["_id"] = str(item["_id"])
         items.append(item)
 
-    # 关联练习补场景图（imageKey 现签）+ topic，供复习卡展示与原图重练
+    # 关联练习补场景图（imageKey 现签）+ topic，供复习卡展示与原题重练
     oid_map = {}
     for pid in {i.get("practiceId") for i in items if i.get("practiceId")}:
         try:
@@ -78,14 +80,14 @@ async def list_vocabulary(userId: str = Query(...), due: bool = False):
     return items
 
 
-@router.post("/{vid}/review")
-async def review_word(vid: str, req: ReviewRequest, userId: str = Query(...)):
+@router.post("/{rid}/review")
+async def review_item(rid: str, req: ReviewRequest, userId: str = Query(...)):
     try:
-        item = await get_db().vocabulary.find_one({"_id": ObjectId(vid), "userId": userId})
+        item = await get_db().reviewItems.find_one({"_id": ObjectId(rid), "userId": userId})
     except Exception:
-        raise HTTPException(404, "生词不存在")
+        raise HTTPException(404, "复习项不存在")
     if not item:
-        raise HTTPException(404, "生词不存在")
+        raise HTTPException(404, "复习项不存在")
 
     item["reviewCount"] += 1
     if req.remembered:
@@ -96,8 +98,8 @@ async def review_word(vid: str, req: ReviewRequest, userId: str = Query(...)):
         item["interval"] = 1
 
     item["nextReviewAt"] = datetime.now(timezone.utc) + timedelta(days=item["interval"])
-    await get_db().vocabulary.update_one(
-        {"_id": ObjectId(vid)},
+    await get_db().reviewItems.update_one(
+        {"_id": ObjectId(rid)},
         {"$set": {
             "reviewCount": item["reviewCount"],
             "easiness": item["easiness"],
@@ -109,12 +111,12 @@ async def review_word(vid: str, req: ReviewRequest, userId: str = Query(...)):
     return item
 
 
-@router.delete("/{vid}")
-async def delete_word(vid: str, userId: str = Query(...)):
+@router.delete("/{rid}")
+async def delete_item(rid: str, userId: str = Query(...)):
     try:
-        result = await get_db().vocabulary.delete_one({"_id": ObjectId(vid), "userId": userId})
+        result = await get_db().reviewItems.delete_one({"_id": ObjectId(rid), "userId": userId})
     except Exception:
-        raise HTTPException(404, "生词不存在")
+        raise HTTPException(404, "复习项不存在")
     if result.deleted_count == 0:
-        raise HTTPException(404, "生词不存在")
+        raise HTTPException(404, "复习项不存在")
     return {"ok": True}
