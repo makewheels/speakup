@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from db.connection import connect_db, get_db
 from services.oss_storage import upload_bytes_async
-from services.wanx import PHOTO_STYLE as STYLE, wanx_generate
+from services.wanx import PHOTO_STYLE as STYLE, WANX_MODEL, wanx_generate
 from utils.id_generator import file_id, scenario_id
 
 SCENARIOS = [
@@ -76,7 +76,7 @@ async def main(dry_run: bool) -> None:
             "_id": fid,
             "md5": hashlib.md5(data).hexdigest(),
             "mimeType": "image/jpeg",
-            "source": "wanx-v1",
+            "source": WANX_MODEL,
             "sourceUrl": "",
             "topic": s["slug"],
             "variants": {"orig": {"key": key, "url": oss_url, "bytes": len(data)}},
