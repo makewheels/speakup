@@ -9,7 +9,7 @@ const MAX_ROUNDS = 2;
 
 const PROMPTS = {
   loading:    "准备场景中…",
-  ready:      "进入情境，开口完成任务",
+  ready:      "",
   recording:  "正在听…",
   review:     "看一眼，要不要让 AI 评？",
   evaluating: "AI 正在评你的表达…",
@@ -234,17 +234,34 @@ export default function PracticePage() {
 
   const scenario = session?.scenario;
 
-  const ScenarioCard = () => (
-    <div className="sc-card">
-      <div className="sc-where">
-        {scenario?.where || session?.topic || "场景"}
-        {session?.isCustom && <span className="sc-custom-tag">为你定制</span>}
-        {round > 1 && <span className="sc-round-tag">再说一遍</span>}
+  const ScenarioCard = () => {
+    const points = scenario?.points ?? [];
+    return (
+      <div className="sc-card">
+        <div className="sc-where">
+          {scenario?.where || session?.topic || "场景"}
+          {session?.isCustom && <span className="sc-custom-tag">为你定制</span>}
+          {round > 1 && <span className="sc-round-tag">再说一遍</span>}
+        </div>
+        {scenario?.story && (
+          <div className="sc-line">
+            <span className="sc-line-label">场景</span>
+            <p className="sc-line-text">{scenario.story}</p>
+          </div>
+        )}
+        <div className="sc-say">
+          <div className="sc-say-label">🎯 用英语说出这些</div>
+          {points.length > 0 ? (
+            <ul className="sc-points">
+              {points.map((p, i) => <li key={i}>{p}</li>)}
+            </ul>
+          ) : (
+            <p className="sc-say-text">{scenario?.mission}</p>
+          )}
+        </div>
       </div>
-      {scenario?.story && <p className="sc-story">{scenario.story}</p>}
-      {scenario?.mission && <p className="sc-mission">🎯 {scenario.mission}</p>}
-    </div>
-  );
+    );
+  };
 
   if (phase === "feedback" && result) {
     const gaps = result.gaps ?? [];

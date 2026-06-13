@@ -17,6 +17,7 @@ async def get_next(userId: str = Query(...)):
         "where": scenario.get("where", ""),
         "story": scenario.get("story", ""),
         "mission": scenario.get("mission", ""),
+        "points": scenario.get("points", []),
         "imageUrl": scenario.get("imageUrl", ""),
         "isCustom": scenario.get("isCustom", False),
         "targetWords": scenario.get("targetWords", []),

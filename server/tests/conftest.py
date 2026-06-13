@@ -71,6 +71,7 @@ def scenario_id(client):
         "where": "☕️ 测试咖啡店",
         "story": "你点的热拿铁被做成了冰美式。",
         "mission": "让店员重做，并表明你赶时间。",
+        "points": ["请他重做成热拿铁", "说你赶时间"],
         "difficulty": 1,
         "imageKey": "scenarios/sc_test_coffee/cover.jpg",
         "ownerUserId": None,
