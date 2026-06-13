@@ -6,7 +6,7 @@
 |------|----------|------|------|
 | users | MongoDB ObjectId | `665...` | 注册时自动生成 |
 | practiceSessions | MongoDB ObjectId | `665...` | 创建练习时自动生成 |
-| vocabulary | MongoDB ObjectId | `665...` | 收录错题时自动生成 |
+| reviewItems | MongoDB ObjectId | `665...` | 收录错题/复习项时自动生成 |
 | scenarios | 带前缀字符串 `sc_` | `sc_1748453200456def` | 题库离线生成，需稳定可读 ID |
 
 ## 前缀格式（仅 scenarios）

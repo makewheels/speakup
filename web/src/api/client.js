@@ -101,12 +101,12 @@ export const api = {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("录音上传失败"))));
   },
 
-  addVocabulary: (userId, words) =>
-    request("/vocabulary", { method: "POST", body: { userId, words } }),
-  listVocabulary: (userId, due = false) =>
-    request(`/vocabulary?userId=${userId}&due=${due}`),
-  reviewWord: (id, userId, remembered) =>
-    request(`/vocabulary/${id}/review?userId=${userId}`, { method: "POST", body: { remembered } }),
-  deleteWord: (id, userId) =>
-    request(`/vocabulary/${id}?userId=${userId}`, { method: "DELETE" }),
+  addReviewItems: (userId, items) =>
+    request("/review-items", { method: "POST", body: { userId, items } }),
+  listReviewItems: (userId, due = false) =>
+    request(`/review-items?userId=${userId}&due=${due}`),
+  reviewItem: (id, userId, remembered) =>
+    request(`/review-items/${id}/review?userId=${userId}`, { method: "POST", body: { remembered } }),
+  deleteReviewItem: (id, userId) =>
+    request(`/review-items/${id}?userId=${userId}`, { method: "DELETE" }),
 };

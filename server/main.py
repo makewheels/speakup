@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from db.connection import connect_db
-from routes import auth, correct, practice_sessions, scenarios, vocabulary
+from routes import auth, correct, practice_sessions, review_items, scenarios
 
 
 @asynccontextmanager
@@ -18,7 +18,7 @@ app.include_router(auth.router)
 app.include_router(scenarios.router)
 app.include_router(correct.router)
 app.include_router(practice_sessions.router)
-app.include_router(vocabulary.router)
+app.include_router(review_items.router)
 
 
 if __name__ == "__main__":

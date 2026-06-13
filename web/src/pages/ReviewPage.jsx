@@ -10,7 +10,7 @@ const FILTERS = [
   { key: "mastered", label: "已掌握" },
 ];
 
-export default function VocabularyPage() {
+export default function ReviewPage() {
   const { user } = useUser();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
@@ -23,7 +23,7 @@ export default function VocabularyPage() {
   const deleteTimerRef = useRef(null);
 
   const fetchItems = () => {
-    api.listVocabulary(user.userId)
+    api.listReviewItems(user.userId)
       .then(setItems)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -44,7 +44,7 @@ export default function VocabularyPage() {
 
   const handleReview = async (remembered) => {
     const w = items[currentIndex];
-    await api.reviewWord(w._id, user.userId, remembered);
+    await api.reviewItem(w._id, user.userId, remembered);
     setShowAnswer(false);
     if (currentIndex < items.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -70,7 +70,7 @@ export default function VocabularyPage() {
   };
 
   const deleteItem = async (id) => {
-    await api.deleteWord(id, user.userId);
+    await api.deleteReviewItem(id, user.userId);
     setItems((prev) => prev.filter((w) => w._id !== id));
     setPendingDeleteId(null);
   };
@@ -105,7 +105,7 @@ export default function VocabularyPage() {
             </>
           ) : (
             <>
-              <p className="back-target">{w.word}</p>
+              <p className="back-target">{w.expression}</p>
               {w.note && <p className="back-note">{w.note}</p>}
               {w.contextSentence && <p className="back-context">"{w.contextSentence}"</p>}
               <div className="verdict-row">
@@ -222,7 +222,7 @@ export default function VocabularyPage() {
                 <div className="review-card-body">
                   {w.original && <div className="review-said">{w.original}</div>}
                   <div className="review-better">
-                    <span className="arrow">→</span> {w.word}
+                    <span className="arrow">→</span> {w.expression}
                   </div>
                   {w.note && <div className="review-why">{w.note}</div>}
                   <div className="review-foot">

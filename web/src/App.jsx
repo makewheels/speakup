@@ -3,7 +3,7 @@ import { UserProvider, useUser } from "./context/UserContext.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import PracticePage from "./pages/PracticePage.jsx";
-import VocabularyPage from "./pages/VocabularyPage.jsx";
+import ReviewPage from "./pages/ReviewPage.jsx";
 import HistoryPage from "./pages/HistoryPage.jsx";
 import SessionDetailPage from "./pages/SessionDetailPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
@@ -23,7 +23,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/practice" replace />} />
         <Route path="/practice" element={<PracticePage />} />
         <Route path="/practice/:practiceId" element={<PracticePage />} />
-        <Route path="/vocabulary" element={<VocabularyPage />} />
+        <Route path="/review" element={<ReviewPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:practiceId" element={<SessionDetailPage />} />
         <Route path="/me" element={<ProfilePage />} />

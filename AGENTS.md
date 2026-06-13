@@ -34,7 +34,7 @@ speakup/
 │   │   ├── scenario_service.py      # 派题 + 因材施教定制题后台生成
 │   │   ├── wanx.py                  # 通义万相文生图
 │   │   └── oss_storage.py           # 阿里云 OSS 底层封装（私有桶，只存 key 读时现签）
-│   ├── routes/                      # auth, scenarios, correct, practice_sessions, vocabulary
+│   ├── routes/                      # auth, scenarios, correct, practice_sessions, review_items
 │   ├── utils/
 │   │   └── id_generator.py          # scenario_id() → sc_ 前缀（其余集合用 ObjectId）
 │   └── tests/

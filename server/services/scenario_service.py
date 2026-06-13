@@ -93,14 +93,14 @@ async def generate_custom_scenario(user_id: str) -> dict | None:
     if pending >= MAX_PENDING_CUSTOM:
         return None
 
-    vocab = await db.vocabulary.find({"userId": user_id}).sort("nextReviewAt", 1).to_list(3)
-    if not vocab:
+    items = await db.reviewItems.find({"userId": user_id}).sort("nextReviewAt", 1).to_list(3)
+    if not items:
         return None
-    words = [v["word"] for v in vocab if v.get("word")]
+    words = [v["expression"] for v in items if v.get("expression")]
     if not words:
         return None
 
-    word_lines = "\n".join(f"- {v['word']}（他原来说成：{v.get('original', '?')}）" for v in vocab)
+    word_lines = "\n".join(f"- {v['expression']}（他原来说成：{v.get('original', '?')}）" for v in items)
     messages = [
         SystemMessage(content=GEN_PROMPT.format(words=word_lines)),
         HumanMessage(content="出一道题。"),
