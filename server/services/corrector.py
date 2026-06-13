@@ -132,11 +132,15 @@ def _scenario_block(scenario: dict | None) -> str:
     target = ""
     if scenario.get("targetWords"):
         target = f"\nExpressions this learner is training (check if they used them): {', '.join(scenario['targetWords'])}"
+    points = ""
+    if scenario.get("points"):
+        bullets = "\n".join(f"  · {p}" for p in scenario["points"])
+        points = f"\n- 应说到的内容（检查是否表达到位）:\n{bullets}"
     return (
         f"SCENARIO:\n"
         f"- 地点: {scenario.get('where', '')}\n"
         f"- 情境: {scenario.get('story', '')}\n"
-        f"- 任务: {scenario.get('mission', '')}{target}\n\n"
+        f"- 任务: {scenario.get('mission', '')}{points}{target}\n\n"
     )
 
 

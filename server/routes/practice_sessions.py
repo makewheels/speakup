@@ -35,6 +35,7 @@ async def create_practice(req: CreatePracticeRequest):
             "where": scenario.get("where", ""),
             "story": scenario.get("story", ""),
             "mission": scenario.get("mission", ""),
+            "points": scenario.get("points", []),
             "targetWords": scenario.get("targetWords", []),
         },
         # 只存 OSS key，签名 URL 一律读取时现签

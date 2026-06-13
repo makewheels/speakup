@@ -22,6 +22,7 @@
   "where":       "☕️ 咖啡店 · 西雅图",
   "story":       "你点的是热拿铁，店员却给了冰美式…",
   "mission":     "让店员重做，并让他知道你赶时间。",
+  "points":      ["请他重做成热拿铁", "说你赶时间"],  // 要用英语说出的具体内容（办事/讲解给死内容，日常/观点给提示要点）
   "difficulty":  1,
   "imageKey":    "scenarios/sc_.../cover.jpg",  // 场景图 OSS key（私有桶，读取时现签 URL）
   "imagePrompt": "busy specialty coffee shop counter, ...",
