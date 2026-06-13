@@ -55,7 +55,7 @@ speakup/
 
 | 环境 | MongoDB | 启动 |
 |------|---------|------|
-| dev (本地) | localhost/speakup-dev | `uv run python main.py` |
+| dev (本地) | localhost/speakup | `uv run python main.py` |
 | prod | 内网 IP / speakup | PM2 管理 |
 
 环境由 `APP_ENV` 切换（dev/prod 默认 development）。`config.py` 加载 `.env.{APP_ENV}` 然后用 `.env` 兜底。

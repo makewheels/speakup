@@ -75,6 +75,7 @@ export default function HistoryPage() {
           const lastAttempt = s.attempts?.[s.attempts.length - 1];
           const gapCount = lastAttempt?.gaps?.length ?? 0;
           const summary = lastAttempt?.summary || "";
+          const title = s.title || s.topic || "练习";
 
           return (
             <div key={s._id} className="history-row" onClick={() => navigate(`/history/${s._id}`)}>
@@ -82,21 +83,17 @@ export default function HistoryPage() {
                 {thumb
                   ? <img
                       src={thumb}
-                      alt={s.topic}
+                      alt={title}
                       onError={(e) => { e.target.style.display = "none"; }}
                     />
                   : <Icon name="home" size={22} color="var(--ink-4)" stroke={1.4} />
                 }
               </div>
               <div className="history-body">
-                {summary ? (
-                  <p className="history-headline">{summary}</p>
-                ) : (
-                  <p className="history-headline muted">未评估 · 看了图没开口</p>
-                )}
+                <p className="history-headline">{title}</p>
+                {summary && <p className="history-summary">{summary}</p>}
                 <div className="history-sub">
                   <span className="history-date">{relativeDate(s.createdAt)}</span>
-                  {s.topic && <span className="history-tag">{s.topic}</span>}
                   {gapCount > 0 && <span className="chip warn">{gapCount} 处差距</span>}
                 </div>
               </div>

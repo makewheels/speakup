@@ -74,6 +74,7 @@ GEN_PROMPT = """你是英语口语教练的出题人。学习者有几个总是�
 
 只输出 strict JSON，不要 markdown 围栏：
 {{
+  "title": "中文短标题，如：咖啡店给错咖啡",
   "where": "带 emoji 的地点，如：☕️ 咖啡店 · 西雅图",
   "story": "2句以内中文情境描述，交代冲突",
   "mission": "1句中文任务指令，以动词开头",
@@ -120,6 +121,8 @@ async def generate_custom_scenario(user_id: str) -> dict | None:
     doc = {
         "_id": sid,
         "slug": f"custom-{user_id}-{int(now.timestamp())}",
+        "kind": "task",  # 因材施教的定制题都是"逼你用上弱点表达"的办事场景
+        "title": spec.get("title", "为你定制"),
         "where": spec["where"],
         "story": spec["story"],
         "mission": spec["mission"],

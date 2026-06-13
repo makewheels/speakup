@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Added
+- **场景广义化（实用 + 雅思口语范围）**：题库从清一色"办事投诉"扩到 5 类，每题带 `kind` + `title`：
+  - `task` 办事交涉（咖啡给错单/预约看医生/申请加薪/给实习生布置任务/航班改签）
+  - `chat` 日常问答（雅思 P1 / 街头采访：介绍家乡、聊手机习惯）
+  - `describe` 描述长谈（雅思 P2 / vlog：难忘旅行、影响你的人、难忘礼物）
+  - `opinion` 观点表达（雅思 P3 / 采访：远程办公、个人环保）
+  - `explain` 讲解科普（讲讲春节为什么回家）
+  - 共 13 题，随机派发不让用户选，难度 1~3 标记
+- 历史列表显示场景标题（如"咖啡店给错咖啡"），不再只有 AI summary
+
+### Changed
+- **本地库 `speakup-dev` → `speakup`**：本地/生产是不同服务器，库名不必加 `-dev`（靠连接区分环境）；OSS 共用阿里云，仍用桶名 `speakup-dev`/`speakup-prod` 区分
+- 清理无关数据库：删空的 `video_agent` / `video_agent_test`
+
 ### Fixed
 - 重说改为最多 2 次（第 1 次 + 想练再来 1 次），去掉"第 N / 3 轮"硬性计数（让人误解成必须说满 3 次）；`MAX_ROUNDS` 3→2
 - 历史不再展示"看了图没开口"的空记录（前端按 attempts 过滤），并清掉历史空数据；彻底的"开口才建记录"留待场景广义化 PR

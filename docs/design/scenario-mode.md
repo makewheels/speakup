@@ -19,6 +19,20 @@ flowchart TD
 - 三轮重说：第 2 轮起评估请求自动带上一轮 attempt，模型返回 `progress {verdict: passed/improved/stuck, fixed[], remaining[]}`。
 - 定制题（`ownerUserId` + `targetWords`）只派给本人，优先于公共题；每人最多攒 2 道未练的，攒够不再生成。
 
+## 场景类型（kind）
+
+题库覆盖 5 类，对齐雅思 Part1/2/3 + 实用口语；每题带 `kind` + `title` + `difficulty`，随机派发不让用户选：
+
+| kind | 对应 | 例子 |
+|------|------|------|
+| task 办事交涉 | 真实办事 | 咖啡给错单、预约看医生、申请加薪、布置任务、航班改签 |
+| chat 日常问答 | 雅思 P1 / 街访 | 介绍家乡、聊手机习惯 |
+| describe 描述长谈 | 雅思 P2 / vlog | 难忘旅行、影响你的人、难忘礼物 |
+| opinion 观点表达 | 雅思 P3 / 采访 | 远程办公、个人环保 |
+| explain 讲解科普 | TED / 科普 | 讲讲春节为什么回家 |
+
+题库离线生成：`server/scripts/generate_scenarios.py`（手写文案 + 万相配图）。评估对所有 kind 通用（给地道说法 + 差距），后续可按 kind 调整反馈侧重。
+
 ## 模型清单
 
 | 用途 | 模型 | 接口 | 说明 |
