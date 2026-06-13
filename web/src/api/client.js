@@ -86,18 +86,18 @@ export const api = {
 
   nextScenario: (userId) => request(`/scenarios/next?userId=${userId}`),
 
-  createSession: (data) => request("/sessions", { method: "POST", body: data }),
-  getSession: (id) => request(`/sessions/${id}`),
-  listSessions: (userId, skip = 0) => request(`/sessions?userId=${userId}&skip=${skip}`),
+  createPractice: (data) => request("/practice-sessions", { method: "POST", body: data }),
+  getPractice: (id) => request(`/practice-sessions/${id}`),
+  listPractices: (userId, skip = 0) => request(`/practice-sessions?userId=${userId}&skip=${skip}`),
 
   correct: (data) => request("/correct", { method: "POST", body: data }),
 
-  uploadRecording: (sessionId, userId, blob, attemptIndex = -1) => {
+  uploadRecording: (practiceId, userId, blob, attemptIndex = -1) => {
     const form = new FormData();
     form.append("userId", userId);
     form.append("attemptIndex", attemptIndex);
     form.append("audio", blob, "recording.webm");
-    return fetch(`${BASE}/sessions/${sessionId}/recording`, { method: "POST", body: form })
+    return fetch(`${BASE}/practice-sessions/${practiceId}/recording`, { method: "POST", body: form })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("录音上传失败"))));
   },
 

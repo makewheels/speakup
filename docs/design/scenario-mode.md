@@ -33,20 +33,14 @@ flowchart TD
 - **公共题**：`server/scripts/generate_scenarios.py` 离线生成——手写场景文案 + imagePrompt → 万相生图 → OSS + `files`/`scenarios` 入库。一题一图一次性成本，全用户复用，按 slug 幂等可重跑。
 - **定制题**：评估产生新错点后 `asyncio.create_task` 后台触发，出题+生图全部完成才入库派发，用户永远不等图；失败只记日志。
 
-## 对象存储（阿里云 OSS，私有桶 + 1 小时签名 URL）
+## 对象存储（阿里云 OSS，私有桶；库里只存 key，读取时现签）
 
 ```
-files/{fileId}/orig.jpg                              ← 场景图（题目共享资产）
-recordings/{userId}/{yyyyMM}/{sessionId}/{ts}.webm   ← 每轮录音
+scenarios/{scenarioId}/cover.jpg                                    ← 场景图（题目共享资产）
+practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm ← 每轮录音
 ```
 
-迁移计划（已确认方向，参考 video-2022 的"资源为根、类型做子目录"）：
-
-```
-scenarios/{scenarioId}/cover.jpg                                 ← 场景图
-sessions/{userId}/{yyyyMM}/{sessionId}/recording/{round}.webm    ← 每轮录音
-sessions/{userId}/{yyyyMM}/{sessionId}/feedback/{round}.json     ← AI 反馈归档
-```
+资源为根、类型做子目录（参考 video-2022）。详见 [storage.md](storage.md)。
 
 ## 后台任务与删除
 

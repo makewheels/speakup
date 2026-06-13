@@ -7,6 +7,10 @@ from pathlib import Path
 TEST_DB_NAME = "speakup-test"
 os.environ["MONGO_URI"] = f"mongodb://localhost:27017/{TEST_DB_NAME}"
 os.environ.setdefault("DASHSCOPE_API_KEY", "test-key-mocked")
+# 假 OSS 凭据：sign_url 是本地 HMAC（无网络），但需要非空凭据才能构造 Auth
+os.environ.setdefault("OSS_ACCESS_KEY_ID", "test-oss-id")
+os.environ.setdefault("OSS_ACCESS_KEY_SECRET", "test-oss-secret")
+os.environ.setdefault("OSS_BUCKET", "speakup-test")
 
 # Allow `from main import app` and `from routes...`
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -59,13 +63,6 @@ def scenario_id(client):
     """直接往 test DB 插一个公共场景（题库由脚本离线生成，无创建 API）。"""
     mc = MongoClient("mongodb://localhost:27017/")
     db = mc[TEST_DB_NAME]
-    db.files.insert_one({
-        "_id": "f_test_scene",
-        "md5": "x", "mimeType": "image/jpeg", "source": "wanx-v1", "topic": "test",
-        "variants": {"orig": {"key": "files/f_test_scene/orig.jpg",
-                              "url": "https://oss.example.com/files/f_test_scene/orig.jpg"}},
-        "status": "active",
-    })
     db.scenarios.insert_one({
         "_id": "sc_test_coffee",
         "slug": "test-coffee",
@@ -73,7 +70,7 @@ def scenario_id(client):
         "story": "你点的热拿铁被做成了冰美式。",
         "mission": "让店员重做，并表明你赶时间。",
         "difficulty": 1,
-        "imageFileId": "f_test_scene",
+        "imageKey": "scenarios/sc_test_coffee/cover.jpg",
         "ownerUserId": None,
         "status": "active",
     })
@@ -82,9 +79,9 @@ def scenario_id(client):
 
 
 @pytest.fixture
-def session_id(client, user_id, scenario_id):
+def practice_id(client, user_id, scenario_id):
     resp = client.post(
-        "/api/sessions",
+        "/api/practice-sessions",
         json={"userId": user_id, "scenarioId": scenario_id},
     )
     return resp.json()["_id"]

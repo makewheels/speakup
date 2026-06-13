@@ -1,32 +1,22 @@
 # ID 规范
 
-## 前缀约定
+## 各集合 _id 格式
 
-| 实体 | 前缀 | 示例 |
-|------|------|------|
-| user | `u_` | `u_1748453200123abc123` |
-| session | `s_` | `s_1748453200456def456` |
-| file（图片/视频） | `f_` | `f_1748453200789ghi789` |
-| vocabulary word | `w_` | `w_1748453200012jkl012` |
+| 集合 | _id 类型 | 示例 | 说明 |
+|------|----------|------|------|
+| users | MongoDB ObjectId | `665...` | 注册时自动生成 |
+| practiceSessions | MongoDB ObjectId | `665...` | 创建练习时自动生成 |
+| vocabulary | MongoDB ObjectId | `665...` | 收录错题时自动生成 |
+| scenarios | 带前缀字符串 `sc_` | `sc_1748453200456def` | 题库离线生成，需稳定可读 ID |
 
-## 格式
+## 前缀格式（仅 scenarios）
 
 ```
-{prefix}{毫秒时间戳}{6位随机hex}
+sc_{毫秒时间戳13位}{6位随机hex}
 ```
 
-- 时间戳 13 位，天然有序，可按创建时间排列
+- 时间戳天然有序，可按创建时间排列
 - 随机 hex 6 位（3 字节），同一毫秒内冲突概率极低
-- 总长度约 22 字符
+- 生成函数：`server/utils/id_generator.py` 的 `scenario_id()`
 
-## 生成
-
-`server/utils/id_generator.py`，各实体有对应函数：
-
-```python
-from utils.id_generator import file_id, session_id, user_id, word_id
-```
-
-## 存量数据
-
-2025-05 之前的老数据使用 MongoDB ObjectId（24 位十六进制字符串），不迁移，新数据从新 ID 体系开始。
+题库需要一个跨脚本稳定、肉眼可读的 ID（区分公共题 / 定制题、拼 OSS 路径 `scenarios/{id}/cover.jpg`），所以用前缀字符串；其余集合直接用 Mongo ObjectId 即可。

@@ -8,8 +8,4 @@ def _new_id(prefix: str) -> str:
     return f"{prefix}{ts}{rand}"
 
 
-def user_id() -> str:    return _new_id("u_")
-def session_id() -> str: return _new_id("s_")
-def file_id() -> str:    return _new_id("f_")
-def word_id() -> str:    return _new_id("w_")
 def scenario_id() -> str: return _new_id("sc_")

@@ -27,7 +27,7 @@ function SpeakBtns({ text }) {
 }
 
 export default function PracticePage() {
-  const { sessionId } = useParams();
+  const { practiceId } = useParams();
   const { user } = useUser();
 
   const [session, setSession] = useState(null);
@@ -50,8 +50,8 @@ export default function PracticePage() {
   const audioChunksRef = useRef(null);
 
   useEffect(() => {
-    if (sessionId) {
-      api.getSession(sessionId).then((s) => {
+    if (practiceId) {
+      api.getPractice(practiceId).then((s) => {
         setSession(s);
         setRound(Math.min((s.attempts?.length ?? 0) + 1, MAX_ROUNDS));
         setPhase("ready");
@@ -59,7 +59,7 @@ export default function PracticePage() {
       return;
     }
     startNewRound();
-  }, [sessionId]);
+  }, [practiceId]);
 
   // 组件卸载时取消 SSE 和 MediaRecorder
   useEffect(() => () => {
@@ -80,7 +80,7 @@ export default function PracticePage() {
     audioChunksRef.current = null;
     try {
       const scenario = await api.nextScenario(user.userId);
-      const sess = await api.createSession({
+      const sess = await api.createPractice({
         userId: user.userId,
         scenarioId: scenario.scenarioId,
       });
@@ -203,7 +203,7 @@ export default function PracticePage() {
     sseControllerRef.current = correctStream(
       {
         userId: user.userId,
-        sessionId: session._id,
+        practiceId: session._id,
         text: transcript.trim(),
       },
       {
@@ -254,9 +254,9 @@ export default function PracticePage() {
 
     return (
       <div className="practice-page fb-page fade-in">
-        {session?.ossImageUrl && (
+        {session?.imageUrl && (
           <div className="fb-img">
-            <img src={session.ossImageUrl} alt="scene" />
+            <img src={session.imageUrl} alt="scene" />
           </div>
         )}
         <ScenarioCard />
@@ -347,8 +347,8 @@ export default function PracticePage() {
   return (
     <div className="practice-page">
       <div className={"su-img" + (phase === "loading" ? " loading" : "")}>
-        {phase !== "loading" && session?.ossImageUrl && (
-          <img src={session.ossImageUrl} alt="scene" />
+        {phase !== "loading" && session?.imageUrl && (
+          <img src={session.imageUrl} alt="scene" />
         )}
       </div>
 

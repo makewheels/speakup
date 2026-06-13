@@ -14,22 +14,22 @@ function relativeDate(iso) {
 }
 
 export default function SessionDetailPage() {
-  const { sessionId } = useParams();
+  const { practiceId } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getSession(sessionId)
+    api.getPractice(practiceId)
       .then(setSession)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [practiceId]);
 
   if (loading) return <div className="page-msg">加载中…</div>;
-  if (!session) return <div className="page-msg">会话不存在</div>;
+  if (!session) return <div className="page-msg">练习不存在</div>;
 
-  const thumb = session.ossImageUrl || session.imageUrl || "";
+  const thumb = session.imageUrl || "";
   const rawAttempts = session.attempts || [];
   const recordings = session.recordings || [];
   const attempts = [...rawAttempts].reverse();
@@ -46,10 +46,7 @@ export default function SessionDetailPage() {
             src={thumb}
             alt={session.topic}
             className="detail-hero-img"
-            onError={(e) => {
-              if (session.imageUrl && e.target.src !== session.imageUrl) e.target.src = session.imageUrl;
-              else e.target.style.display = "none";
-            }}
+            onError={(e) => { e.target.style.display = "none"; }}
           />
         ) : (
           <div className="detail-hero-placeholder" />
