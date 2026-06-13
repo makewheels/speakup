@@ -13,7 +13,7 @@
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
 | 场景配图 | DashScope 通义万相（env `IMAGE_MODEL`）| 题库预生成 + 定制题后台生成，存 OSS |
 | AI 评估 | DashScope Qwen（env `CHAT_MODEL`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式 |
-| 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR b4/speakup→SSH compose up；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
+| 部署 | Docker + ghcr.io + Caddy | GitHub Actions push→构建→推 ghcr.io/<owner>/speakup→SSH compose up；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
 
 ## 项目结构
 
@@ -115,7 +115,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 - Docker 容器映射 3001 内部端口，Caddy 自动 HTTPS (80/443)；腾讯云防火墙需开放 80+443
 - `docker compose logs -f speakup` 看日志；`docker compose restart` 重启
 - 回滚：旧 `:latest` 每次部署转 `:previous`，`docker tag :previous :latest && docker compose up -d` 回退一步
-- ACR 控制台：个人实例 `b4/speakup` 仓库，镜像推送查看都在那
+- 镜像仓库：GitHub Container Registry，path `ghcr.io/<owner>/speakup`（public package 零配额）
 
 ## HTTPS
 
