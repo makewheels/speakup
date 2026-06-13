@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Fixed
+- 反馈结果页加回场景图（之前评估完图片就消失，对照差距时看不到情境）
+- 场景卡 / 反馈页整体字号调大（story/mission 15→17、native 17→19、差距点 14/16→16/18、说明文字 12/13→14/15 等）
+
 ### Added
 - **场景任务模式（核心玩法重做）**：练习不再是"看图描述"，而是"场景 + 冲突 + 任务"——看图进入情境（如咖啡店做错单且赶飞机），开口用英语解决问题；AI 按"native 在这个场景会怎么说"评价
 - **场景题库**：`scenarios` 集合全局共享、与用户解耦；`server/scripts/generate_scenarios.py` 预生成题目（手写场景文案 + 通义万相 wanx-v1 写实配图入 OSS），首批 3 题（咖啡店错单/深夜酒店查无预订/房东拖修暖气）；`GET /api/scenarios/next` 按"定制题 > 未练公共题 > 轮换"派题
