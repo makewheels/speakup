@@ -5,7 +5,7 @@ import { api, correctStream } from "../api/client.js";
 import { speak } from "../utils/tts.js";
 import Icon from "../components/Icon.jsx";
 
-const MAX_ROUNDS = 3;
+const MAX_ROUNDS = 2;
 
 const PROMPTS = {
   loading:    "准备场景中…",
@@ -239,7 +239,7 @@ export default function PracticePage() {
       <div className="sc-where">
         {scenario?.where || session?.topic || "场景"}
         {session?.isCustom && <span className="sc-custom-tag">为你定制</span>}
-        <span className="sc-round-tag">第 {round} / {MAX_ROUNDS} 轮</span>
+        {round > 1 && <span className="sc-round-tag">再说一遍</span>}
       </div>
       {scenario?.story && <p className="sc-story">{scenario.story}</p>}
       {scenario?.mission && <p className="sc-mission">🎯 {scenario.mission}</p>}
@@ -329,7 +329,7 @@ export default function PracticePage() {
           ) : (
             <>
               <button className="su-btn su-btn-primary" onClick={retrySame} style={{ flex: 2, height: 48 }}>
-                <Icon name="refresh" size={16} />&nbsp;再说一遍（第 {round + 1} 轮）
+                <Icon name="refresh" size={16} />&nbsp;再说一遍
               </button>
               <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
                 下一个&nbsp;<Icon name="next" size={16} />
@@ -338,7 +338,7 @@ export default function PracticePage() {
           )}
         </div>
         {!passed && lastRound && (
-          <p className="fb-rounds-out">{MAX_ROUNDS} 轮到了，别恋战——这些表达已进复习，下个场景继续。</p>
+          <p className="fb-rounds-out">这次也练过了——这些表达已进复习，下个场景继续。</p>
         )}
       </div>
     );

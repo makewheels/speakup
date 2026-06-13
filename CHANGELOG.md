@@ -6,6 +6,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Fixed
+- 重说改为最多 2 次（第 1 次 + 想练再来 1 次），去掉"第 N / 3 轮"硬性计数（让人误解成必须说满 3 次）；`MAX_ROUNDS` 3→2
+- 历史不再展示"看了图没开口"的空记录（前端按 attempts 过滤），并清掉历史空数据；彻底的"开口才建记录"留待场景广义化 PR
+
 ### Changed (错题本改名 — 上线前，不迁移老数据)
 - **集合 `vocabulary` → `reviewItems`**：错题不只是单词，更多是短语/句式，旧名体现不出"错题/复习项"；字段 `word` → `expression`
 - 路由 `/api/vocabulary` → `/api/review-items`，前端页 `/vocabulary` → `/review`，VocabularyPage → ReviewPage，API 方法 `listReviewItems` 等同步

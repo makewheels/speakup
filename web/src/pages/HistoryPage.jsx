@@ -44,7 +44,10 @@ export default function HistoryPage() {
 
   if (loading) return <div className="page-msg">加载中…</div>;
 
-  if (sessions.length === 0) {
+  // 只展示真正开口评估过的练习（看了图没说的空记录不进历史）
+  const shown = sessions.filter((s) => (s.attempts?.length ?? 0) > 0);
+
+  if (shown.length === 0) {
     return (
       <div className="empty-state">
         <div className="icon-box">
@@ -63,11 +66,11 @@ export default function HistoryPage() {
     <div className="history-page">
       <div className="page-head">
         <h2>历史</h2>
-        <span className="count-label">{sessions.length} 次</span>
+        <span className="count-label">{shown.length} 次</span>
       </div>
 
       <div className="history-list">
-        {sessions.map((s) => {
+        {shown.map((s) => {
           const thumb = s.imageUrl || "";
           const lastAttempt = s.attempts?.[s.attempts.length - 1];
           const gapCount = lastAttempt?.gaps?.length ?? 0;
