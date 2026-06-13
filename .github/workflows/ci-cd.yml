@@ -104,6 +104,7 @@ jobs:
           OSS_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}
           OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }}
+          DOMAIN=${{ secrets.DOMAIN }}
           __ENVEOF__
 
       - name: Pull and restart

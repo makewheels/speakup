@@ -8,8 +8,8 @@
 ```
 GitHub Actions → 构建 Docker 镜像 → 推 ACR (b4/speakup)
                                → SSH 到生产机 → docker compose pull && up
-speakup.a4.fit → Caddy (自动 HTTPS) → speakup:3001
-speakup:3001    → MongoDB (内网 10.0.20.14:27017)
+<生产域名> → Caddy (自动 HTTPS) → speakup:3001
+speakup:3001  → MongoDB (内网, MONGO_URI)
                                  → 阿里云 OSS speakup-prod 桶
                                  → DashScope (Qwen 评估 + 万相配图)
 ```
@@ -74,4 +74,4 @@ docker image prune -a -f
 这台机以后会按端口部署多个服务。每个服务：
 - 一个 `docker-compose.yml` + 各自的 Caddy（或共用一份）
 - 绑定不同端口（如 speakup=3001、article2audio=8770），compose 内部端口隔离
-- Caddy 按域名路由到不同容器（`speakup.a4.fit` → speakup:3001，以后 `article.a4.fit` → a2a:8770）
+- Caddy 按域名路由到不同容器（生产域名各服务各占一个子域，从 GitHub Secret 注入）

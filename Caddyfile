@@ -1,4 +1,4 @@
-speakup.a4.fit {
+{$DOMAIN} {
 	encode gzip
 
 	handle /api/* {

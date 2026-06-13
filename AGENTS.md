@@ -13,7 +13,7 @@
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
 | 场景配图 | DashScope 通义万相（env `IMAGE_MODEL`）| 题库预生成 + 定制题后台生成，存 OSS |
 | AI 评估 | DashScope Qwen（env `CHAT_MODEL`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式 |
-| 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR b4/speakup→SSH compose up；speakup.a4.fit HTTPS |
+| 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR b4/speakup→SSH compose up；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
 
 ## 项目结构
 
@@ -85,7 +85,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 ## 已知不足（待迭代）
 
 - 登录：手机号直接注册无验证，无 token（MVP 自用阶段）
-- production HTTPS（speakup.a4.fit）依赖 Caddy + Let's Encrypt；腾讯云 443 端口的 TLS 阻断问题(旧生产被迫走 8443)是否影响新机待部署后实测
+- production HTTPS 依赖 Caddy + Let's Encrypt（域名见 GitHub Secret `DOMAIN`）；腾讯云 443 端口的 TLS 阻断问题(旧生产被迫走 8443)是否影响新机待部署后实测
 - 内网 DB 连接依赖 Lighthouse 同 VPC（已确认 services→DB 机的 27017 通）
 
 ---

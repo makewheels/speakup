@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Security
+- 真实生产域名从代码仓库剥离：Caddyfile 用 `{$DOMAIN}` 占位，docker-compose 注入 `DOMAIN` 环境变量，CI 写 `.env` 时从 GitHub Secret `DOMAIN` 取值；AGENTS.md / docs/deploy.md 改占位描述
+
 ### Added
 - **Docker 容器化部署**（PR #41）：Dockerfile 多阶段构建（pnpm 编前端→uv 后端）；docker-compose（speakup + Caddy 自动 HTTPS）；GitHub Actions push master → build → 推 ACR `b4/speakup`（`:latest`+`:previous` 回滚）→ SSH 部署 → smoke check
 - 生产 FastAPI 直接托管前端静态文件（`APP_ENV=production` 时 mount `static/` 目录）
