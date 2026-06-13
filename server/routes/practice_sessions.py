@@ -25,9 +25,13 @@ async def create_practice(req: CreatePracticeRequest):
     doc = {
         "userId": req.userId,
         "scenarioId": req.scenarioId,
+        "kind": scenario.get("kind", "task"),
+        "title": scenario.get("title", ""),       # 历史列表标题用
         "topic": scenario.get("where", ""),
         # 场景快照：题目以后改了也不影响历史回看
         "scenario": {
+            "kind": scenario.get("kind", "task"),
+            "title": scenario.get("title", ""),
             "where": scenario.get("where", ""),
             "story": scenario.get("story", ""),
             "mission": scenario.get("mission", ""),

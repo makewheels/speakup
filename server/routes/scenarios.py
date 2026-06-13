@@ -12,6 +12,8 @@ async def get_next(userId: str = Query(...)):
         raise HTTPException(404, "题库为空，请先运行 scripts/generate_scenarios.py")
     return {
         "scenarioId": scenario["_id"],
+        "kind": scenario.get("kind", "task"),
+        "title": scenario.get("title", ""),
         "where": scenario.get("where", ""),
         "story": scenario.get("story", ""),
         "mission": scenario.get("mission", ""),

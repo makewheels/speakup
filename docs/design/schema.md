@@ -17,6 +17,8 @@
 {
   "_id":         "sc_1781276...",
   "slug":        "coffee-wrong-order",     // 幂等键；定制题为 custom-{userId}-{ts}
+  "kind":        "task",                   // task办事 / chat日常问答 / describe描述 / opinion观点 / explain讲解（对齐雅思P1/2/3+实用）
+  "title":       "咖啡店给错咖啡",          // 中文短标题，历史列表用
   "where":       "☕️ 咖啡店 · 西雅图",
   "story":       "你点的是热拿铁，店员却给了冰美式…",
   "mission":     "让店员重做，并让他知道你赶时间。",
@@ -39,8 +41,10 @@
   "_id":         ObjectId,
   "userId":      "ObjectId string",
   "scenarioId":  "sc_...",
-  "topic":       "☕️ 咖啡店 · 西雅图",     // = scenario.where，便于列表展示
-  "scenario":    { "where": "...", "story": "...", "mission": "...", "targetWords": [] },  // 快照，题目改动不影响历史
+  "kind":        "task",
+  "title":       "咖啡店给错咖啡",          // 历史列表标题
+  "topic":       "☕️ 咖啡店 · 西雅图",     // = scenario.where
+  "scenario":    { "kind": "...", "title": "...", "where": "...", "story": "...", "mission": "...", "targetWords": [] },  // 快照，题目改动不影响历史
   "imageKey":    "scenarios/sc_.../cover.jpg",  // 从题目复制的场景图 key，读取时现签
   "attempts": [
     {

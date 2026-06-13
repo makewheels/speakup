@@ -66,6 +66,8 @@ def scenario_id(client):
     db.scenarios.insert_one({
         "_id": "sc_test_coffee",
         "slug": "test-coffee",
+        "kind": "task",
+        "title": "测试咖啡店",
         "where": "☕️ 测试咖啡店",
         "story": "你点的热拿铁被做成了冰美式。",
         "mission": "让店员重做，并表明你赶时间。",
