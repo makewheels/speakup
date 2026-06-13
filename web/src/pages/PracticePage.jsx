@@ -238,26 +238,31 @@ export default function PracticePage() {
     const points = scenario?.points ?? [];
     return (
       <div className="sc-card">
-        <div className="sc-where">
-          {scenario?.where || session?.topic || "场景"}
-          {session?.isCustom && <span className="sc-custom-tag">为你定制</span>}
-          {round > 1 && <span className="sc-round-tag">再说一遍</span>}
-        </div>
-        {scenario?.story && (
-          <div className="sc-line">
-            <span className="sc-line-label">场景</span>
-            <p className="sc-line-text">{scenario.story}</p>
+        {(session?.isCustom || round > 1) && (
+          <div className="sc-tags">
+            {session?.isCustom && <span className="sc-custom-tag">为你定制</span>}
+            {round > 1 && <span className="sc-round-tag">再说一遍</span>}
           </div>
         )}
-        <div className="sc-say">
-          <div className="sc-say-label">🎯 用英语说出这些</div>
-          {points.length > 0 ? (
-            <ul className="sc-points">
-              {points.map((p, i) => <li key={i}>{p}</li>)}
-            </ul>
-          ) : (
-            <p className="sc-say-text">{scenario?.mission}</p>
-          )}
+        <div className="sc-grid">
+          <div className="sc-k">地点</div>
+          <div className="sc-v sc-v-where">{scenario?.where || session?.topic || "场景"}</div>
+
+          {scenario?.story && <>
+            <div className="sc-k">场景</div>
+            <div className="sc-v">{scenario.story}</div>
+          </>}
+
+          <div className="sc-k say">🎯 要说</div>
+          <div className="sc-v say">
+            {points.length > 0 ? (
+              <ul className="sc-points">
+                {points.map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
+            ) : (
+              <span className="sc-say-text">{scenario?.mission}</span>
+            )}
+          </div>
         </div>
       </div>
     );
