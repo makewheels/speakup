@@ -1,6 +1,6 @@
 services:
   speakup:
-    image: registry.cn-beijing.aliyuncs.com/b4/speakup:latest
+    image: ghcr.io/makewheels/speakup:latest
     restart: unless-stopped
     environment:
       - APP_ENV=production

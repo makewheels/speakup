@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Changed
+- **镜像仓库 ACR → ghcr.io**：阿里云 ACR 个人版 RAM 子用户临时 token 只能 pull 不能 push，要 push 必须控制台手动设固定密码。改用 GitHub Container Registry：`docker/login-action@v3` + `${{ secrets.GITHUB_TOKEN }}`（自带 `packages: write`），public package 零配额零费用。删除 `ACR_AK_ID/ACR_AK_SECRET/ACR_REGISTRY/ACR_NAMESPACE` 4 个 Secrets，删除 RAM 子用户 `acr-ci` + 自定义策略 `speakup-acr`。
+
 ### Security
 - 真实生产域名从代码仓库剥离：Caddyfile 用 `{$DOMAIN}` 占位，docker-compose 注入 `DOMAIN` 环境变量，CI 写 `.env` 时从 GitHub Secret `DOMAIN` 取值；AGENTS.md / docs/deploy.md 改占位描述
 

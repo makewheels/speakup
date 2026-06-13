@@ -6,8 +6,7 @@ on:
   pull_request:
 
 env:
-  ACR: registry.cn-beijing.aliyuncs.com
-  ACR_IMAGE: registry.cn-beijing.aliyuncs.com/${{ secrets.ACR_NAMESPACE }}/speakup
+  IMAGE: ghcr.io/${{ github.repository }}
   SERVER_DIR: /opt/speakup
 
 jobs:
@@ -62,15 +61,18 @@ jobs:
     needs: [test-server, test-web]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v5
 
-      - name: Login to ACR
-        uses: aliyun/acr-login@v1
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          login-server: registry.cn-beijing.aliyuncs.com
-          username: ${{ secrets.ACR_AK_ID }}
-          password: ${{ secrets.ACR_AK_SECRET }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -78,8 +80,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.ACR_IMAGE }}:latest
-            ${{ env.ACR_IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
 
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
@@ -109,16 +111,9 @@ jobs:
 
       - name: Pull and restart
         run: |
-          H="${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
-
-          # 登录 ACR：AK_SECRET 走 stdin，AK_ID 走命令变量（runner 日志私有不外露）
-          echo "${{ secrets.ACR_AK_SECRET }}" | \
-            ssh -o ServerAliveInterval=30 "$H" \
-            "docker login --username=${{ secrets.ACR_AK_ID }} --password-stdin ${{ env.ACR }} >/dev/null 2>&1"
-
-          ssh -o ServerAliveInterval=30 "$H" /bin/bash -s << 'PULL'
+          ssh -o ServerAliveInterval=30 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} /bin/bash -s << 'PULL'
           set -e
-          IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
+          IMG=ghcr.io/makewheels/speakup
           cd /opt/speakup
 
           # 旧 :latest → :previous（回滚用）
