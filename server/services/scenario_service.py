@@ -13,7 +13,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from db.connection import get_db
 from services.corrector import _get_client
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
-from services.wanx import PHOTO_STYLE, wanx_generate
+from services.wanx import PHOTO_STYLE, WANX_MODEL, wanx_generate
 from utils.id_generator import file_id, scenario_id
 
 MAX_PENDING_CUSTOM = 2  # 每个用户最多攒 2 道没练过的定制题，攒够就不再生成
@@ -122,7 +122,7 @@ async def generate_custom_scenario(user_id: str) -> dict | None:
         "_id": fid,
         "md5": hashlib.md5(image).hexdigest(),
         "mimeType": "image/jpeg",
-        "source": "wanx-v1",
+        "source": WANX_MODEL,
         "sourceUrl": "",
         "topic": "custom-scenario",
         "variants": {"orig": {"key": key, "url": oss_url, "bytes": len(image)}},

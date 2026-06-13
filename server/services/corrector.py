@@ -5,7 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from config import DASHSCOPE_API_KEY
+from config import CHAT_MODEL, DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL
 
 _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
@@ -41,9 +41,9 @@ def _get_client() -> ChatOpenAI:
     global _client
     if _client is None:
         _client = ChatOpenAI(
-            openai_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            openai_api_base=f"{DASHSCOPE_BASE_URL}/compatible-mode/v1",
             openai_api_key=DASHSCOPE_API_KEY,
-            model="qwen3.6-plus",
+            model=CHAT_MODEL,
             temperature=0.3,
             max_tokens=2000,
             model_kwargs={"extra_body": {"enable_thinking": False}},

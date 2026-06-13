@@ -1,13 +1,11 @@
-"""通义万相 wanx-v1 文生图（DashScope 异步任务接口）。"""
-
-import asyncio
+"""通义万相文生图（DashScope multimodal-generation 同步接口）。"""
 
 import httpx
 
-from config import DASHSCOPE_API_KEY
+from config import DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL, IMAGE_MODEL
 
-SUBMIT_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis"
-TASK_URL = "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
+WANX_MODEL = IMAGE_MODEL
+GEN_URL = f"{DASHSCOPE_BASE_URL}/api/v1/services/aigc/multimodal-generation/generation"
 
 PHOTO_STYLE = (
     "realistic photograph, natural lighting, shot on 35mm, candid documentary style, "
@@ -16,31 +14,23 @@ PHOTO_STYLE = (
 
 
 async def wanx_generate(prompt: str, size: str = "1280*720") -> bytes:
-    """提交异步生图任务，轮询直到完成，返回图片字节。约 20~60 秒。"""
-    headers = {"Authorization": f"Bearer {DASHSCOPE_API_KEY}"}
-    async with httpx.AsyncClient(timeout=60.0) as c:
+    """同步生图（约 10~30 秒），返回图片字节。"""
+    async with httpx.AsyncClient(timeout=120.0) as c:
         resp = await c.post(
-            SUBMIT_URL,
-            headers={**headers, "X-DashScope-Async": "enable"},
+            GEN_URL,
+            headers={"Authorization": f"Bearer {DASHSCOPE_API_KEY}"},
             json={
-                "model": "wanx-v1",
-                "input": {"prompt": prompt},
+                "model": WANX_MODEL,
+                "input": {"messages": [{"role": "user", "content": [{"text": prompt}]}]},
                 "parameters": {"size": size, "n": 1},
             },
         )
         resp.raise_for_status()
-        task_id = resp.json()["output"]["task_id"]
-
-        for _ in range(60):
-            await asyncio.sleep(5)
-            r = await c.get(TASK_URL.format(task_id=task_id), headers=headers)
-            r.raise_for_status()
-            output = r.json()["output"]
-            status = output["task_status"]
-            if status == "SUCCEEDED":
-                img = await c.get(output["results"][0]["url"])
-                img.raise_for_status()
-                return img.content
-            if status in ("FAILED", "CANCELED"):
-                raise RuntimeError(f"万相任务失败: {output}")
-        raise TimeoutError("万相任务超时（5 分钟）")
+        data = resp.json()
+        if "output" not in data:
+            raise RuntimeError(f"万相生图失败: {data}")
+        content = data["output"]["choices"][0]["message"]["content"]
+        image_url = next(item["image"] for item in content if "image" in item)
+        img = await c.get(image_url)
+        img.raise_for_status()
+        return img.content
