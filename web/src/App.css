@@ -1739,19 +1739,15 @@ button { font-family: inherit; }
   background: var(--bg-elev);
   border: 1px solid var(--rule);
   border-radius: 14px;
-  padding: 14px 16px;
+  overflow: hidden;
   margin-bottom: 14px;
   font-family: var(--ff-cn);
 }
 
-.sc-where {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--accent);
-  letter-spacing: 0.02em;
+.sc-tags {
   display: flex;
-  align-items: center;
   gap: 8px;
+  padding: 10px 14px 0;
 }
 
 .sc-custom-tag {
@@ -1763,7 +1759,6 @@ button { font-family: inherit; }
 }
 
 .sc-round-tag {
-  margin-left: auto;
   font-size: 12px;
   background: var(--accent-soft);
   color: var(--accent);
@@ -1771,63 +1766,63 @@ button { font-family: inherit; }
   padding: 1px 8px;
 }
 
-.sc-line {
+/* 场景卡：表格式 —— 标签列 + 内容列，行间分割线 */
+.sc-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+.sc-k, .sc-v {
+  border-top: 1px solid var(--rule);
+  padding: 13px 14px;
+}
+.sc-grid > .sc-k:nth-child(1),
+.sc-grid > .sc-v:nth-child(2) {
+  border-top: 0;   /* 第一行（地点）不要上边框 */
+}
+.sc-k {
   display: flex;
-  gap: 10px;
-  margin: 10px 0 0;
-  align-items: baseline;
-}
-.sc-line-label {
-  flex: 0 0 auto;
-  font-size: 13px;
-  color: var(--ink-3);
+  align-items: flex-start;
   background: var(--bg-mute);
-  border-radius: 6px;
-  padding: 2px 8px;
+  color: var(--ink-3);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.sc-line-text {
-  margin: 0;
-  font-size: 16px;
+.sc-v {
+  border-left: 1px solid var(--rule);
+  font-size: 17px;
   color: var(--ink-2);
   line-height: 1.6;
 }
-
-/* 「用英语说出这些」——本页重点，做大做显眼 */
-.sc-say {
-  margin: 14px 0 0;
-  background: var(--accent-soft);
-  border-left: 4px solid var(--accent);
-  border-radius: 0 10px 10px 0;
-  padding: 12px 16px;
-}
-.sc-say-label {
-  font-size: 14px;
+.sc-v-where {
   font-weight: 700;
   color: var(--accent);
-  margin-bottom: 8px;
 }
+
+/* 「要说」行 —— 本页重点，高亮 + 加大 */
+.sc-k.say { background: var(--accent-soft); color: var(--accent); }
+.sc-v.say { background: var(--accent-soft); }
 .sc-points {
   margin: 0;
-  padding-left: 4px;
+  padding: 0;
   list-style: none;
 }
 .sc-points li {
   position: relative;
   padding-left: 20px;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
   color: var(--ink);
-  line-height: 1.7;
+  line-height: 1.85;
 }
 .sc-points li::before {
   content: "•";
   position: absolute;
-  left: 4px;
+  left: 2px;
   color: var(--accent);
 }
 .sc-say-text {
-  margin: 0;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 600;
   color: var(--ink);
   line-height: 1.7;
