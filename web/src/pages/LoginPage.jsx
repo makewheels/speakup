@@ -70,7 +70,7 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="footer-note">建议电脑或 Android Chrome 使用（iOS 暂不支持麦克风识别）</p>
+      <p className="footer-note">支持 PC / Android / iOS（Chrome、Safari 均可）</p>
     </div>
   );
 }

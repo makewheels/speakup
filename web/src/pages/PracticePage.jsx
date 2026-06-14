@@ -42,7 +42,6 @@ export default function PracticePage() {
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
 
-  const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const secondsRef = useRef(0);
   const evalTimerRef = useRef(null);
@@ -105,10 +104,6 @@ export default function PracticePage() {
   };
 
   const startRecording = useCallback(async () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const useServerASR = isIOS || !SR;
-
     if (location.protocol === "http:" && location.hostname !== "localhost") {
       alert("当前是 HTTP 连接，浏览器不允许使用麦克风。\n请用 HTTPS 访问。");
       return;
@@ -117,40 +112,6 @@ export default function PracticePage() {
     // 先清上一次录音
     audioChunksRef.current = null;
 
-    // 用浏览器 SR 时仍同步起 MediaRecorder 留底；用服务端 ASR 时只起 MediaRecorder
-    if (!useServerASR) {
-      const recognition = new SR();
-      recognition.lang = "en-US";
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      let finalText = "";
-      recognition.onresult = (event) => {
-        let interim = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) finalText += event.results[i][0].transcript + " ";
-          else interim += event.results[i][0].transcript;
-        }
-        setTranscript(finalText + interim);
-      };
-      recognition.onerror = (event) => {
-        setPhase("review");
-        if (event.error === "not-allowed") {
-          alert("麦克风权限被拒。地址栏锁图标 → 允许麦克风 → 刷新页面。");
-        } else if (event.error === "audio-capture") {
-          alert("没检测到麦克风。");
-        } else if (event.error === "network") {
-          alert("网络错误，检查一下网络。");
-        }
-      };
-      recognition.onend = () => {
-        clearInterval(timerRef.current);
-        setPhase((p) => (p === "recording" ? "review" : p));
-      };
-      recognition.start();
-      recognitionRef.current = recognition;
-    }
-
     secondsRef.current = 0;
     setElapsed("0:00");
     setTranscript("");
@@ -158,7 +119,9 @@ export default function PracticePage() {
     setAutoSaved(0);
     setPhase("recording");
 
-    // MediaRecorder：iOS 用 audio/mp4，其他默认 webm
+    // 全平台统一走 MediaRecorder + 后端 ASR：
+    // 浏览器自带的 Web Speech API 走 Google 服务，国内不通；
+    // 改成录完整段音频上传到 /api/transcribe 由 DashScope 转写。
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const preferred = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
@@ -171,30 +134,23 @@ export default function PracticePage() {
         audioChunksRef.current = blob;
         stream.getTracks().forEach((t) => t.stop());
         clearInterval(timerRef.current);
-        if (useServerASR) {
-          // iOS 路径：上传到后端 ASR 拿文本
-          setPhase("transcribing");
-          try {
-            const { text } = await api.transcribeAudio(user.userId, blob);
-            setTranscript(text || "");
-            setPhase("review");
-          } catch (err) {
-            alert("语音识别失败：" + err.message);
-            setPhase("review");
-          }
-        } else {
-          setPhase((p) => (p === "recording" ? "review" : p));
+        setPhase("transcribing");
+        try {
+          const { text } = await api.transcribeAudio(user.userId, blob);
+          setTranscript(text || "");
+          setPhase("review");
+        } catch (err) {
+          alert("语音识别失败：" + err.message);
+          setPhase("review");
         }
       };
       recorder.start();
       mediaRecorderRef.current = recorder;
     } catch (err) {
       console.warn("MediaRecorder unavailable:", err);
-      if (useServerASR) {
-        alert("无法访问麦克风：" + err.message);
-        setPhase("ready");
-        return;
-      }
+      alert("无法访问麦克风：" + err.message);
+      setPhase("ready");
+      return;
     }
 
     timerRef.current = setInterval(() => {
@@ -206,11 +162,9 @@ export default function PracticePage() {
   }, [user]);
 
   const stopRecording = () => {
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current = null;
-    // 注意：不直接 setPhase("review")，由 MediaRecorder.onstop 控制（要么 transcribing 要么 review）
+    // setPhase 由 MediaRecorder.onstop 控制：transcribing → review
   };
 
   const evaluate = () => {
@@ -409,7 +363,12 @@ export default function PracticePage() {
 
       {(phase === "recording" || phase === "transcribing" || phase === "review" || phase === "evaluating") && (
         <div className={"su-transcript" + (!transcript ? " empty" : "")}>
-          {transcript || (phase === "transcribing" ? "（转写中…）" : "（说话内容会显示在这里）")}
+          {transcript ||
+            (phase === "recording"
+              ? "（录完后会上传识别）"
+              : phase === "transcribing"
+              ? "（转写中…）"
+              : "（说话内容会显示在这里）")}
           {phase === "recording" && <span className="live-dot" />}
         </div>
       )}
