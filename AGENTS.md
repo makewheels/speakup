@@ -111,19 +111,18 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 
 部署详情见 `docs/deploy.md`。要点：
 
-- 生产机：Tencent Lighthouse "services" (Ubuntu 24.04)，`/opt/speakup/` 下 docker compose up
-- Docker 容器映射 3001 内部端口，Caddy 自动 HTTPS (80/443)；腾讯云防火墙需开放 80+443
-- `docker compose logs -f speakup` 看日志；`docker compose restart` 重启
+- 生产机：Tencent Lighthouse "services" (Ubuntu 24.04)，多服务架构：
+  - `/opt/caddy/` 是**唯一**占 80/443 的网关，独立 compose + Caddyfile
+  - `/opt/speakup/` 业务服务，不暴露宿主端口，通过 docker external network `edge` 与 caddy 通信
+  - 加新服务：业务 compose 接 edge network → Caddyfile 加一段 reverse_proxy → caddy reload
+- `docker compose -f /opt/speakup/docker-compose.yml logs -f` 看业务日志；`/opt/caddy/...` 看网关日志
 - 回滚：旧 `:latest` 每次部署转 `:previous`，`docker tag :previous :latest && docker compose up -d` 回退一步
 - 镜像仓库：阿里云 ACR 个人版 cn-beijing，路径 `registry.cn-beijing.aliyuncs.com/b4/speakup`，登录用主账号固定密码（GitHub Secret `ACR_AK_ID`/`ACR_AK_SECRET`）。caddy 等公共镜像走 docker.io（生产机 daemon 配 `registry-mirrors` 加速）
 
 ## HTTPS
 
-- 腾讯云网络层拦截了 443 端口的 TLS 流量（TCP 通、Client Hello 后无 Server Hello），所有 SSL 端口中只有 443 被阻断
-- **当前方案**：Nginx 在 **8443** 端口提供 HTTPS，HTTP:80 自动 301 跳转到 `https://:8443`
-- SSL 证书：Let's Encrypt，certbot 自动续期，同时覆盖新旧两个生产域名
-- 老域名同样指向此服务器，同样走 8443
-- 长期方案：ICP 备案后恢复 443 端口
+- 当前实测：services 机的 443 端口正常通，Caddy 自动 Let's Encrypt（旧机有过 443 阻断走 8443 的历史，新机没复现）
+- 域名走 GitHub Secret `DOMAIN`，由 `/opt/caddy/Caddyfile` 配置（不入库）
 
 ## 凭据旋转 checklist
 

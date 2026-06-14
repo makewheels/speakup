@@ -1,6 +1,7 @@
 services:
   speakup:
     image: registry.cn-beijing.aliyuncs.com/b4/speakup:latest
+    container_name: speakup
     restart: unless-stopped
     environment:
       - APP_ENV=production
@@ -16,20 +17,9 @@ services:
       - OSS_BUCKET=${OSS_BUCKET_PROD}
     expose:
       - "3001"
+    networks: [edge]
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      - DOMAIN=${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-
-volumes:
-  caddy_data:
-  caddy_config:
+networks:
+  edge:
+    external: true
+    name: edge
