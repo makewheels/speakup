@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Changed
+- **caddy 镜像不再走 ACR mirror**：在生产机 docker daemon 配置 `registry-mirrors`（公开镜像加速器，daocloud/南大/dockerproxy），docker.io 国内拉取速度恢复。docker-compose 里 caddy 改回 `caddy:2-alpine`，删掉 workflow 里 mirror caddy → ACR 的 step、删 ACR `b4/caddy` 仓库、删 env `CADDY_IMAGE`。
+
+### Changed
 - **镜像仓库回到 ACR + caddy 也搬到 ACR**：实测 ghcr.io 国内服务器拉取速度仅 24 KB/s（GFW 入境限速），caddy 公共 docker.io 国内已完全不通。改用阿里云 ACR 主账号固定密码登录（绕开 RAM 子用户临时 token 的 push 限制）；CI 每次部署同时把 `caddy:2-alpine` 从 docker.io 同步到 `b4/caddy`（首次推后续自动跳过）。docker-compose 两个镜像都走 ACR。
 
 ### Changed
