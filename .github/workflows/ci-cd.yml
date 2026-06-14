@@ -80,7 +80,7 @@ jobs:
           SEQ=$(printf "%06d" "${{ github.run_number }}")
           echo "value=${TS}-${SEQ}" >> "$GITHUB_OUTPUT"
 
-      - name: Build speakup (local, no push)
+      - name: Build speakup
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -90,7 +90,7 @@ jobs:
             ${{ env.ACR_IMAGE }}:latest
             ${{ env.ACR_IMAGE }}:${{ steps.tag.outputs.value }}
 
-      - name: Push speakup (timed)
+      - name: Push speakup
         run: |
           echo "=== push 开始 $(date +%T) ==="
           time docker push ${{ env.ACR_IMAGE }}:latest
