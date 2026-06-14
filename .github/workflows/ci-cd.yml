@@ -77,7 +77,7 @@ jobs:
         run: |
           # 北京时间 + run 序号，与 b4/video-2022 风格一致：YYYYMMDD-HHMMSS-NNNN
           TS=$(TZ=Asia/Shanghai date +%Y%m%d-%H%M%S)
-          SEQ=$(printf "%04d" "${{ github.run_number }}")
+          SEQ=$(printf "%06d" "${{ github.run_number }}")
           echo "value=${TS}-${SEQ}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push speakup
