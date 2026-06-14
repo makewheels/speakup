@@ -2,22 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
 import { api } from "../api/client.js";
-import { speak } from "../utils/tts.js";
 import Icon from "../components/Icon.jsx";
-
-function SpeakBtn({ text }) {
-  if (!text) return null;
-  return (
-    <button
-      className="spk-btn"
-      title="Play"
-      aria-label="Play"
-      onClick={(e) => { e.stopPropagation(); speak(text); }}
-    >
-      <Icon name="volume" size={22} />
-    </button>
-  );
-}
+import SpeakBtn from "../components/SpeakBtn.jsx";
 
 export default function ReviewPage() {
   const { user } = useUser();
