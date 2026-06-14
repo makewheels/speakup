@@ -31,21 +31,21 @@ describe("LoginPage", () => {
   it("renders the brand, hint and disabled submit", () => {
     renderLogin();
     expect(screen.getByText("SpeakUp")).toBeInTheDocument();
-    expect(screen.getByText(/输入手机号即注册/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /进入/ })).toBeDisabled();
+    expect(screen.getByText(/Enter your phone to sign up/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Enter/ })).toBeDisabled();
   });
 
   it("enables submit once a valid 11-digit phone is entered", async () => {
     renderLogin();
     const input = screen.getByPlaceholderText("138 0000 0000");
     await userEvent.type(input, "13800001234");
-    expect(screen.getByRole("button", { name: /进入/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Enter/ })).toBeEnabled();
   });
 
   it("keeps submit disabled for invalid (too short) phone", async () => {
     renderLogin();
     await userEvent.type(screen.getByPlaceholderText("138 0000 0000"), "1380000");
-    expect(screen.getByRole("button", { name: /进入/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Enter/ })).toBeDisabled();
   });
 
   it("strips non-digit input and caps at 11 chars", async () => {
@@ -60,7 +60,7 @@ describe("LoginPage", () => {
     renderLogin();
     const { api } = await import("../api/client.js");
     await userEvent.type(screen.getByPlaceholderText("138 0000 0000"), "13800001234");
-    await userEvent.click(screen.getByRole("button", { name: /进入/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enter/ }));
     expect(api.login).toHaveBeenCalledWith("13800001234");
   });
 });

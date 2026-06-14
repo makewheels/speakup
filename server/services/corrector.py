@@ -33,6 +33,7 @@ class ProgressInfo(BaseModel):
 class CorrectResult(BaseModel):
     summary: str = ""
     nativeVersion: str = ""
+    score: float | None = None  # 雅思口语级别 0~9，0.5 进制
     gaps: list[GapItem] = Field(default_factory=list)
     progress: ProgressInfo | None = None
 
@@ -70,6 +71,9 @@ WHAT NOT TO DO:
 - Do NOT write meta-talk or encouragements ("Great job!").
 - Do NOT correct trivial typos or speech-recognition artifacts if meaning is clear.
 
+SCORE (IELTS Speaking band):
+- `score`: a number 0–9 in 0.5 steps (e.g. 5.0, 6.5, 7.0). Rate THIS utterance as an IELTS examiner would: fluency & coherence, lexical resource, grammatical range & accuracy, and how well it accomplishes the mission. Be realistic — a typical Chinese learner is 5.0–6.5; reserve 7.5+ for genuinely native-like, natural English. A short/broken/off-task reply scores low.
+
 LANGUAGE OF FEEDBACK — STRICT:
 - `summary`: 必须用中文写，严格不超过25字，一句话。
 - `nativeVersion`, gap `original`, gap `better`, gap `example`: 必须用英文写。
@@ -80,6 +84,7 @@ OUTPUT: strict JSON only, no markdown fences, no commentary.
 {
   "summary": "一句话（中文，最多25字）：最关键的一个差距",
   "nativeVersion": "how a native would say it to accomplish this mission, preserving the learner's intent",
+  "score": 6.5,
   "gaps": [
     {
       "title": "2-5字中文标签，例如：请求语气、过去时态、催促方式",
@@ -121,6 +126,7 @@ In "gaps", only list NEW or still-unfixed gaps. Focus on what remains; do not re
 _EMPTY = {
     "summary": "",
     "nativeVersion": "",
+    "score": None,
     "gaps": [],
     "progress": None,
 }

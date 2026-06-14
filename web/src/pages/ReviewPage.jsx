@@ -10,11 +10,11 @@ function SpeakBtn({ text }) {
   return (
     <button
       className="spk-btn"
-      title="朗读"
-      aria-label="朗读"
+      title="Play"
+      aria-label="Play"
       onClick={(e) => { e.stopPropagation(); speak(text); }}
     >
-      <Icon name="volume" size={16} />
+      <Icon name="volume" size={22} />
     </button>
   );
 }
@@ -65,7 +65,7 @@ export default function ReviewPage() {
       const sess = await api.createPractice({ userId: user.userId, scenarioId });
       navigate(`/practice/${sess._id}`);
     } catch (e) {
-      alert("出题失败：" + e.message);
+      alert("Failed to create scenario: " + e.message);
       setGenWord(null);
     }
   };
@@ -88,7 +88,7 @@ export default function ReviewPage() {
     }
   };
 
-  if (loading) return <div className="page-msg">加载中…</div>;
+  if (loading) return <div className="page-msg">Loading…</div>;
 
   if (items.length === 0) {
     return (
@@ -96,8 +96,8 @@ export default function ReviewPage() {
         <div className="icon-box">
           <Icon name="book" size={28} color="var(--ink-3)" stroke={1.4} />
         </div>
-        <p className="title">还没有复习项</p>
-        <p className="sub">去练习里说一段试试</p>
+        <p className="title">No review items yet</p>
+        <p className="sub">Go speak a round in Practice</p>
       </div>
     );
   }
@@ -111,23 +111,23 @@ export default function ReviewPage() {
     return (
       <div className="review-cards-page fade-in">
         <div className="rv-head">
-          <h2>复习</h2>
+          <h2>Review</h2>
           <button className="rv-list-toggle" onClick={() => setView("list")}>
-            全部 {items.length} 项 <Icon name="next" size={14} />
+            All {items.length} <Icon name="next" size={14} />
           </button>
         </div>
 
         {done ? (
           <div className="rv-done">
             <div className="rv-done-check"><Icon name="check" size={30} color="var(--ok)" /></div>
-            <p className="rv-done-title">这轮过完了</p>
-            <p className="rv-done-sub">待复习 {dueCount} 项</p>
+            <p className="rv-done-title">Done for now</p>
+            <p className="rv-done-sub">{dueCount} due</p>
             <button
               className="su-btn su-btn-secondary"
               style={{ maxWidth: 220 }}
               onClick={() => { setIdx(0); setShowAnswer(false); fetchItems(); }}
             >
-              <Icon name="refresh" size={15} />&nbsp;再过一遍
+              <Icon name="refresh" size={15} />&nbsp;Go again
             </button>
           </div>
         ) : (
@@ -136,13 +136,13 @@ export default function ReviewPage() {
             <div className="rv-card" onClick={() => setShowAnswer(true)}>
               {!showAnswer ? (
                 <>
-                  <div className="rv-card-label">我当时说的</div>
+                  <div className="rv-card-label">What you said</div>
                   <p className="rv-card-q">{w.original || w.contextSentence || w.expression}</p>
-                  <span className="rv-tap-hint">点这里看地道说法</span>
+                  <span className="rv-tap-hint">Tap to see the native version</span>
                 </>
               ) : (
                 <>
-                  <div className="rv-card-label answer">地道说法</div>
+                  <div className="rv-card-label answer">Native version</div>
                   <p className="rv-card-a">{w.expression}<SpeakBtn text={w.expression} /></p>
                   {w.note && <p className="rv-card-note">{w.note}</p>}
                   {w.contextSentence && (
@@ -154,8 +154,8 @@ export default function ReviewPage() {
                     disabled={!!genWord}
                   >
                     {genWord === w._id
-                      ? <><span className="spin" />&nbsp;正在出题…</>
-                      : <><Icon name="spark" size={15} />&nbsp;用这个词练一道题</>}
+                      ? <><span className="spin" />&nbsp;Creating…</>
+                      : <><Icon name="spark" size={15} />&nbsp;Practice this word</>}
                   </button>
                   <div className="rv-verdict-row">
                     <button
@@ -163,14 +163,14 @@ export default function ReviewPage() {
                       style={{ flex: 1, height: 46 }}
                       onClick={(e) => { e.stopPropagation(); handleReview(false); }}
                     >
-                      没想起来
+                      Forgot
                     </button>
                     <button
                       className="su-btn su-btn-primary"
                       style={{ flex: 1, height: 46 }}
                       onClick={(e) => { e.stopPropagation(); handleReview(true); }}
                     >
-                      想起来了
+                      Got it
                     </button>
                   </div>
                 </>
@@ -186,9 +186,9 @@ export default function ReviewPage() {
   return (
     <div className="review-page">
       <div className="rv-head">
-        <h2>全部复习项</h2>
+        <h2>All review items</h2>
         <button className="rv-list-toggle" onClick={() => setView("cards")}>
-          <Icon name="back" size={14} /> 逐词复习
+          <Icon name="back" size={14} /> Flashcards
         </button>
       </div>
       {queue.map((w) => {
@@ -206,20 +206,20 @@ export default function ReviewPage() {
               <div className="review-foot">
                 <button className="review-cta-btn" onClick={() => practiceThisWord(w)} disabled={!!genWord}>
                   {genWord === w._id
-                    ? <><span className="spin" />&nbsp;出题中…</>
-                    : <><Icon name="spark" size={12} /> 练这个词</>}
+                    ? <><span className="spin" />&nbsp;Creating…</>
+                    : <><Icon name="spark" size={12} /> Practice this</>}
                 </button>
                 <span className={`review-status${due ? " due" : mastered ? " mastered" : ""}`}>
-                  {mastered ? "已掌握" : due ? "待复习" : "复习中"}
+                  {mastered ? "Mastered" : due ? "Due" : "Learning"}
                 </span>
               </div>
             </div>
             <button
               className={`review-del${confirmingDelete ? " confirming" : ""}`}
               onClick={(e) => requestDelete(e, w._id)}
-              aria-label="删除"
+              aria-label="Delete"
             >
-              {confirmingDelete ? "确认" : <Icon name="trash" size={15} />}
+              {confirmingDelete ? "Confirm" : <Icon name="trash" size={15} />}
             </button>
           </div>
         );

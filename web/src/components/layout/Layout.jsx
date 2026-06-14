@@ -5,10 +5,10 @@ import { api } from "../../api/client.js";
 import Icon from "../Icon.jsx";
 
 const TABS = [
-  { to: "/practice",   label: "练习", icon: "home" },
-  { to: "/review",     label: "复习", icon: "book", showDue: true },
-  { to: "/history",    label: "历史", icon: "clock" },
-  { to: "/me",         label: "我的", icon: "user" },
+  { to: "/practice",   label: "Practice", icon: "home" },
+  { to: "/review",     label: "Review", icon: "book", showDue: true },
+  { to: "/history",    label: "History", icon: "clock" },
+  { to: "/me",         label: "Me", icon: "user" },
 ];
 
 export default function Layout() {

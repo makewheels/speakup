@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
 import { api, correctStream } from "../api/client.js";
 import { speak } from "../utils/tts.js";
@@ -8,12 +8,12 @@ import Icon from "../components/Icon.jsx";
 const MAX_ROUNDS = 2;
 
 const PROMPTS = {
-  loading:    "准备场景中…",
+  loading:    "Loading scenario…",
   ready:      "",
-  recording:  "正在听…",
-  transcribing: "录音上传中，AI 正在转写…",
-  review:     "看一眼，要不要让 AI 评？",
-  evaluating: "AI 正在评你的表达…",
+  recording:  "Listening…",
+  transcribing: "Uploading & transcribing…",
+  review:     "Take a look — ready for AI feedback?",
+  evaluating: "AI is reviewing your answer…",
   feedback:   "",
 };
 
@@ -28,17 +28,30 @@ const stripEmoji = (s = "") =>
 function SpeakBtns({ text }) {
   if (!text) return null;
   return (
-    <span className="spk-btns">
-      <button className="spk-btn" title="朗读" aria-label="朗读" onClick={() => speak(text)}>
-        <Icon name="volume" size={16} />
-      </button>
-      <button className="spk-btn slow" title="慢速朗读" onClick={() => speak(text, 0.7)}>慢</button>
-    </span>
+    <button className="spk-btn" title="Play" aria-label="Play" onClick={() => speak(text)}>
+      <Icon name="volume" size={22} />
+    </button>
+  );
+}
+
+// 按句拆分 native 版，每句一行更清晰
+const splitSentences = (s = "") =>
+  s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
+
+function ScoreBadge({ score }) {
+  if (score == null) return null;
+  return (
+    <div className="fb-score">
+      <span className="fb-score-num">{Number(score).toFixed(1)}</span>
+      <span className="fb-score-unit">/ 9.0</span>
+      <span className="fb-score-cap">IELTS band</span>
+    </div>
   );
 }
 
 export default function PracticePage() {
   const { practiceId } = useParams();
+  const navigate = useNavigate();
   const { user } = useUser();
 
   const [session, setSession] = useState(null);
@@ -61,6 +74,8 @@ export default function PracticePage() {
   const audioChunksRef = useRef(null);
 
   useEffect(() => {
+    // 已经在内存里加载好这道题（刚 startNewRound 后 navigate 改 URL 触发的回流）就别再拉
+    if (practiceId && session?._id === practiceId) return;
     if (practiceId) {
       api.getPractice(practiceId).then((s) => {
         setSession(s);
@@ -70,6 +85,7 @@ export default function PracticePage() {
       return;
     }
     startNewRound();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceId]);
 
   // 组件卸载时取消 SSE 和 MediaRecorder
@@ -97,9 +113,11 @@ export default function PracticePage() {
         scenarioId: scenario.scenarioId,
       });
       setSession({ ...sess, isCustom: scenario.isCustom });
+      // URL 带上 practiceId，方便分享 / 复制 id 排查（不重新触发加载）
+      navigate(`/practice/${sess._id}`, { replace: true });
       setPhase("ready");
     } catch (err) {
-      alert("场景加载失败：" + err.message);
+      alert("Failed to load scenario: " + err.message);
       setPhase("ready");
     }
   };
@@ -118,7 +136,7 @@ export default function PracticePage() {
 
   const startRecording = useCallback(async () => {
     if (location.protocol === "http:" && location.hostname !== "localhost") {
-      alert("当前是 HTTP 连接，浏览器不允许使用麦克风。\n请用 HTTPS 访问。");
+      alert("Microphone needs HTTPS. Please open the site over HTTPS.");
       return;
     }
 
@@ -153,7 +171,7 @@ export default function PracticePage() {
           setTranscript(text || "");
           setPhase("review");
         } catch (err) {
-          alert("语音识别失败：" + err.message);
+          alert("Transcription failed: " + err.message);
           setPhase("review");
         }
       };
@@ -161,7 +179,7 @@ export default function PracticePage() {
       mediaRecorderRef.current = recorder;
     } catch (err) {
       console.warn("MediaRecorder unavailable:", err);
-      alert("无法访问麦克风：" + err.message);
+      alert("Can't access microphone: " + err.message);
       setPhase("ready");
       return;
     }
@@ -211,7 +229,7 @@ export default function PracticePage() {
         },
         onError: (err) => {
           clearInterval(evalTimerRef.current);
-          alert("评估请求失败：" + err.message);
+          alert("Feedback request failed: " + err.message);
           setPhase("review");
         },
       }
@@ -231,29 +249,27 @@ export default function PracticePage() {
       }]);
       setSavedIdx((prev) => new Set(prev).add(i));
     } catch (e) {
-      alert("加入复习失败：" + e.message);
+      alert("Failed to add to review: " + e.message);
     }
   };
-
-  const CAT_ZH = { grammar: "语法", naturalness: "自然度", vocabulary: "用词", register: "语体" };
 
   const scenario = session?.scenario;
 
   const ScenarioCard = () => {
     const points = scenario?.points ?? [];
-    const where = stripEmoji(scenario?.where || session?.topic || "场景");
+    const where = stripEmoji(scenario?.where || session?.topic || "Scene");
     return (
       <div className="sc-card">
         <div className="sc-grid">
-          <div className="sc-k">地点</div>
+          <div className="sc-k">Place</div>
           <div className="sc-v sc-v-where">{where}</div>
 
           {scenario?.story && <>
-            <div className="sc-k">场景</div>
+            <div className="sc-k">Scene</div>
             <div className="sc-v">{stripEmoji(scenario.story)}</div>
           </>}
 
-          <div className="sc-k say">要说</div>
+          <div className="sc-k say">Goal</div>
           <div className="sc-v say">
             {points.length > 0 ? (
               <ul className="sc-points">
@@ -283,20 +299,22 @@ export default function PracticePage() {
         )}
         <ScenarioCard />
 
-        {passed && <div className="fb-passed">这轮说得地道了 ✓</div>}
+        <ScoreBadge score={result.score} />
+
+        {passed && <div className="fb-passed">Sounded native this time ✓</div>}
 
         {progress && (
           <div className="fb-progress">
             {progress.comment && <p className="fb-progress-comment">{progress.comment}</p>}
             {progress.fixed?.length > 0 && (
               <div className="fb-progress-list fixed">
-                <span className="label">✅ 这次用上了</span>
+                <span className="label">✅ Used this time</span>
                 {progress.fixed.map((x, i) => <span key={i} className="chip">{x}</span>)}
               </div>
             )}
             {progress.remaining?.length > 0 && (
               <div className="fb-progress-list remaining">
-                <span className="label">⏳ 还没用上</span>
+                <span className="label">⏳ Still missing</span>
                 {progress.remaining.map((x, i) => <span key={i} className="chip">{x}</span>)}
               </div>
             )}
@@ -305,55 +323,52 @@ export default function PracticePage() {
 
         {transcript && (
           <div className="fb-transcript-card">
-            <div className="fb-card-label">你说的</div>
+            <div className="fb-card-label">You said</div>
             <p className="fb-transcript-text">{transcript}</p>
           </div>
         )}
 
         {result.nativeVersion && (
           <div className="fb-native-card">
-            <div className="fb-card-label native">Native 会这么说</div>
-            <p className="fb-native-text">{result.nativeVersion}<SpeakBtns text={result.nativeVersion} /></p>
+            <div className="fb-card-label native">Native version<SpeakBtns text={result.nativeVersion} /></div>
+            {splitSentences(result.nativeVersion).map((s, i) => (
+              <p key={i} className="fb-native-text">{s}</p>
+            ))}
           </div>
-        )}
-
-        {result.summary && (
-          <p className="fb-summary-line">{result.summary}</p>
         )}
 
         {gaps.length > 0 && (
           <div className="fb-gaps-section">
-            <div className="fb-section-label">差距点 · {gaps.length} 处</div>
+            <div className="fb-section-label">Gaps · {gaps.length}</div>
             {gaps.map((g, i) => {
               const added = savedIdx.has(i) || g.saveToReview;
               return (
                 <div key={i} className="fb-gap-card">
                   <div className="fb-gap-head">
                     <span className="fb-gap-num">{i + 1}</span>
-                    {g.category && <span className="fb-gap-cat">{CAT_ZH[g.category] ?? g.category}</span>}
                     <button
                       className={"fb-gap-add" + (added ? " added" : "")}
                       onClick={() => addGap(g, i)}
                       disabled={added}
                     >
                       {added
-                        ? <><Icon name="check" size={13} />&nbsp;已加入复习</>
-                        : <><Icon name="plus" size={13} />&nbsp;加入复习</>}
+                        ? <><Icon name="check" size={13} />&nbsp;Saved</>
+                        : <><Icon name="plus" size={13} />&nbsp;Review</>}
                     </button>
                   </div>
                   <div className="fb-gap-table">
                     <div className="fb-gap-line">
-                      <span className="fb-gap-tag">我说的</span>
+                      <span className="fb-gap-tag">You said</span>
                       <span className="fb-gap-said">{g.original}</span>
                     </div>
                     <div className="fb-gap-line">
-                      <span className="fb-gap-tag">应该说</span>
+                      <span className="fb-gap-tag">Say this</span>
                       <span className="fb-gap-fix">{g.better}</span>
                       <SpeakBtns text={g.better} />
                     </div>
                     {g.why && (
                       <div className="fb-gap-line">
-                        <span className="fb-gap-tag">为什么</span>
+                        <span className="fb-gap-tag">解释</span>
                         <span className="fb-gap-whytext">{g.why}</span>
                       </div>
                     )}
@@ -365,27 +380,27 @@ export default function PracticePage() {
         )}
 
         {autoSaved > 0 && (
-          <p className="fb-autosaved">已把 {autoSaved} 个表达放进复习</p>
+          <p className="fb-autosaved">{autoSaved} expression(s) added to review</p>
         )}
 
         <div className="actions-row" style={{ marginTop: 8 }}>
           {passed || lastRound ? (
             <button className="su-btn su-btn-primary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
-              下一个场景&nbsp;<Icon name="next" size={16} />
+              Next scenario&nbsp;<Icon name="next" size={16} />
             </button>
           ) : (
             <>
               <button className="su-btn su-btn-primary" onClick={retrySame} style={{ flex: 2, height: 48 }}>
-                <Icon name="refresh" size={16} />&nbsp;再说一遍
+                <Icon name="refresh" size={16} />&nbsp;Say it again
               </button>
               <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
-                下一个&nbsp;<Icon name="next" size={16} />
+                Next&nbsp;<Icon name="next" size={16} />
               </button>
             </>
           )}
         </div>
         {!passed && lastRound && (
-          <p className="fb-rounds-out">这次也练过了——这些表达已进复习，下个场景继续。</p>
+          <p className="fb-rounds-out">Practiced — these expressions are saved to review. On to the next scenario.</p>
         )}
       </div>
     );
@@ -403,7 +418,7 @@ export default function PracticePage() {
 
       {hintGaps.length > 0 && phase !== "loading" && (
         <div className="sc-hintbar">
-          💡 这次试着用上：
+          💡 Try to use:
           {hintGaps.map((g, i) => (
             <span key={i} className="sc-hint-item"><b>{g.better}</b><SpeakBtns text={g.better} /></span>
           ))}
@@ -416,10 +431,10 @@ export default function PracticePage() {
         <div className={"su-transcript" + (!transcript ? " empty" : "")}>
           {transcript ||
             (phase === "recording"
-              ? "（录完后会上传识别）"
+              ? "(will transcribe after you stop)"
               : phase === "transcribing"
-              ? "（转写中…）"
-              : "（说话内容会显示在这里）")}
+              ? "(transcribing…)"
+              : "(your words will show here)")}
           {phase === "recording" && <span className="live-dot" />}
         </div>
       )}
@@ -442,7 +457,7 @@ export default function PracticePage() {
           >
             <Icon name="mic" size={32} color="#fff" />
           </button>
-          <div className="su-rec-label">点击开始</div>
+          <div className="su-rec-label">Tap to start</div>
         </div>
       )}
 
@@ -451,7 +466,7 @@ export default function PracticePage() {
           <button className="su-rec recording" onClick={stopRecording}>
             <Icon name="stop" size={28} color="#fff" />
           </button>
-          <div className="su-rec-label">点击停止</div>
+          <div className="su-rec-label">Tap to stop</div>
         </div>
       )}
 
@@ -460,17 +475,17 @@ export default function PracticePage() {
           <button className="su-rec recording" disabled style={{ opacity: 0.6 }}>
             <span className="spin" />
           </button>
-          <div className="su-rec-label">转写中…</div>
+          <div className="su-rec-label">Transcribing…</div>
         </div>
       )}
 
       {phase === "review" && (
         <div className="actions-row">
           <button className="su-btn su-btn-secondary" style={{ flex: 1 }} onClick={startRecording}>
-            <Icon name="refresh" size={16} />&nbsp;重说
+            <Icon name="refresh" size={16} />&nbsp;Redo
           </button>
           <button className="su-btn su-btn-primary" style={{ flex: 2 }} onClick={evaluate} disabled={!transcript.trim()}>
-            让 AI 评估
+            Get feedback
           </button>
         </div>
       )}
@@ -479,10 +494,10 @@ export default function PracticePage() {
         <>
           <div className="actions-row">
             <button className="su-btn su-btn-secondary" disabled style={{ flex: 1, opacity: 0.5 }}>
-              <Icon name="refresh" size={16} />&nbsp;重说
+              <Icon name="refresh" size={16} />&nbsp;Redo
             </button>
             <button className="su-btn su-btn-primary disabled" style={{ flex: 2 }}>
-              <span className="spin" />&nbsp;AI 正在评你的表达… {evalElapsed > 0 && <span style={{ marginLeft: 4, opacity: 0.8 }}>({evalElapsed}s)</span>}
+              <span className="spin" />&nbsp;AI is reviewing… {evalElapsed > 0 && <span style={{ marginLeft: 4, opacity: 0.8 }}>({evalElapsed}s)</span>}
             </button>
           </div>
           <p style={{
@@ -490,12 +505,12 @@ export default function PracticePage() {
             textAlign: "center", marginTop: 14, lineHeight: 1.6,
           }}>
             {streamingLen > 0
-              ? `AI 正在写… 已生成 ${streamingLen} 字符`
+              ? `Writing… ${streamingLen} chars so far`
               : evalElapsed < 15
-              ? "正在对照场景任务评估..."
+              ? "Checking against the scenario task…"
               : evalElapsed < 40
-              ? "正在对比母语者会怎么说..."
-              : "比预期久。如果太久没结果可以试着重说。"}
+              ? "Comparing with how a native would say it…"
+              : "Taking longer than usual. You can redo if it stalls."}
           </p>
         </>
       )}

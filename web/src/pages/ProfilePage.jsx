@@ -13,7 +13,7 @@ export default function ProfilePage() {
   const maskedPhone = user.phone
     ? `${user.phone.slice(0, 3)} **** ${user.phone.slice(-4)}`
     : "";
-  const initial = user.nickname?.charAt(0) || "用";
+  const initial = user.nickname?.charAt(0)?.toUpperCase() || "U";
 
   return (
     <div className="profile-page">
@@ -27,21 +27,17 @@ export default function ProfilePage() {
 
       <div className="info-list">
         <div className="info-row">
-          <span>语音识别</span>
-          <span className="v">Chrome only</span>
+          <span>Speech</span>
+          <span className="v">All platforms</span>
         </div>
         <div className="info-row">
-          <span>反馈方式</span>
-          <span className="v">未配置</span>
-        </div>
-        <div className="info-row">
-          <span>版本</span>
+          <span>Version</span>
           <span className="v">v0.1 · DEMO</span>
         </div>
       </div>
 
       <button className="su-btn su-btn-danger" onClick={handleLogout}>
-        退出登录
+        Log out
       </button>
     </div>
   );

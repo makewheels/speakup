@@ -48,6 +48,7 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
         "round": round_no,
         "summary": result["summary"],
         "nativeVersion": result["nativeVersion"],
+        "score": result.get("score"),
         "gaps": result["gaps"],
         "progress": result.get("progress"),
         "createdAt": datetime.now(timezone.utc),

@@ -9,10 +9,10 @@ function formatDateTime(iso) {
   if (isNaN(d)) return "";
   const sameYear = d.getFullYear() === new Date().getFullYear();
   const date = d.toLocaleDateString(
-    "zh-CN",
-    sameYear ? { month: "long", day: "numeric" } : { year: "numeric", month: "long", day: "numeric" }
+    "en-US",
+    sameYear ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" }
   );
-  const time = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
   return `${date} ${time}`;
 }
 
@@ -52,7 +52,7 @@ export default function HistoryPage() {
       return n;
     });
 
-  if (loading) return <div className="page-msg">加载中…</div>;
+  if (loading) return <div className="page-msg">Loading…</div>;
 
   // 只展示真正开口评估过的练习（看了图没说的空记录不进历史）
   const shown = sessions.filter((s) => (s.attempts?.length ?? 0) > 0);
@@ -63,10 +63,10 @@ export default function HistoryPage() {
         <div className="icon-box">
           <Icon name="clock" size={28} color="var(--ink-3)" stroke={1.4} />
         </div>
-        <p className="title">还没有练习记录</p>
-        <p className="sub">去练习页说一段试试</p>
+        <p className="title">No practice history yet</p>
+        <p className="sub">Go speak a round in Practice</p>
         <button className="su-btn su-btn-primary" style={{ maxWidth: 200 }} onClick={() => navigate("/practice")}>
-          去练习
+          Start practicing
         </button>
       </div>
     );
@@ -77,7 +77,7 @@ export default function HistoryPage() {
   for (const s of shown) {
     const key = s.scenarioId || s._id;
     if (!map.has(key)) {
-      map.set(key, { key, title: s.title || s.topic || "练习", thumb: s.imageUrl || "", sessions: [] });
+      map.set(key, { key, title: s.title || s.topic || "Practice", thumb: s.imageUrl || "", sessions: [] });
     }
     map.get(key).sessions.push(s);
   }
@@ -88,8 +88,8 @@ export default function HistoryPage() {
   return (
     <div className="history-page">
       <div className="page-head">
-        <h2>历史</h2>
-        <span className="count-label">{groups.length} 个场景</span>
+        <h2>History</h2>
+        <span className="count-label">{groups.length} scenarios</span>
       </div>
 
       <div className="history-list">
@@ -117,8 +117,8 @@ export default function HistoryPage() {
                   <p className="history-headline">{g.title}</p>
                   <div className="history-sub">
                     <span className="history-date">{formatDateTime(latest.createdAt)}</span>
-                    {multi && <span className="chip">练了 {g.sessions.length} 次</span>}
-                    {!multi && gapCount > 0 && <span className="chip warn">{gapCount} 处差距</span>}
+                    {multi && <span className="chip">{g.sessions.length} attempts</span>}
+                    {!multi && gapCount > 0 && <span className="chip warn">{gapCount} gaps</span>}
                   </div>
                 </div>
                 <div className={"history-arrow" + (multi && open ? " open" : "")}>
@@ -133,9 +133,9 @@ export default function HistoryPage() {
                     const gc = a?.gaps?.length ?? 0;
                     return (
                       <div key={s._id} className="history-subrow" onClick={() => navigate(`/history/${s._id}`)}>
-                        <span className="history-subidx">第 {g.sessions.length - k} 次</span>
+                        <span className="history-subidx">Attempt {g.sessions.length - k}</span>
                         <span className="history-subtime">{formatDateTime(s.createdAt)}</span>
-                        {gc > 0 && <span className="chip warn">{gc} 处</span>}
+                        {gc > 0 && <span className="chip warn">{gc} gaps</span>}
                         <Icon name="next" size={14} color="var(--ink-4)" />
                       </div>
                     );
@@ -149,7 +149,7 @@ export default function HistoryPage() {
 
       {hasMore && (
         <button className="su-btn su-btn-tertiary" style={{ width: "100%", marginTop: 12 }} onClick={loadMore}>
-          加载更多
+          Load more
         </button>
       )}
 
