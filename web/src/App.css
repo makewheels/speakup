@@ -7,6 +7,8 @@
   --ff-sans:   "Geist", "Helvetica Neue", Helvetica, system-ui, sans-serif;
   --ff-mono:   "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --ff-cn:     "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, sans-serif;
+  /* 学习内容统一英文字体，反馈/复习里不再 serif/mono 混排 */
+  --ff-en:     -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 
   --bg:         oklch(0.985 0.005 75);
   --bg-elev:    #ffffff;
@@ -1232,6 +1234,37 @@ button { font-family: inherit; }
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  transition: transform 0.18s ease;
+}
+.history-arrow.open { transform: rotate(90deg); }
+
+/* 历史按题目分组：组内展开多次练习 */
+.history-group { border-bottom: 1px solid var(--rule); }
+.history-group .history-row { border-bottom: 0; }
+.history-sessions {
+  padding: 2px 0 12px 70px;   /* 对齐缩略图右侧 */
+}
+.history-subrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 4px;
+  cursor: pointer;
+  border-top: 1px solid var(--rule);
+}
+.history-subrow:active { opacity: 0.6; }
+.history-subidx {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  flex: 0 0 auto;
+}
+.history-subtime {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-4);
+  margin-right: auto;
 }
 
 /* ──────────────────────────────────────────────
@@ -1414,17 +1447,18 @@ button { font-family: inherit; }
 }
 .fb-card-label.native { color: var(--accent); }
 .fb-transcript-text {
-  font-family: var(--ff-serif);
+  font-family: var(--ff-en);
   font-size: 17px;
   line-height: 1.6;
-  color: var(--ink-2);
+  color: var(--ink-3);
   margin: 0;
 }
 .fb-native-text {
-  font-family: var(--ff-serif);
+  font-family: var(--ff-en);
   font-size: 19px;
+  font-weight: 700;
   line-height: 1.6;
-  color: var(--ink);
+  color: var(--accent);
   margin: 0;
 }
 .fb-summary-line {
@@ -1442,50 +1476,92 @@ button { font-family: inherit; }
   color: var(--ink-3);
   margin-bottom: 6px;
 }
-.fb-gap-row {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--rule);
+/* 差距点：编号卡片 + 三行表格（我说的 / 应该说 / 为什么）*/
+.fb-gap-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
 }
-.fb-gap-row:last-child { border-bottom: 0; }
-.fb-gap-pair {
+.fb-gap-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 5px;
+  margin-bottom: 10px;
 }
-.fb-gap-orig {
-  font-family: var(--ff-mono);
+.fb-gap-num {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 6px;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 700;
+}
+.fb-gap-cat {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  background: var(--bg-mute);
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.fb-gap-add {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.fb-gap-add.added { color: var(--ok); background: var(--ok-soft); }
+.fb-gap-add:disabled { cursor: default; }
+.fb-gap-table {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.fb-gap-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.fb-gap-tag {
+  flex: 0 0 42px;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-4);
+}
+.fb-gap-said {
+  font-family: var(--ff-en);
   font-size: 16px;
   color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-4);
 }
-.fb-gap-arrow {
-  color: var(--ink-4);
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.fb-gap-better {
-  font-family: var(--ff-mono);
+.fb-gap-fix {
+  font-family: var(--ff-en);
   font-size: 18px;
   font-weight: 700;
   color: var(--accent);
 }
-.fb-gap-cat {
+.fb-gap-whytext {
   font-family: var(--ff-cn);
-  font-size: 11px;
-  color: var(--ink-4);
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  padding: 2px 6px;
-  margin-left: auto;
-  white-space: nowrap;
-}
-.fb-gap-why {
-  font-family: var(--ff-cn);
-  font-size: 15px;
+  font-size: 14px;
   color: var(--ink-2);
-  line-height: 1.7;
-  margin: 0;
+  line-height: 1.6;
 }
 
 /* ── 反馈页：gap 对比卡片 ──────────────────────────────────────── */
@@ -1722,6 +1798,141 @@ button { font-family: inherit; }
 .review-del:hover { color: var(--warn); }
 .review-del.confirming { color: var(--warn); font-weight: 600; }
 
+/* ── 复习：逐词卡片（默认首屏）────────────────────────── */
+.rv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.rv-head h2 {
+  font-family: var(--ff-cn);
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+.rv-list-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-mute);
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.rv-progress {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-4);
+  text-align: center;
+  margin-bottom: 10px;
+}
+.rv-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  padding: 24px 20px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+.rv-card-label {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-4);
+  margin-bottom: 10px;
+}
+.rv-card-label.answer { color: var(--accent); }
+.rv-card-q {
+  font-family: var(--ff-en);
+  font-size: 20px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 0;
+}
+.rv-tap-hint {
+  margin-top: auto;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-4);
+  text-align: center;
+  padding-top: 20px;
+}
+.rv-card-a {
+  font-family: var(--ff-en);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.4;
+  margin: 0 0 10px;
+}
+.rv-card-note {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+.rv-card-ctx {
+  font-family: var(--ff-en);
+  font-size: 15px;
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.rv-practice-btn { width: 100%; height: 46px; margin-bottom: 10px; }
+.rv-verdict-row { display: flex; gap: 10px; margin-top: auto; }
+
+.rv-done {
+  text-align: center;
+  padding: 50px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.rv-done-check {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--ok-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.rv-done-title { font-family: var(--ff-cn); font-size: 18px; font-weight: 700; margin: 0; }
+.rv-done-sub { font-family: var(--ff-cn); font-size: 14px; color: var(--ink-3); margin: 0 0 12px; }
+
+/* 列表视图里的「练这个词」按钮 */
+.review-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-family: var(--ff-cn);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.review-cta-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* 历史详情：第 N 次标签 */
+.attempt-idx {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
 /* ──────────────────────────────────────────────
    SCENARIO MODE · 场景卡 / 提示条 / 三轮进度
    ────────────────────────────────────────────── */
@@ -1783,23 +1994,24 @@ button { font-family: inherit; }
   display: flex;
   align-items: flex-start;
   background: var(--bg-mute);
-  color: var(--ink-3);
-  font-size: 14px;
+  color: var(--ink-2);
+  font-size: 16px;
   font-weight: 600;
   white-space: nowrap;
 }
+/* 地点、场景 —— 同一普通样式，不抢注意力 */
 .sc-v {
   border-left: 1px solid var(--rule);
-  font-size: 17px;
+  font-size: 16px;
+  font-weight: 400;
   color: var(--ink-2);
   line-height: 1.6;
 }
 .sc-v-where {
-  font-weight: 700;
-  color: var(--accent);
+  color: var(--ink);
 }
 
-/* 「要说」行 —— 本页重点，高亮 + 加大 */
+/* 「要说」行 —— 本页唯一重点：高亮 + 加粗 */
 .sc-k.say { background: var(--accent-soft); color: var(--accent); }
 .sc-v.say { background: var(--accent-soft); }
 .sc-points {
@@ -1810,10 +2022,10 @@ button { font-family: inherit; }
 .sc-points li {
   position: relative;
   padding-left: 20px;
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--ink);
-  line-height: 1.85;
+  line-height: 1.8;
 }
 .sc-points li::before {
   content: "•";
@@ -1822,8 +2034,8 @@ button { font-family: inherit; }
   color: var(--accent);
 }
 .sc-say-text {
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--ink);
   line-height: 1.7;
 }
@@ -1842,17 +2054,30 @@ button { font-family: inherit; }
 .sc-hint-item { margin-right: 10px; white-space: nowrap; }
 .sc-hint-item b { color: var(--accent); }
 
-.spk-btns { white-space: nowrap; }
+.spk-btns {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: middle;
+}
 
 .spk-btn {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 17px;
-  padding: 0 3px;
-  vertical-align: -1px;
+  color: var(--accent);
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
 }
-.spk-btn:active { transform: scale(1.25); }
+.spk-btn.slow {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.spk-btn:active { transform: scale(1.2); }
 
 .fb-passed {
   font-family: var(--ff-cn);

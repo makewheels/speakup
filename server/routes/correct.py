@@ -1,6 +1,4 @@
-import asyncio
 import json
-import logging
 from datetime import datetime, timezone
 
 from bson import ObjectId
@@ -10,11 +8,8 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream
-from services.scenario_service import generate_custom_scenario
 
 router = APIRouter(prefix="/api/correct", tags=["correct"])
-
-logger = logging.getLogger(__name__)
 
 
 class CorrectRequest(BaseModel):
@@ -91,27 +86,12 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
     return auto_saved
 
 
-def _schedule_custom_scenario(user_id: str) -> None:
-    """因材施教：后台静默生成定制题（出错 → 反向出题），失败只记日志。"""
-    async def _run():
-        try:
-            doc = await generate_custom_scenario(user_id)
-            if doc:
-                logger.info("custom scenario generated for %s: %s", user_id, doc["slug"])
-        except Exception as e:
-            logger.warning("custom scenario generation failed for %s: %s", user_id, e)
-
-    asyncio.create_task(_run())
-
-
 @router.post("")
 async def correct(req: CorrectRequest):
     practice = await _load_practice(req)
     scenario, prev, round_no = _round_context(practice)
     result = await correct_text(req.text, scenario, prev, round_no)
     auto_saved = await _save_attempt_and_review(req, result, round_no)
-    if auto_saved:
-        _schedule_custom_scenario(req.userId)
     return {"practiceId": req.practiceId, "autoSaved": auto_saved, "round": round_no, **result}
 
 
@@ -133,8 +113,6 @@ async def correct_stream(req: CorrectRequest):
 
         if full_result:
             auto_saved = await _save_attempt_and_review(req, full_result, round_no)
-            if auto_saved:
-                _schedule_custom_scenario(req.userId)
             yield f"data: {json.dumps({'type': 'done', 'result': full_result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
 
     return StreamingResponse(

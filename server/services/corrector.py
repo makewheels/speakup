@@ -73,7 +73,7 @@ WHAT NOT TO DO:
 LANGUAGE OF FEEDBACK — STRICT:
 - `summary`: 必须用中文写，严格不超过25字，一句话。
 - `nativeVersion`, gap `original`, gap `better`, gap `example`: 必须用英文写。
-- gap `why`: 必须用中文写，遇到英文词汇/短语时可内嵌保留。
+- gap `why`: 必须用中文写（可内嵌英文词）。对照式解释——既点明"原说法哪里不好"（生硬/语法错/语体不对/不自然），又说"地道说法为什么更好"。如"but 太生硬，actually 更自然地引出纠正"、"had had 是时态错误，应该用一般过去时"。一句话，尽量简短（≤40字），不要长篇、不要举多例。
 
 OUTPUT: strict JSON only, no markdown fences, no commentary.
 
@@ -86,7 +86,7 @@ OUTPUT: strict JSON only, no markdown fences, no commentary.
       "original": "what they said (exact or close paraphrase, English)",
       "better": "ONE single best native replacement, English only, no slash alternatives",
       "example": "one short sentence a native would actually say in this scenario, using 'better' naturally",
-      "why": "1-2句解释为什么母语者这样说（中文，可内嵌英文词）",
+      "why": "中文对照解释（≤40字）：原说法哪里不好 + 地道说法为什么更好。如：but 太生硬，actually 更自然地引出纠正",
       "category": "grammar",
       "saveToReview": true
     }

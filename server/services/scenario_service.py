@@ -18,6 +18,7 @@ from services.wanx import PHOTO_STYLE, wanx_generate
 from utils.id_generator import scenario_id
 
 MAX_PENDING_CUSTOM = 2  # 每个用户最多攒 2 道没练过的定制题，攒够就不再生成
+FRESH_THRESHOLD = 3     # 没练过的题少于这个数时，取题会后台补一道定制题
 
 
 def scenario_image_key(sid: str) -> str:
@@ -75,33 +76,19 @@ GEN_PROMPT = """你是英语口语教练的出题人。学习者有几个总是�
 只输出 strict JSON，不要 markdown 围栏：
 {{
   "title": "中文短标题，如：咖啡店给错咖啡",
-  "where": "带 emoji 的地点，如：☕️ 咖啡店 · 西雅图",
+  "where": "地点，纯文字不要 emoji，如：咖啡店 · 西雅图",
   "story": "2句以内中文情境描述，交代冲突",
   "mission": "1句中文任务指令，以动词开头",
   "imagePrompt": "English photo description of this scene for an image generator, concrete objects and setting, no people's faces close-up"
 }}"""
 
 
-async def generate_custom_scenario(user_id: str) -> dict | None:
-    """因材施教：取错题本里最该复习的弱点表达，反向生成一道定制题（含万相配图）。
-    设计为后台任务调用，失败返回 None 不抛出。
-    """
-    db = get_db()
-    practiced = await _practiced_scenario_ids(user_id)
-    pending = await db.scenarios.count_documents(
-        {"ownerUserId": user_id, "status": "active", "_id": {"$nin": list(practiced)}}
+async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
+    """specs: [{"expression": str, "original": str}]。调 LLM 反向出题 + 万相配图，落库，返回 doc。"""
+    word_lines = "\n".join(
+        f"- {s['expression']}（他原来说成：{s.get('original') or '?'}）" for s in specs
     )
-    if pending >= MAX_PENDING_CUSTOM:
-        return None
-
-    items = await db.reviewItems.find({"userId": user_id}).sort("nextReviewAt", 1).to_list(3)
-    if not items:
-        return None
-    words = [v["expression"] for v in items if v.get("expression")]
-    if not words:
-        return None
-
-    word_lines = "\n".join(f"- {v['expression']}（他原来说成：{v.get('original', '?')}）" for v in items)
+    words = [s["expression"] for s in specs]
     messages = [
         SystemMessage(content=GEN_PROMPT.format(words=word_lines)),
         HumanMessage(content="出一道题。"),
@@ -134,5 +121,47 @@ async def generate_custom_scenario(user_id: str) -> dict | None:
         "status": "active",
         "createdAt": now,
     }
-    await db.scenarios.insert_one(doc)
+    await get_db().scenarios.insert_one(doc)
     return doc
+
+
+async def generate_custom_scenario(user_id: str) -> dict | None:
+    """因材施教：取错题本里最该复习的弱点表达，反向生成一道定制题（含万相配图）。
+    设计为后台任务调用，失败返回 None 不抛出。攒够 pending 就跳过。
+    """
+    db = get_db()
+    practiced = await _practiced_scenario_ids(user_id)
+    pending = await db.scenarios.count_documents(
+        {"ownerUserId": user_id, "status": "active", "_id": {"$nin": list(practiced)}}
+    )
+    if pending >= MAX_PENDING_CUSTOM:
+        return None
+
+    items = await db.reviewItems.find({"userId": user_id}).sort("nextReviewAt", 1).to_list(3)
+    specs = [
+        {"expression": v["expression"], "original": v.get("original", "")}
+        for v in items if v.get("expression")
+    ]
+    if not specs:
+        return None
+    return await _build_scenario_doc(user_id, specs)
+
+
+async def generate_scenario_for_expression(
+    user_id: str, expression: str, original: str = ""
+) -> dict | None:
+    """针对单个弱点表达即时出题（错题本「练这个词」）。同步调用，不受 pending 上限限制。"""
+    expression = (expression or "").strip()
+    if not expression:
+        return None
+    return await _build_scenario_doc(user_id, [{"expression": expression, "original": original}])
+
+
+async def fresh_scenario_count(user_id: str) -> int:
+    """用户还没练过的题数（公共 active + 自己的定制 active），用于判断要不要补题。"""
+    practiced = await _practiced_scenario_ids(user_id)
+    return await get_db().scenarios.count_documents({
+        "status": "active",
+        "_id": {"$nin": list(practiced)},
+        "$or": [{"ownerUserId": None}, {"ownerUserId": user_id}],
+    })
