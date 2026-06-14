@@ -4,11 +4,18 @@
   box-sizing: border-box;
 }
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* 防止子元素溢出导致横向滚动（iOS 输入框聚焦时尤其明显）*/
+  width: 100%;
+}
+
+body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   background: #fafafa;
   color: #333;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%; /* 防止 iOS 横屏字号自动放大 */
 }

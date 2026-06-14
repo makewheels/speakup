@@ -105,8 +105,13 @@ export default function PracticePage() {
 
   const startRecording = useCallback(async () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+      alert("iOS 系统暂不支持浏览器麦克风识别（Safari/Chrome iOS 共用 WebKit 都不支持）。\n请用电脑 Chrome 或 Android 手机 Chrome 试试。");
+      return;
+    }
     if (!SR) {
-      alert("请使用 Chrome 浏览器");
+      alert("浏览器不支持麦克风识别，请用 Chrome（电脑 / Android）。");
       return;
     }
     if (location.protocol === "http:" && location.hostname !== "localhost") {
