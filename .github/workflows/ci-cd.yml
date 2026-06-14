@@ -150,6 +150,16 @@ jobs:
 
       - name: Smoke check
         run: |
-          sleep 5
-          curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/scenarios/next?userId=u_probe" | head -c 100
-          echo
+          set -euo pipefail
+          # 容器刚 up 时第一次请求可能还没就绪：重试 6 次，每次 5s
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/scenarios/next?userId=u_probe" -o /tmp/probe.json; then
+              echo "smoke ok (attempt $i)"
+              head -c 200 /tmp/probe.json; echo
+              exit 0
+            fi
+            echo "smoke attempt $i failed, sleep 5"
+            sleep 5
+          done
+          echo "smoke check failed after 6 attempts"
+          exit 1

@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Fixed
+- CI smoke check 静默失败：`curl ... | head` 管道没启用 pipefail，curl 拿 502/22 也算通过；改成不接管道、显式 `set -euo pipefail` + 6 次重试覆盖容器刚 up 时的 ready 窗口。
+
 ### Changed
 - **学习体验大改版（场景卡 / 反馈页 / 复习 / 历史 / 出题）**：
   - 场景卡：去掉所有 emoji（`要说` 的 🎯、地点里的 emoji，出题 prompt 也不再生成 emoji，旧数据渲染时剥离）；地点 / 场景 / 要说 三行统一字体、标签放大，只把「要说」加粗高亮作为唯一重点；去掉顶部「为你定制」标签
