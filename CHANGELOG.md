@@ -8,6 +8,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ### Fixed
 - CI smoke check 静默失败：`curl ... | head` 管道没启用 pipefail，curl 拿 502/22 也算通过；改成不接管道、显式 `set -euo pipefail` + 6 次重试覆盖容器刚 up 时的 ready 窗口。
+- 回滚 tag 错位：原逻辑先 `docker pull :latest`（已是新版）才 tag 成 `:previous`，导致 `:previous` 跟 `:latest` 永远指向同一个 image，`docker tag :previous :latest && compose up` 实际原地不动。改为基于"当前 running container 的 image ID"先打 `:previous` 再 pull 新 latest——抓的是真正在跑的那一版，不依赖 tag 状态。
 
 ### Changed
 - **学习体验大改版（场景卡 / 反馈页 / 复习 / 历史 / 出题）**：
