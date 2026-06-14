@@ -8,33 +8,46 @@
 ```
 GitHub Actions → 构建 Docker 镜像 → 推 ACR (b4/speakup)
                                → SSH 到生产机 → docker compose pull && up
-<生产域名> → Caddy (自动 HTTPS) → speakup:3001
+<生产域名> → /opt/caddy 网关 (Caddy, 80/443) → speakup:3001 (docker network: edge)
 speakup:3001  → MongoDB (内网, MONGO_URI)
                                  → 阿里云 OSS speakup-prod 桶
                                  → DashScope (Qwen 评估 + 万相配图)
 ```
 
-- **镜像仓库**：阿里云 ACR 个人版 (cn-beijing)，`b4/speakup` 存应用镜像。caddy 等公共镜像走 docker.io，靠生产机 docker daemon 配置的 **registry-mirrors**（`/etc/docker/daemon.json`，公开镜像加速器）拉，国内速度正常。
-- **凭据**：阿里云**主账号 ACR 固定密码**（控制台 → 容器镜像服务 → 个人实例 → 访问凭证设置），存 GitHub Secrets `ACR_AK_ID`（用户名）/ `ACR_AK_SECRET`（密码）。
-- **回滚**：每次部署前旧 `:latest` 转成 `:previous`，回滚 = `docker tag :previous :latest && docker compose up -d`。每次构建额外打 `:sha` 标签，可回退任意版本。
+**多服务部署的核心约定**（这台机以后会跑多个服务）：
+
+- `/opt/caddy/` 是**唯一**占 80/443 的网关，独立 compose，独立 Caddyfile，由人工/单独的 caddy 仓库维护
+- 每个业务服务（如 speakup、article2audio）的 compose **不暴露宿主端口**，只 `expose` 内部端口
+- 业务和 caddy 通过 docker external network `edge` 通信
+- 加新服务步骤：
+  1. 业务 compose 接入 `networks: [edge]` + `external: true`
+  2. `/opt/caddy/Caddyfile` 加一段 `<域名> { reverse_proxy <服务名>:<端口> }`
+  3. `docker compose -f /opt/caddy/docker-compose.yml exec caddy caddy reload --config /etc/caddy/Caddyfile`
+
+- **镜像仓库**：阿里云 ACR 个人版 (cn-beijing)，`b4/speakup` 存应用镜像。caddy 等公共镜像走 docker.io，靠生产机 docker daemon 配置的 **registry-mirrors** 拉。
+- **凭据**：阿里云**主账号 ACR 固定密码**（控制台 → 容器镜像服务 → 个人实例 → 访问凭证），存 GitHub Secrets `ACR_AK_ID`/`ACR_AK_SECRET`。
+- **回滚**：旧 `:latest` 转 `:previous`，`docker tag :previous :latest && docker compose up -d`。
 
 ## 生产机布置
 
 ```
-/opt/speakup/
-├── docker-compose.yml
-├── Caddyfile
-└── .env  （由 CI 每次部署写入，不手动编辑）
-```
+/opt/caddy/                    # 网关，全局唯一占 80/443
+├── docker-compose.yml         # caddy 容器
+└── Caddyfile                  # 所有 host 路由
 
-Docker Compose 起两个容器：`speakup`（后端+前端静态，internal 3001）、`caddy`(80/443 → speakup:3001，自动签 Let's Encrypt）。
+/opt/speakup/                  # 业务服务
+├── docker-compose.yml         # speakup 容器（CI 写入）
+└── .env                       # CI 写入
+
+/opt/<其他服务>/                # 同上模式
+```
 
 ## 首次部署
 
 1. 阿里云控制台给主账号设 ACR 固定密码。
 2. `gh secret set ACR_AK_ID/ACR_AK_SECRET`（其余 Secret 已有跳过）。
-3. 服务器是 Ubuntu 24.04，需预装 Docker（`sudo apt install docker.io docker-compose-v2`，Docker 29+）。
-4. 配 docker daemon 镜像加速器（避免 docker.io 拉不动）：
+3. 服务器装 Docker（`sudo apt install docker.io docker-compose-v2`）。
+4. 配 docker daemon 镜像加速器：
    ```bash
    sudo tee /etc/docker/daemon.json <<EOF
    {
@@ -47,9 +60,17 @@ Docker Compose 起两个容器：`speakup`（后端+前端静态，internal 3001
    EOF
    sudo systemctl restart docker
    ```
-5. 腾讯云防火墙开放 22、80、443 端口（80/443 给 Caddy）。
-6. `sudo mkdir -p /opt/speakup && sudo chown ubuntu:ubuntu /opt/speakup`（让 CI 能 rsync）。
-7. `git push master` → CI 自动构建部署。
+5. 腾讯云防火墙开放 22、80、443。
+6. 建 `/opt/caddy/`：
+   ```bash
+   sudo mkdir -p /opt/caddy && sudo chown ubuntu:ubuntu /opt/caddy
+   cd /opt/caddy
+   # 写 Caddyfile（每个 host 一段 reverse_proxy）和 docker-compose.yml
+   # docker-compose.yml 创建 external network: edge
+   docker compose up -d
+   ```
+7. 建 `/opt/speakup/`：`sudo mkdir -p /opt/speakup && sudo chown ubuntu:ubuntu /opt/speakup`
+8. `git push master` → CI 自动构建部署。
 
 ## 回滚
 
@@ -61,33 +82,19 @@ docker tag $IMG:previous $IMG:latest
 docker compose up -d
 ```
 
-回退到某个历史版本：
-```bash
-IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
-docker pull $IMG:<sha>
-docker tag $IMG:<sha> $IMG:latest
-docker compose up -d
-```
-
 ## 常用运维
 
 ```bash
-cd /opt/speakup
+# 业务日志
+docker compose -f /opt/speakup/docker-compose.yml logs -f --tail=50
 
-# 看日志
-docker compose logs -f --tail=50 speakup
-docker compose logs -f caddy
+# 网关日志
+docker compose -f /opt/caddy/docker-compose.yml logs -f
 
-# 重启
-docker compose restart speakup
+# Caddyfile 改完热加载（不重启容器）
+docker compose -f /opt/caddy/docker-compose.yml exec caddy \
+  caddy reload --config /etc/caddy/Caddyfile
 
 # 清理旧镜像
 docker image prune -a -f
 ```
-
-## 多服务约定
-
-这台机以后会按端口部署多个服务。每个服务：
-- 一个 `docker-compose.yml` + 各自的 Caddy（或共用一份）
-- 绑定不同端口（如 speakup=3001、article2audio=8770），compose 内部端口隔离
-- Caddy 按域名路由到不同容器（生产域名各服务各占一个子域，从 GitHub Secret 注入）

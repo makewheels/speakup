@@ -87,10 +87,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
 
-      - name: Sync compose + Caddyfile
+      - name: Sync compose
         run: |
           rsync -az -e "ssh -o ServerAliveInterval=30" \
-            docker-compose.yml Caddyfile \
+            docker-compose.yml \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.SERVER_DIR }}/
 
       - name: Write server .env
@@ -104,7 +104,6 @@ jobs:
           OSS_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}
           OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }}
-          DOMAIN=${{ secrets.DOMAIN }}
           __ENVEOF__
 
       - name: Pull and restart
@@ -135,7 +134,6 @@ jobs:
 
       - name: Smoke check
         run: |
-          sleep 3
-          H="${{ secrets.DEPLOY_HOST }}"
-          curl -fsS -m 8 "http://${H}:3001/api/scenarios/next?userId=u_probe" | head -c 100
+          sleep 5
+          curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/scenarios/next?userId=u_probe" | head -c 100
           echo
