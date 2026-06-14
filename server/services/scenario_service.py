@@ -4,8 +4,8 @@
 场景图存 OSS `scenarios/{scenarioId}/cover.jpg`，库里只存 imageKey，URL 读取时现签。
 """
 
-import hashlib
 import json
+import random
 import re
 from datetime import datetime, timezone
 
@@ -63,14 +63,16 @@ async def next_scenario(user_id: str, exclude: list[str] | None = None) -> dict 
         ).to_list(200)
         if not public:
             return None
+        # 候选优先级（每一层只要非空就用，且每层内随机，避免反复换到同一道）：
+        #   1. 既没练过、也没被本会话 skip 的
+        #   2. 没练过的（放开 skip，至少给个新题）
+        #   3. 没被 skip 的（练过也行，只要不是刚跳过的那几道）
+        #   4. 全池（实在没得挑了）
         fresh = [s for s in public if s["_id"] not in blocked]
-        # 都被 skip 完了再放开 skipped、只避开真正练过的；最后兜底 = 全池随机
-        pool = fresh or [s for s in public if s["_id"] not in practiced] or public
-        # 没练过的里按难度从低到高；全练过了就按 _id 哈希轮换
-        pool.sort(key=lambda s: (s.get("difficulty", 1), s["_id"]))
-        chosen = pool[0] if fresh else pool[
-            int(hashlib.md5(f"{user_id}{datetime.now().date()}".encode()).hexdigest(), 16) % len(pool)
-        ]
+        not_practiced = [s for s in public if s["_id"] not in practiced]
+        not_skipped = [s for s in public if s["_id"] not in skipped]
+        pool = fresh or not_practiced or not_skipped or public
+        chosen = random.choice(pool)
 
     chosen["imageUrl"] = oss_signed_url(chosen["imageKey"]) if chosen.get("imageKey") else ""
     chosen["isCustom"] = chosen.get("ownerUserId") is not None
