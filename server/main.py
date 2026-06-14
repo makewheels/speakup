@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from db.connection import connect_db
-from routes import auth, correct, practice_sessions, review_items, scenarios
+from routes import auth, correct, practice_sessions, review_items, scenarios, transcribe
 
 
 @asynccontextmanager
@@ -25,6 +25,7 @@ app.include_router(scenarios.router)
 app.include_router(correct.router)
 app.include_router(practice_sessions.router)
 app.include_router(review_items.router)
+app.include_router(transcribe.router)
 
 # 生产环境 FastAPI 直接托管前端静态（Docker 里 WORKDIR=/app，static 在 /app/static）
 static = Path(__file__).parent / "static"

@@ -11,6 +11,7 @@ const PROMPTS = {
   loading:    "准备场景中…",
   ready:      "",
   recording:  "正在听…",
+  transcribing: "录音上传中，AI 正在转写…",
   review:     "看一眼，要不要让 AI 评？",
   evaluating: "AI 正在评你的表达…",
   feedback:   "",
@@ -106,58 +107,50 @@ export default function PracticePage() {
   const startRecording = useCallback(async () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    if (isIOS) {
-      alert("iOS 系统暂不支持浏览器麦克风识别（Safari/Chrome iOS 共用 WebKit 都不支持）。\n请用电脑 Chrome 或 Android 手机 Chrome 试试。");
-      return;
-    }
-    if (!SR) {
-      alert("浏览器不支持麦克风识别，请用 Chrome（电脑 / Android）。");
-      return;
-    }
+    const useServerASR = isIOS || !SR;
+
     if (location.protocol === "http:" && location.hostname !== "localhost") {
-      alert("当前是 HTTP 连接，Chrome 不允许使用麦克风。\n请用 HTTPS 访问，或在本地 localhost 调试。");
+      alert("当前是 HTTP 连接，浏览器不允许使用麦克风。\n请用 HTTPS 访问。");
       return;
     }
 
     // 先清上一次录音
     audioChunksRef.current = null;
 
-    const recognition = new SR();
-    recognition.lang = "en-US";
-    recognition.continuous = true;
-    recognition.interimResults = true;
+    // 用浏览器 SR 时仍同步起 MediaRecorder 留底；用服务端 ASR 时只起 MediaRecorder
+    if (!useServerASR) {
+      const recognition = new SR();
+      recognition.lang = "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
-    let finalText = "";
-    recognition.onresult = (event) => {
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) finalText += event.results[i][0].transcript + " ";
-        else interim += event.results[i][0].transcript;
-      }
-      setTranscript(finalText + interim);
-    };
-
-    recognition.onerror = (event) => {
-      setPhase("review");
-      if (event.error === "not-allowed") {
-        if (location.protocol === "http:") {
-          alert("麦克风被浏览器拦截：当前是 HTTP 连接，Chrome 要求 HTTPS 才能使用麦克风。");
-        } else {
-          alert("麦克风权限被拒。Chrome 地址栏左侧锁图标 → 允许麦克风 → 刷新页面。");
+      let finalText = "";
+      recognition.onresult = (event) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) finalText += event.results[i][0].transcript + " ";
+          else interim += event.results[i][0].transcript;
         }
-      } else if (event.error === "audio-capture") {
-        alert("没检测到麦克风，检查一下设备连接。");
-      } else if (event.error === "network") {
-        alert("网络错误，检查一下网络。");
-      }
-    };
-    recognition.onend = () => {
-      clearInterval(timerRef.current);
-      setPhase((p) => (p === "recording" ? "review" : p));
-    };
+        setTranscript(finalText + interim);
+      };
+      recognition.onerror = (event) => {
+        setPhase("review");
+        if (event.error === "not-allowed") {
+          alert("麦克风权限被拒。地址栏锁图标 → 允许麦克风 → 刷新页面。");
+        } else if (event.error === "audio-capture") {
+          alert("没检测到麦克风。");
+        } else if (event.error === "network") {
+          alert("网络错误，检查一下网络。");
+        }
+      };
+      recognition.onend = () => {
+        clearInterval(timerRef.current);
+        setPhase((p) => (p === "recording" ? "review" : p));
+      };
+      recognition.start();
+      recognitionRef.current = recognition;
+    }
 
-    recognition.start();
-    recognitionRef.current = recognition;
     secondsRef.current = 0;
     setElapsed("0:00");
     setTranscript("");
@@ -165,20 +158,43 @@ export default function PracticePage() {
     setAutoSaved(0);
     setPhase("recording");
 
-    // 同步启动 MediaRecorder 录音（失败不影响主流程）
+    // MediaRecorder：iOS 用 audio/mp4，其他默认 webm
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const preferred = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
+      const mimeType = preferred.find((t) => MediaRecorder.isTypeSupported(t));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        audioChunksRef.current = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+      recorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        audioChunksRef.current = blob;
         stream.getTracks().forEach((t) => t.stop());
+        clearInterval(timerRef.current);
+        if (useServerASR) {
+          // iOS 路径：上传到后端 ASR 拿文本
+          setPhase("transcribing");
+          try {
+            const { text } = await api.transcribeAudio(user.userId, blob);
+            setTranscript(text || "");
+            setPhase("review");
+          } catch (err) {
+            alert("语音识别失败：" + err.message);
+            setPhase("review");
+          }
+        } else {
+          setPhase((p) => (p === "recording" ? "review" : p));
+        }
       };
       recorder.start();
       mediaRecorderRef.current = recorder;
     } catch (err) {
       console.warn("MediaRecorder unavailable:", err);
+      if (useServerASR) {
+        alert("无法访问麦克风：" + err.message);
+        setPhase("ready");
+        return;
+      }
     }
 
     timerRef.current = setInterval(() => {
@@ -187,15 +203,14 @@ export default function PracticePage() {
       const ss = (secondsRef.current % 60).toString().padStart(2, "0");
       setElapsed(`${mm}:${ss}`);
     }, 1000);
-  }, []);
+  }, [user]);
 
   const stopRecording = () => {
     recognitionRef.current?.stop();
     recognitionRef.current = null;
-    clearInterval(timerRef.current);
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current = null;
-    setPhase("review");
+    // 注意：不直接 setPhase("review")，由 MediaRecorder.onstop 控制（要么 transcribing 要么 review）
   };
 
   const evaluate = () => {
@@ -392,9 +407,9 @@ export default function PracticePage() {
 
       <p className="su-prompt">{PROMPTS[phase]}</p>
 
-      {(phase === "recording" || phase === "review" || phase === "evaluating") && (
+      {(phase === "recording" || phase === "transcribing" || phase === "review" || phase === "evaluating") && (
         <div className={"su-transcript" + (!transcript ? " empty" : "")}>
-          {transcript || "（说话内容会显示在这里）"}
+          {transcript || (phase === "transcribing" ? "（转写中…）" : "（说话内容会显示在这里）")}
           {phase === "recording" && <span className="live-dot" />}
         </div>
       )}
@@ -427,6 +442,15 @@ export default function PracticePage() {
             <Icon name="stop" size={28} color="#fff" />
           </button>
           <div className="su-rec-label">点击停止</div>
+        </div>
+      )}
+
+      {phase === "transcribing" && (
+        <div className="su-rec-wrap">
+          <button className="su-rec recording" disabled style={{ opacity: 0.6 }}>
+            <span className="spin" />
+          </button>
+          <div className="su-rec-label">转写中…</div>
         </div>
       )}
 

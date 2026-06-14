@@ -101,6 +101,28 @@ export const api = {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("录音上传失败"))));
   },
 
+  // iOS / 不支持 Web Speech API 的浏览器走这条：上传录音 → 后端 ASR 返文本
+  transcribeAudio: (userId, blob) => {
+    const form = new FormData();
+    form.append("userId", userId);
+    const ext = (blob.type.includes("mp4") ? "m4a"
+              : blob.type.includes("ogg") ? "ogg"
+              : blob.type.includes("wav") ? "wav"
+              : "webm");
+    form.append("audio", blob, `recording.${ext}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90_000);
+    return fetch(`${BASE}/transcribe`, { method: "POST", body: form, signal: controller.signal })
+      .then(async (r) => {
+        clearTimeout(timer);
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.detail || "ASR 失败");
+        }
+        return r.json();
+      });
+  },
+
   addReviewItems: (userId, items) =>
     request("/review-items", { method: "POST", body: { userId, items } }),
   listReviewItems: (userId, due = false) =>
