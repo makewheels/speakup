@@ -72,6 +72,14 @@ jobs:
           username: ${{ secrets.ACR_AK_ID }}
           password: ${{ secrets.ACR_AK_SECRET }}
 
+      - name: Compute image tag
+        id: tag
+        run: |
+          # 北京时间 + run 序号，与 b4/video-2022 风格一致：YYYYMMDD-HHMMSS-NNNN
+          TS=$(TZ=Asia/Shanghai date +%Y%m%d-%H%M%S)
+          SEQ=$(printf "%04d" "${{ github.run_number }}")
+          echo "value=${TS}-${SEQ}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push speakup
         uses: docker/build-push-action@v6
         with:
@@ -79,7 +87,7 @@ jobs:
           push: true
           tags: |
             ${{ env.ACR_IMAGE }}:latest
-            ${{ env.ACR_IMAGE }}:${{ github.sha }}
+            ${{ env.ACR_IMAGE }}:${{ steps.tag.outputs.value }}
 
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
