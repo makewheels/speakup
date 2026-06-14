@@ -421,17 +421,6 @@ export default function PracticePage() {
         )}
       </div>
 
-      {phase === "ready" && session?.scenarioId && (
-        <button
-          className="su-skip"
-          title="Try another scenario"
-          onClick={() => startNewRound(session.scenarioId)}
-        >
-          <Icon name="refresh" size={16} />
-          <span>Try another scenario</span>
-        </button>
-      )}
-
       {phase !== "loading" && <ScenarioCard />}
 
       {hintGaps.length > 0 && phase !== "loading" && (
@@ -476,6 +465,16 @@ export default function PracticePage() {
             <Icon name="mic" size={32} color="#fff" />
           </button>
           <div className="su-rec-label">Tap to start</div>
+          {phase === "ready" && session?.scenarioId && (
+            <button
+              className="su-skip"
+              title="Try another scenario"
+              onClick={() => startNewRound(session.scenarioId)}
+            >
+              <Icon name="refresh" size={16} />
+              <span>Try another scenario</span>
+            </button>
+          )}
         </div>
       )}
 

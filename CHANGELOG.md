@@ -7,10 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
-- **首页「换一道题」按钮**（图片正下方整行 `Try another scenario`）：点了跳到下一题，当前题记进本会话 skip 列表（sessionStorage，刷新也不再返回）。`GET /api/scenarios/next` 支持 `exclude=` 参数排除指定 scenarioId。
+- **首页「换一道题」按钮**（底部录音按钮下方的药丸按钮 `Try another scenario`）：点了跳到下一题，当前题记进本会话 skip 列表（sessionStorage，刷新也不再返回）。`GET /api/scenarios/next` 支持 `exclude=` 参数排除指定 scenarioId。
 - **LLM 批量出题脚本** `scripts/generate_public_scenarios.py`：用 LLM 在不同 kind/主题间轮换生成 N 道公共题（含万相配图），`--dry-run` 只看文案不调图、不入库。
 - **雅思口语评分**：每次评估额外给一个 0~9（0.5 进制）的 IELTS band 分，反馈页 / 历史详情顶部大字号展示，存进 attempt。
 - **CosyVoice 朗读**（替换浏览器内置 TTS）：新增 `POST /api/tts`，DashScope CosyVoice 合成英文朗读，按「模型+音色+文本」哈希缓存到 OSS（`tts/<sha1>.mp3`），同一句话第二次直接走缓存不再花钱；前端点击喇叭才请求合成。
+
+### Fixed
+- **History「load more」要点很多次**：后端 `GET /api/practice-sessions` 之前返回所有 session（含只看图没说话的空记录），前端再二次过滤——常常一页 20 条滤剩没几条，得反复点。改成数据库查询层就只返回 `attempts` 非空的记录，一次稳定给 20 条真历史；前端去掉冗余过滤、`hasMore` 判断也准了。
 
 ### Changed
 - **「练过」判定收紧**：取题时只把「开口评估过至少 1 次」（`attempts` 非空）的题视为练过、不再返回；只看了图没说话的不算，下次还会再出。

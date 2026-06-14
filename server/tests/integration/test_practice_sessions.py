@@ -22,15 +22,46 @@ def test_create_practice_unknown_scenario_404(client, user_id):
     assert resp.status_code == 404
 
 
+def _add_attempt(db, pid):
+    from bson import ObjectId
+    db.practiceSessions.update_one(
+        {"_id": ObjectId(pid)},
+        {"$set": {"attempts": [{"transcript": "hi", "round": 1}]}},
+    )
+
+
 def test_list_practices_sorted_newest_first(client, user_id, scenario_id):
+    from pymongo import MongoClient
+    from tests.conftest import TEST_DB_NAME
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
     p1 = client.post(
         "/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id}
     ).json()
     p2 = client.post(
         "/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id}
     ).json()
+    _add_attempt(db, p1["_id"])
+    _add_attempt(db, p2["_id"])
     listing = client.get(f"/api/practice-sessions/?userId={user_id}").json()
     assert [p["_id"] for p in listing] == [p2["_id"], p1["_id"]]
+
+
+def test_list_practices_excludes_empty(client, user_id, scenario_id):
+    """没开口（attempts 为空）的 session 不进历史列表。"""
+    from pymongo import MongoClient
+    from tests.conftest import TEST_DB_NAME
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+    empty = client.post(
+        "/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id}
+    ).json()
+    spoken = client.post(
+        "/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id}
+    ).json()
+    _add_attempt(db, spoken["_id"])
+    listing = client.get(f"/api/practice-sessions/?userId={user_id}").json()
+    ids = [p["_id"] for p in listing]
+    assert spoken["_id"] in ids
+    assert empty["_id"] not in ids
 
 
 def test_get_practice_by_id(client, practice_id):

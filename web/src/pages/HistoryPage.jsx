@@ -49,8 +49,8 @@ export default function HistoryPage() {
 
   if (loading) return <div className="page-msg">Loading…</div>;
 
-  // 只展示真正开口评估过的练习（看了图没说的空记录不进历史）
-  const shown = sessions.filter((s) => (s.attempts?.length ?? 0) > 0);
+  // 后端已只返回开口评估过的（attempts 非空），这里直接用
+  const shown = sessions;
 
   if (shown.length === 0) {
     return (
