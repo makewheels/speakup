@@ -1,16 +1,37 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api/client.js";
+import { speak } from "../utils/tts.js";
 import Icon from "../components/Icon.jsx";
 
-function relativeDate(iso) {
+const CAT_ZH = { grammar: "语法", naturalness: "自然度", vocabulary: "用词", register: "语体" };
+
+const stripEmoji = (s = "") =>
+  s
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
+    .replace(/^[\s·•・]+/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+function formatDateTime(iso) {
   const d = new Date(iso);
-  const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "刚刚";
-  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} 天前`;
-  return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+  if (isNaN(d)) return "";
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const date = d.toLocaleDateString(
+    "zh-CN",
+    sameYear ? { month: "long", day: "numeric" } : { year: "numeric", month: "long", day: "numeric" }
+  );
+  const time = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${date} ${time}`;
+}
+
+function SpeakBtn({ text }) {
+  if (!text) return null;
+  return (
+    <button className="spk-btn" title="朗读" aria-label="朗读" onClick={() => speak(text)}>
+      <Icon name="volume" size={16} />
+    </button>
+  );
 }
 
 export default function SessionDetailPage() {
@@ -42,19 +63,13 @@ export default function SessionDetailPage() {
 
       <div className="detail-hero">
         {thumb ? (
-          <img
-            src={thumb}
-            alt={session.topic}
-            className="detail-hero-img"
-            onError={(e) => { e.target.style.display = "none"; }}
-          />
+          <img src={thumb} alt={session.topic} className="detail-hero-img" onError={(e) => { e.target.style.display = "none"; }} />
         ) : (
           <div className="detail-hero-placeholder" />
         )}
         <div className="detail-hero-info">
-          <div className="eyebrow">scene</div>
-          <div className="detail-topic">{session.topic || "练习"}</div>
-          <div className="detail-when">{relativeDate(session.createdAt)}</div>
+          <div className="detail-topic">{stripEmoji(session.title || session.topic || "练习")}</div>
+          <div className="detail-when">{formatDateTime(session.createdAt)}</div>
         </div>
       </div>
 
@@ -65,69 +80,62 @@ export default function SessionDetailPage() {
           const origIdx = rawAttempts.length - 1 - i;
           const recording = recordings[origIdx];
           return (
-          <div key={i} className="attempt-block">
-            <div className="attempt-header">
-              <span className="eyebrow">第 {attempts.length - i} 次尝试</span>
-              {attempt.createdAt && (
-                <span className="attempt-time">{relativeDate(attempt.createdAt)}</span>
-              )}
-            </div>
-            {recording?.url && (
-              <audio controls src={recording.url} className="recording-player" />
-            )}
-
-            {attempt.transcript && (
-              <section className="su-card you-card" style={{ marginBottom: 10 }}>
-                <div className="card-eyebrow">
-                  <span className="eyebrow">你说的</span>
-                </div>
-                <div className="en">{attempt.transcript}</div>
-              </section>
-            )}
-
-            {attempt.summary && (
-              <div className="attempt-summary">
-                <div className="eyebrow" style={{ marginBottom: 6 }}>summary</div>
-                <p className="attempt-summary-text">{attempt.summary}</p>
+            <div key={i} className="attempt-block">
+              <div className="attempt-header">
+                <span className="attempt-idx">第 {attempts.length - i} 次</span>
+                {attempt.createdAt && <span className="attempt-time">{formatDateTime(attempt.createdAt)}</span>}
               </div>
-            )}
+              {recording?.url && <audio controls src={recording.url} className="recording-player" />}
 
-            {attempt.nativeVersion && (
-              <section className="su-card native-card" style={{ marginBottom: 10 }}>
-                <div className="card-eyebrow">
-                  <span className="eyebrow" style={{ color: "var(--accent)" }}>more native</span>
-                  <span className="chip accent">改写</span>
+              {attempt.transcript && (
+                <div className="fb-transcript-card">
+                  <div className="fb-card-label">你说的</div>
+                  <p className="fb-transcript-text">{attempt.transcript}</p>
                 </div>
-                <div className="en">{attempt.nativeVersion}</div>
-              </section>
-            )}
+              )}
 
-            {attempt.gaps?.length > 0 && (
-              <>
-                <h3 className="section-title" style={{ marginTop: 14 }}>
-                  差距点<span className="count">· {attempt.gaps.length} 处</span>
-                </h3>
-                <div style={{ marginBottom: 18 }}>
+              {attempt.nativeVersion && (
+                <div className="fb-native-card">
+                  <div className="fb-card-label native">Native 会这么说</div>
+                  <p className="fb-native-text">{attempt.nativeVersion}<SpeakBtn text={attempt.nativeVersion} /></p>
+                </div>
+              )}
+
+              {attempt.summary && <p className="fb-summary-line">{attempt.summary}</p>}
+
+              {attempt.gaps?.length > 0 && (
+                <div className="fb-gaps-section">
+                  <div className="fb-section-label">差距点 · {attempt.gaps.length} 处</div>
                   {attempt.gaps.map((g, j) => (
-                    <div key={j} className="su-corr">
-                      <div className="from">{g.original}</div>
-                      <div className="arrow">→</div>
-                      <div className="to">{g.better}</div>
-                      <div className="reason">
-                        {g.category && <span className="cat">{g.category}</span>}
-                        {g.why}
+                    <div key={j} className="fb-gap-card">
+                      <div className="fb-gap-head">
+                        <span className="fb-gap-num">{j + 1}</span>
+                        {g.category && <span className="fb-gap-cat">{CAT_ZH[g.category] ?? g.category}</span>}
                       </div>
-                      {g.example && (
-                        <div className="example">"{g.example}"</div>
-                      )}
+                      <div className="fb-gap-table">
+                        <div className="fb-gap-line">
+                          <span className="fb-gap-tag">我说的</span>
+                          <span className="fb-gap-said">{g.original}</span>
+                        </div>
+                        <div className="fb-gap-line">
+                          <span className="fb-gap-tag">应该说</span>
+                          <span className="fb-gap-fix">{g.better}</span>
+                          <SpeakBtn text={g.better} />
+                        </div>
+                        {g.why && (
+                          <div className="fb-gap-line">
+                            <span className="fb-gap-tag">为什么</span>
+                            <span className="fb-gap-whytext">{g.why}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </>
-            )}
+              )}
 
-            {i < attempts.length - 1 && <hr className="hr" />}
-          </div>
+              {i < attempts.length - 1 && <hr className="hr" />}
+            </div>
           );
         })
       )}

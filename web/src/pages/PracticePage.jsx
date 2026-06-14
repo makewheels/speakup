@@ -17,12 +17,22 @@ const PROMPTS = {
   feedback:   "",
 };
 
+// 去掉文本里的 emoji（旧场景数据的 where/points 可能带 emoji，统一不显示）
+const stripEmoji = (s = "") =>
+  s
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
+    .replace(/^[\s·•・]+/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
 function SpeakBtns({ text }) {
   if (!text) return null;
   return (
     <span className="spk-btns">
-      <button className="spk-btn" title="播放" onClick={() => speak(text)}>🔊</button>
-      <button className="spk-btn" title="慢速" onClick={() => speak(text, 0.75)}>🐢</button>
+      <button className="spk-btn" title="朗读" aria-label="朗读" onClick={() => speak(text)}>
+        <Icon name="volume" size={16} />
+      </button>
+      <button className="spk-btn slow" title="慢速朗读" onClick={() => speak(text, 0.7)}>慢</button>
     </span>
   );
 }
@@ -41,6 +51,7 @@ export default function PracticePage() {
   const [hintGaps, setHintGaps] = useState([]);
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
+  const [savedIdx, setSavedIdx] = useState(() => new Set()); // 手动「+复习」过的 gap 下标
 
   const timerRef = useRef(null);
   const secondsRef = useRef(0);
@@ -74,6 +85,7 @@ export default function PracticePage() {
     setAutoSaved(0);
     setRound(1);
     setHintGaps([]);
+    setSavedIdx(new Set());
     setElapsed("0:00");
     secondsRef.current = 0;
     setSession(null);
@@ -99,6 +111,7 @@ export default function PracticePage() {
     setTranscript("");
     setAutoSaved(0);
     setRound((r) => Math.min(r + 1, MAX_ROUNDS));
+    setSavedIdx(new Set());
     setPhase("ready");
     window.scrollTo(0, 0);
   };
@@ -185,6 +198,7 @@ export default function PracticePage() {
         onDone: ({ result: res, autoSaved: n, round: r }) => {
           clearInterval(evalTimerRef.current);
           setResult(res);
+          setSavedIdx(new Set());
           setAutoSaved(n);
           if (r) setRound(r);
           setPhase("feedback");
@@ -204,37 +218,49 @@ export default function PracticePage() {
     );
   };
 
+  // 手动把某条差距加入复习本（AI 没自动收进去的，用户可自己加）
+  const addGap = async (g, i) => {
+    if (!session?._id || savedIdx.has(i)) return;
+    try {
+      await api.addReviewItems(user.userId, [{
+        expression: g.better,
+        original: g.original,
+        note: g.why,
+        contextSentence: result?.nativeVersion || "",
+        practiceId: session._id,
+      }]);
+      setSavedIdx((prev) => new Set(prev).add(i));
+    } catch (e) {
+      alert("加入复习失败：" + e.message);
+    }
+  };
+
   const CAT_ZH = { grammar: "语法", naturalness: "自然度", vocabulary: "用词", register: "语体" };
 
   const scenario = session?.scenario;
 
   const ScenarioCard = () => {
     const points = scenario?.points ?? [];
+    const where = stripEmoji(scenario?.where || session?.topic || "场景");
     return (
       <div className="sc-card">
-        {(session?.isCustom || round > 1) && (
-          <div className="sc-tags">
-            {session?.isCustom && <span className="sc-custom-tag">为你定制</span>}
-            {round > 1 && <span className="sc-round-tag">再说一遍</span>}
-          </div>
-        )}
         <div className="sc-grid">
           <div className="sc-k">地点</div>
-          <div className="sc-v sc-v-where">{scenario?.where || session?.topic || "场景"}</div>
+          <div className="sc-v sc-v-where">{where}</div>
 
           {scenario?.story && <>
             <div className="sc-k">场景</div>
-            <div className="sc-v">{scenario.story}</div>
+            <div className="sc-v">{stripEmoji(scenario.story)}</div>
           </>}
 
-          <div className="sc-k say">🎯 要说</div>
+          <div className="sc-k say">要说</div>
           <div className="sc-v say">
             {points.length > 0 ? (
               <ul className="sc-points">
-                {points.map((p, i) => <li key={i}>{p}</li>)}
+                {points.map((p, i) => <li key={i}>{stripEmoji(p)}</li>)}
               </ul>
             ) : (
-              <span className="sc-say-text">{scenario?.mission}</span>
+              <span className="sc-say-text">{stripEmoji(scenario?.mission || "")}</span>
             )}
           </div>
         </div>
@@ -298,18 +324,43 @@ export default function PracticePage() {
         {gaps.length > 0 && (
           <div className="fb-gaps-section">
             <div className="fb-section-label">差距点 · {gaps.length} 处</div>
-            {gaps.map((g, i) => (
-              <div key={i} className="fb-gap-row">
-                <div className="fb-gap-pair">
-                  <span className="fb-gap-orig">{g.original}</span>
-                  <span className="fb-gap-arrow">→</span>
-                  <span className="fb-gap-better">{g.better}</span>
-                  <SpeakBtns text={g.better} />
-                  {g.category && <span className="fb-gap-cat">{CAT_ZH[g.category] ?? g.category}</span>}
+            {gaps.map((g, i) => {
+              const added = savedIdx.has(i) || g.saveToReview;
+              return (
+                <div key={i} className="fb-gap-card">
+                  <div className="fb-gap-head">
+                    <span className="fb-gap-num">{i + 1}</span>
+                    {g.category && <span className="fb-gap-cat">{CAT_ZH[g.category] ?? g.category}</span>}
+                    <button
+                      className={"fb-gap-add" + (added ? " added" : "")}
+                      onClick={() => addGap(g, i)}
+                      disabled={added}
+                    >
+                      {added
+                        ? <><Icon name="check" size={13} />&nbsp;已加入复习</>
+                        : <><Icon name="plus" size={13} />&nbsp;加入复习</>}
+                    </button>
+                  </div>
+                  <div className="fb-gap-table">
+                    <div className="fb-gap-line">
+                      <span className="fb-gap-tag">我说的</span>
+                      <span className="fb-gap-said">{g.original}</span>
+                    </div>
+                    <div className="fb-gap-line">
+                      <span className="fb-gap-tag">应该说</span>
+                      <span className="fb-gap-fix">{g.better}</span>
+                      <SpeakBtns text={g.better} />
+                    </div>
+                    {g.why && (
+                      <div className="fb-gap-line">
+                        <span className="fb-gap-tag">为什么</span>
+                        <span className="fb-gap-whytext">{g.why}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {g.why && <p className="fb-gap-why">{g.why}</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -4,14 +4,16 @@ import { useUser } from "../context/UserContext.jsx";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 
-function relativeDate(iso) {
+function formatDateTime(iso) {
   const d = new Date(iso);
-  const diff = (Date.now() - d.getTime()) / 1000;
-  if (diff < 60) return "刚刚";
-  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)} 天前`;
-  return d.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+  if (isNaN(d)) return "";
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const date = d.toLocaleDateString(
+    "zh-CN",
+    sameYear ? { month: "long", day: "numeric" } : { year: "numeric", month: "long", day: "numeric" }
+  );
+  const time = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${date} ${time}`;
 }
 
 export default function HistoryPage() {
@@ -20,6 +22,7 @@ export default function HistoryPage() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set());
 
   const PAGE = 20;
 
@@ -42,6 +45,13 @@ export default function HistoryPage() {
       .catch(console.error);
   };
 
+  const toggle = (key) =>
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+
   if (loading) return <div className="page-msg">加载中…</div>;
 
   // 只展示真正开口评估过的练习（看了图没说的空记录不进历史）
@@ -62,44 +72,76 @@ export default function HistoryPage() {
     );
   }
 
+  // 按题目(scenarioId)分组：同一场景练多次 = 一个题目，点开看每次
+  const map = new Map();
+  for (const s of shown) {
+    const key = s.scenarioId || s._id;
+    if (!map.has(key)) {
+      map.set(key, { key, title: s.title || s.topic || "练习", thumb: s.imageUrl || "", sessions: [] });
+    }
+    map.get(key).sessions.push(s);
+  }
+  const groups = [...map.values()].sort(
+    (a, b) => new Date(b.sessions[0].createdAt) - new Date(a.sessions[0].createdAt)
+  );
+
   return (
     <div className="history-page">
       <div className="page-head">
         <h2>历史</h2>
-        <span className="count-label">{shown.length} 次</span>
+        <span className="count-label">{groups.length} 个场景</span>
       </div>
 
       <div className="history-list">
-        {shown.map((s) => {
-          const thumb = s.imageUrl || "";
-          const lastAttempt = s.attempts?.[s.attempts.length - 1];
+        {groups.map((g) => {
+          const latest = g.sessions[0];
+          const multi = g.sessions.length > 1;
+          const open = expanded.has(g.key);
+          const lastAttempt = latest.attempts?.[latest.attempts.length - 1];
           const gapCount = lastAttempt?.gaps?.length ?? 0;
-          const summary = lastAttempt?.summary || "";
-          const title = s.title || s.topic || "练习";
 
           return (
-            <div key={s._id} className="history-row" onClick={() => navigate(`/history/${s._id}`)}>
-              <div className="history-thumb">
-                {thumb
-                  ? <img
-                      src={thumb}
-                      alt={title}
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                  : <Icon name="home" size={22} color="var(--ink-4)" stroke={1.4} />
-                }
-              </div>
-              <div className="history-body">
-                <p className="history-headline">{title}</p>
-                {summary && <p className="history-summary">{summary}</p>}
-                <div className="history-sub">
-                  <span className="history-date">{relativeDate(s.createdAt)}</span>
-                  {gapCount > 0 && <span className="chip warn">{gapCount} 处差距</span>}
+            <div key={g.key} className="history-group">
+              <div
+                className="history-row"
+                onClick={() => (multi ? toggle(g.key) : navigate(`/history/${latest._id}`))}
+              >
+                <div className="history-thumb">
+                  {g.thumb ? (
+                    <img src={g.thumb} alt={g.title} onError={(e) => { e.target.style.display = "none"; }} />
+                  ) : (
+                    <Icon name="home" size={22} color="var(--ink-4)" stroke={1.4} />
+                  )}
+                </div>
+                <div className="history-body">
+                  <p className="history-headline">{g.title}</p>
+                  <div className="history-sub">
+                    <span className="history-date">{formatDateTime(latest.createdAt)}</span>
+                    {multi && <span className="chip">练了 {g.sessions.length} 次</span>}
+                    {!multi && gapCount > 0 && <span className="chip warn">{gapCount} 处差距</span>}
+                  </div>
+                </div>
+                <div className={"history-arrow" + (multi && open ? " open" : "")}>
+                  <Icon name="next" size={16} color="var(--ink-4)" />
                 </div>
               </div>
-              <div className="history-arrow">
-                <Icon name="next" size={16} color="var(--ink-4)" />
-              </div>
+
+              {multi && open && (
+                <div className="history-sessions">
+                  {g.sessions.map((s, k) => {
+                    const a = s.attempts?.[s.attempts.length - 1];
+                    const gc = a?.gaps?.length ?? 0;
+                    return (
+                      <div key={s._id} className="history-subrow" onClick={() => navigate(`/history/${s._id}`)}>
+                        <span className="history-subidx">第 {g.sessions.length - k} 次</span>
+                        <span className="history-subtime">{formatDateTime(s.createdAt)}</span>
+                        {gc > 0 && <span className="chip warn">{gc} 处</span>}
+                        <Icon name="next" size={14} color="var(--ink-4)" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

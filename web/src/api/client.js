@@ -86,6 +86,14 @@ export const api = {
 
   nextScenario: (userId) => request(`/scenarios/next?userId=${userId}`),
 
+  // 错题本「练这个词」：针对单个表达即时出题，返回 { scenarioId }（含图片生成，较慢）
+  practiceWord: (userId, expression, original = "") =>
+    request("/scenarios/practice-word", {
+      method: "POST",
+      body: { userId, expression, original },
+      timeout: 60_000,
+    }),
+
   createPractice: (data) => request("/practice-sessions", { method: "POST", body: data }),
   getPractice: (id) => request(`/practice-sessions/${id}`),
   listPractices: (userId, skip = 0) => request(`/practice-sessions?userId=${userId}&skip=${skip}`),
