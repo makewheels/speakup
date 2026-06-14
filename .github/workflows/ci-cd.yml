@@ -158,9 +158,9 @@ jobs:
       - name: Smoke check
         run: |
           set -euo pipefail
-          # 容器刚 up 时第一次请求可能还没就绪：重试 6 次，每次 5s
+          # 容器 healthcheck 已就绪才会到这；探 /api/health（不打 Mongo），仍重试覆盖网关刷新窗口
           for i in 1 2 3 4 5 6; do
-            if curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/scenarios/next?userId=u_probe" -o /tmp/probe.json; then
+            if curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/health" -o /tmp/probe.json; then
               echo "smoke ok (attempt $i)"
               head -c 200 /tmp/probe.json; echo
               exit 0

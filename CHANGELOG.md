@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Fixed
+- **部署冷启动 502 / 偶发「语音识别失败」**（同一根因）：容器 `CMD` 用 `uv run`，每次冷启动都重新 `sync` 依赖 + 编译字节码（日志可见 `Downloading pygments` / `Bytecode compiled 3515 files`），启动慢 → 这段窗口 caddy 转发是 502。落在这窗口的 `/api/transcribe` 请求拿到 502，前端 `err.detail` 为空兜底成「ASR 失败」。修复：
+  - Dockerfile：venv 进 PATH，`CMD` 直接 `uvicorn`（不再 runtime re-sync）
+  - 新增 `GET /api/health`（不打 Mongo）+ compose `healthcheck`，`up -d --wait` 真正等到 app ready 才算部署完成
+  - 前端 `transcribeAudio`：502/503 提示「服务正在重启，请稍后重试」，其余错误带上 HTTP 状态码 + 响应体片段；超时单独提示，不再吞成空文案
+  - smoke check 改探 `/api/health`
 - CI smoke check 静默失败：`curl ... | head` 管道没启用 pipefail，curl 拿 502/22 也算通过；改成不接管道、显式 `set -euo pipefail` + 6 次重试覆盖容器刚 up 时的 ready 窗口。
 - 回滚 tag 错位：原逻辑先 `docker pull :latest`（已是新版）才 tag 成 `:previous`，导致 `:previous` 跟 `:latest` 永远指向同一个 image，`docker tag :previous :latest && compose up` 实际原地不动。改为基于"当前 running container 的 image ID"先打 `:previous` 再 pull 新 latest——抓的是真正在跑的那一版，不依赖 tag 状态。
 

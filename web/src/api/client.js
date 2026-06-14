@@ -109,7 +109,7 @@ export const api = {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("录音上传失败"))));
   },
 
-  // iOS / 不支持 Web Speech API 的浏览器走这条：上传录音 → 后端 ASR 返文本
+  // 全平台统一：录音上传 → 后端 DashScope ASR 返文本
   transcribeAudio: (userId, blob) => {
     const form = new FormData();
     form.append("userId", userId);
@@ -124,10 +124,21 @@ export const api = {
       .then(async (r) => {
         clearTimeout(timer);
         if (!r.ok) {
-          const err = await r.json().catch(() => ({}));
-          throw new Error(err.detail || "ASR 失败");
+          // 502/503 多半是服务重启窗口；把状态码带出来，别再吞成空文案
+          if (r.status === 502 || r.status === 503) {
+            throw new Error(`服务正在重启，请稍后重试（HTTP ${r.status}）`);
+          }
+          const body = await r.text().catch(() => "");
+          let detail = "";
+          try { detail = JSON.parse(body).detail || ""; } catch { detail = body.slice(0, 120); }
+          throw new Error(detail || `识别失败（HTTP ${r.status}）`);
         }
         return r.json();
+      })
+      .catch((e) => {
+        clearTimeout(timer);
+        if (e.name === "AbortError") throw new Error("识别超时（90s），请重试");
+        throw e;
       });
   },
 

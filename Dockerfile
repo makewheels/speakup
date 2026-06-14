@@ -18,5 +18,8 @@ RUN uv sync --frozen --no-dev
 COPY server/ ./
 COPY --from=web /web/dist ./static
 ENV APP_ENV=production
+# venv 直接进 PATH，启动用 venv 里的 uvicorn，不再 `uv run`
+# （`uv run` 每次冷启会重新 sync + 编译字节码，拖慢启动 → 部署窗口 caddy 502）
+ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 3001
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3001"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3001"]
