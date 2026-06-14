@@ -19,13 +19,14 @@ async def login(req: LoginRequest):
     now = datetime.now(timezone.utc)
     user = await get_db().users.find_one({"phone": req.phone})
     if not user:
+        nickname = f"User{req.phone[-4:]}"
         result = await get_db().users.insert_one({
             "phone": req.phone,
-            "nickname": f"用户{req.phone[-4:]}",
+            "nickname": nickname,
             "createdAt": now,
             "lastLoginAt": now,
         })
-        user = {"_id": result.inserted_id, "phone": req.phone, "nickname": f"用户{req.phone[-4:]}"}
+        user = {"_id": result.inserted_id, "phone": req.phone, "nickname": nickname}
     else:
         await get_db().users.update_one({"_id": user["_id"]}, {"$set": {"lastLoginAt": now}})
 

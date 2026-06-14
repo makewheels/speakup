@@ -3,7 +3,7 @@ def test_login_creates_user(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["phone"] == "13800001234"
-    assert data["nickname"] == "用户1234"
+    assert data["nickname"] == "User1234"
     assert "userId" in data and len(data["userId"]) == 24
 
 

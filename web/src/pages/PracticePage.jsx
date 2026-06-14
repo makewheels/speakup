@@ -89,7 +89,14 @@ export default function PracticePage() {
     mediaRecorderRef.current?.stop();
   }, []);
 
-  const startNewRound = async () => {
+  // 本会话「看过但跳过」的 scenarioId（sessionStorage 跨刷新保留，不串号到其他用户）
+  const skipKey = `skipped:${user.userId}`;
+  const readSkipped = () => {
+    try { return JSON.parse(sessionStorage.getItem(skipKey) || "[]"); } catch { return []; }
+  };
+  const writeSkipped = (arr) => sessionStorage.setItem(skipKey, JSON.stringify(arr));
+
+  const startNewRound = async (extraSkip = null) => {
     setPhase("loading");
     setResult(null);
     setTranscript("");
@@ -101,8 +108,13 @@ export default function PracticePage() {
     secondsRef.current = 0;
     setSession(null);
     audioChunksRef.current = null;
+    let skipped = readSkipped();
+    if (extraSkip && !skipped.includes(extraSkip)) {
+      skipped = [...skipped, extraSkip];
+      writeSkipped(skipped);
+    }
     try {
-      const scenario = await api.nextScenario(user.userId);
+      const scenario = await api.nextScenario(user.userId, skipped);
       const sess = await api.createPractice({
         userId: user.userId,
         scenarioId: scenario.scenarioId,
@@ -408,6 +420,17 @@ export default function PracticePage() {
           <img src={session.imageUrl} alt="scene" />
         )}
       </div>
+
+      {phase === "ready" && session?.scenarioId && (
+        <button
+          className="su-skip"
+          title="Try another scenario"
+          onClick={() => startNewRound(session.scenarioId)}
+        >
+          <Icon name="refresh" size={16} />
+          <span>Try another scenario</span>
+        </button>
+      )}
 
       {phase !== "loading" && <ScenarioCard />}
 

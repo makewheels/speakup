@@ -26,22 +26,35 @@ def scenario_image_key(sid: str) -> str:
 
 
 async def _practiced_scenario_ids(user_id: str) -> set:
+    """已经"开口评估过至少 1 次"的 scenarioId（attempts 非空）。
+    只看了图没说话的不算练过——下次还会再被推出来。
+    """
     ids = set()
     async for s in get_db().practiceSessions.find(
-        {"userId": user_id, "scenarioId": {"$exists": True}}, {"scenarioId": 1}
+        {
+            "userId": user_id,
+            "scenarioId": {"$exists": True},
+            "attempts.0": {"$exists": True},
+        },
+        {"scenarioId": 1},
     ):
         ids.add(s["scenarioId"])
     return ids
 
 
-async def next_scenario(user_id: str) -> dict | None:
-    """取下一题：自己的未练定制题 > 未练公共题 > 随机公共题。返回带签名图 URL 的场景。"""
+async def next_scenario(user_id: str, exclude: list[str] | None = None) -> dict | None:
+    """取下一题：自己的未练定制题 > 未练公共题 > 随机公共题。返回带签名图 URL 的场景。
+
+    exclude：本会话内已经"看过但跳过"的 scenarioId，强制排除（用于首页 ↻ 换题）。
+    """
     practiced = await _practiced_scenario_ids(user_id)
+    skipped = set(exclude or [])
+    blocked = practiced | skipped
 
     custom = await get_db().scenarios.find(
         {"ownerUserId": user_id, "status": "active"}
     ).sort("createdAt", 1).to_list(50)
-    fresh_custom = [s for s in custom if s["_id"] not in practiced]
+    fresh_custom = [s for s in custom if s["_id"] not in blocked]
     if fresh_custom:
         chosen = fresh_custom[0]
     else:
@@ -50,8 +63,9 @@ async def next_scenario(user_id: str) -> dict | None:
         ).to_list(200)
         if not public:
             return None
-        fresh = [s for s in public if s["_id"] not in practiced]
-        pool = fresh or public
+        fresh = [s for s in public if s["_id"] not in blocked]
+        # 都被 skip 完了再放开 skipped、只避开真正练过的；最后兜底 = 全池随机
+        pool = fresh or [s for s in public if s["_id"] not in practiced] or public
         # 没练过的里按难度从低到高；全练过了就按 _id 哈希轮换
         pool.sort(key=lambda s: (s.get("difficulty", 1), s["_id"]))
         chosen = pool[0] if fresh else pool[

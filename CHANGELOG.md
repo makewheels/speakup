@@ -7,8 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
+- **首页「换一道题」按钮**（图片正下方整行 `Try another scenario`）：点了跳到下一题，当前题记进本会话 skip 列表（sessionStorage，刷新也不再返回）。`GET /api/scenarios/next` 支持 `exclude=` 参数排除指定 scenarioId。
+- **LLM 批量出题脚本** `scripts/generate_public_scenarios.py`：用 LLM 在不同 kind/主题间轮换生成 N 道公共题（含万相配图），`--dry-run` 只看文案不调图、不入库。
 - **雅思口语评分**：每次评估额外给一个 0~9（0.5 进制）的 IELTS band 分，反馈页 / 历史详情顶部大字号展示，存进 attempt。
 - **CosyVoice 朗读**（替换浏览器内置 TTS）：新增 `POST /api/tts`，DashScope CosyVoice 合成英文朗读，按「模型+音色+文本」哈希缓存到 OSS（`tts/<sha1>.mp3`），同一句话第二次直接走缓存不再花钱；前端点击喇叭才请求合成。
+
+### Changed
+- **「练过」判定收紧**：取题时只把「开口评估过至少 1 次」（`attempts` 非空）的题视为练过、不再返回；只看了图没说话的不算，下次还会再出。
+- **Profile 页精简**：删掉无用的 Speech / All platforms / Version v0.1·DEMO 信息块。
+- **新用户昵称英文化**：注册昵称 `用户xxxx` → `Userxxxx`。
 
 ### Changed
 - **首页/反馈页图片留出左右内缩**（不再贴满边缘），与下面文字描述之间多 16px 间距，整体不再挤。

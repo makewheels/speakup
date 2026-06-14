@@ -84,7 +84,11 @@ export function correctStream(data, { onChunk, onDone, onError } = {}) {
 export const api = {
   login: (phone) => request("/auth/login", { method: "POST", body: { phone } }),
 
-  nextScenario: (userId) => request(`/scenarios/next?userId=${userId}`),
+  nextScenario: (userId, exclude = []) => {
+    const params = new URLSearchParams({ userId });
+    for (const id of exclude) params.append("exclude", id);
+    return request(`/scenarios/next?${params}`);
+  },
 
   // 错题本「练这个词」：针对单个表达即时出题，返回 { scenarioId }（含图片生成，较慢）
   practiceWord: (userId, expression, original = "") =>
