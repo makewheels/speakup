@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api/client.js";
-import { speak } from "../utils/tts.js";
 import Icon from "../components/Icon.jsx";
+import SpeakBtn from "../components/SpeakBtn.jsx";
 
 const splitSentences = (s = "") =>
   s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
@@ -17,22 +17,8 @@ const stripEmoji = (s = "") =>
 function formatDateTime(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return "";
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  const date = d.toLocaleDateString(
-    "en-US",
-    sameYear ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" }
-  );
-  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-  return `${date} ${time}`;
-}
-
-function SpeakBtn({ text }) {
-  if (!text) return null;
-  return (
-    <button className="spk-btn" title="Play" aria-label="Play" onClick={() => speak(text)}>
-      <Icon name="volume" size={22} />
-    </button>
-  );
+  const pad = (n) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 export default function SessionDetailPage() {
@@ -132,7 +118,7 @@ export default function SessionDetailPage() {
                         </div>
                         {g.why && (
                           <div className="fb-gap-line">
-                            <span className="fb-gap-tag">解释</span>
+                            <span className="fb-gap-tag">Why</span>
                             <span className="fb-gap-whytext">{g.why}</span>
                           </div>
                         )}

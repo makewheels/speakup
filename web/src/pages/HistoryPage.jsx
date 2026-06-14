@@ -7,13 +7,8 @@ import Icon from "../components/Icon.jsx";
 function formatDateTime(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return "";
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  const date = d.toLocaleDateString(
-    "en-US",
-    sameYear ? { month: "short", day: "numeric" } : { year: "numeric", month: "short", day: "numeric" }
-  );
-  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-  return `${date} ${time}`;
+  const pad = (n) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 export default function HistoryPage() {
@@ -116,10 +111,12 @@ export default function HistoryPage() {
                 <div className="history-body">
                   <p className="history-headline">{g.title}</p>
                   <div className="history-sub">
-                    <span className="history-date">{formatDateTime(latest.createdAt)}</span>
                     {multi && <span className="chip">{g.sessions.length} attempts</span>}
                     {!multi && gapCount > 0 && <span className="chip warn">{gapCount} gaps</span>}
                   </div>
+                </div>
+                <div className="history-meta">
+                  <span className="history-date">{formatDateTime(latest.createdAt)}</span>
                 </div>
                 <div className={"history-arrow" + (multi && open ? " open" : "")}>
                   <Icon name="next" size={16} color="var(--ink-4)" />

@@ -234,11 +234,12 @@ button { font-family: inherit; }
    ────────────────────────────────────────────── */
 
 .su-img {
-  width: 100%;
+  width: calc(100% - 20px);
   aspect-ratio: 1 / 1;
   border-radius: 18px;
   position: relative;
   overflow: hidden;
+  margin: 0 auto 16px;
   background:
     repeating-linear-gradient(
       135deg,
@@ -1207,11 +1208,19 @@ button { font-family: inherit; }
 }
 
 .history-date {
-  font-family: var(--ff-cn);
+  font-family: var(--ff-en);
   font-size: 11px;
-  color: var(--ink-4);
+  color: var(--ink-3);
   flex: 0 0 auto;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
 }
 
 .history-tag {
@@ -1261,10 +1270,11 @@ button { font-family: inherit; }
   flex: 0 0 auto;
 }
 .history-subtime {
-  font-family: var(--ff-cn);
+  font-family: var(--ff-en);
   font-size: 12px;
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin-right: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ──────────────────────────────────────────────
@@ -1442,7 +1452,7 @@ button { font-family: inherit; }
 .fb-card-label {
   font-family: var(--ff-cn);
   font-size: 13px;
-  color: var(--ink-3);
+  color: var(--ink-2);
   margin-bottom: 6px;
 }
 .fb-card-label.native { color: var(--accent); display: flex; align-items: center; }
@@ -1502,9 +1512,10 @@ button { font-family: inherit; }
 .fb-gaps-section { margin-bottom: 8px; }
 .fb-section-label {
   font-family: var(--ff-cn);
-  font-size: 14px;
-  color: var(--ink-3);
-  margin-bottom: 6px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 10px;
 }
 /* 差距点：编号卡片 + 三行表格（我说的 / 应该说 / 为什么）*/
 .fb-gap-card {
@@ -1572,12 +1583,12 @@ button { font-family: inherit; }
   flex: 0 0 42px;
   font-family: var(--ff-cn);
   font-size: 13px;
-  color: var(--ink-4);
+  color: var(--ink-2);
 }
 .fb-gap-said {
   font-family: var(--ff-en);
   font-size: 16px;
-  color: var(--ink-2);
+  color: var(--ink);
 }
 .fb-gap-fix {
   font-family: var(--ff-en);
@@ -1966,12 +1977,12 @@ button { font-family: inherit; }
    ────────────────────────────────────────────── */
 
 .fb-img img {
-  width: 100%;
+  width: calc(100% - 20px);
   max-height: 180px;
   object-fit: cover;
   border-radius: 14px;
   display: block;
-  margin-bottom: 12px;
+  margin: 0 auto 16px;
 }
 
 .sc-card {
@@ -2087,15 +2098,18 @@ button { font-family: inherit; }
   border: none;
   cursor: pointer;
   color: var(--accent);
-  padding: 6px;
+  padding: 8px;
   margin-left: 8px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   vertical-align: middle;
+  min-width: 40px;
+  min-height: 40px;
 }
-.spk-btn:active { transform: scale(1.15); }
+.spk-btn:disabled { opacity: 0.7; cursor: progress; }
+.spk-btn:active { transform: scale(1.1); }
 
 .fb-passed {
   font-family: var(--ff-cn);

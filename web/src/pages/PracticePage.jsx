@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
 import { api, correctStream } from "../api/client.js";
-import { speak } from "../utils/tts.js";
 import Icon from "../components/Icon.jsx";
+import SpeakBtn from "../components/SpeakBtn.jsx";
 
 const MAX_ROUNDS = 2;
 
@@ -26,12 +26,7 @@ const stripEmoji = (s = "") =>
     .trim();
 
 function SpeakBtns({ text }) {
-  if (!text) return null;
-  return (
-    <button className="spk-btn" title="Play" aria-label="Play" onClick={() => speak(text)}>
-      <Icon name="volume" size={22} />
-    </button>
-  );
+  return <SpeakBtn text={text} />;
 }
 
 // 按句拆分 native 版，每句一行更清晰
@@ -368,7 +363,7 @@ export default function PracticePage() {
                     </div>
                     {g.why && (
                       <div className="fb-gap-line">
-                        <span className="fb-gap-tag">解释</span>
+                        <span className="fb-gap-tag">Why</span>
                         <span className="fb-gap-whytext">{g.why}</span>
                       </div>
                     )}

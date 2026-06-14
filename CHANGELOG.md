@@ -11,6 +11,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **CosyVoice 朗读**（替换浏览器内置 TTS）：新增 `POST /api/tts`，DashScope CosyVoice 合成英文朗读，按「模型+音色+文本」哈希缓存到 OSS（`tts/<sha1>.mp3`），同一句话第二次直接走缓存不再花钱；前端点击喇叭才请求合成。
 
 ### Changed
+- **首页/反馈页图片留出左右内缩**（不再贴满边缘），与下面文字描述之间多 16px 间距，整体不再挤。
+- **History 时间格式 + 布局**：日期改 `YYYY-MM-DD HH:MM:SS`（含秒），独立放到行右侧，左侧只留标题/chip，不再左堆一团；session 详情页同步换格式。
+- **反馈页 / 详情页文案微调**：
+  - `Gaps · N` 标题字号 14→17、颜色 `--ink-3`→`--ink`、加粗
+  - gap 卡里的 `解释` 改成英文 `Why`（这是英文学习产品，标签都英文化）
+  - `You said` 标签颜色从 `--ink-3` 提到 `--ink-2`、原说法本身从 `--ink-2` 提到 `--ink`，不再灰得看不见
+- **喇叭按钮显示「合成中」**：未缓存的文本点击后按钮变 spinner 直到合成 + OSS URL 拿到，播放开始才恢复；缓存命中保持秒响应；按钮 hit-area 加大到 40×40。
 - **UI 全面英文化**：按钮 / 提示 / 标签 / 底部导航 / 登录页全改英文（Tap to start、Redo、Get feedback、Place/Scene/Goal、You said/Say this、Practice/Review/History/Me 等），学习内容里的中文「解释」保留中文；日期格式改 en-US。
 - **反馈页视觉简化**：
   - 「我说的」去掉删除线、颜色加深（`--ink-3`→`--ink-2`），不再浅灰难辨
