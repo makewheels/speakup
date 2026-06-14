@@ -80,14 +80,22 @@ jobs:
           SEQ=$(printf "%06d" "${{ github.run_number }}")
           echo "value=${TS}-${SEQ}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push speakup
+      - name: Build speakup (local, no push)
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: false
+          load: true
           tags: |
             ${{ env.ACR_IMAGE }}:latest
             ${{ env.ACR_IMAGE }}:${{ steps.tag.outputs.value }}
+
+      - name: Push speakup (timed)
+        run: |
+          echo "=== push 开始 $(date +%T) ==="
+          time docker push ${{ env.ACR_IMAGE }}:latest
+          time docker push ${{ env.ACR_IMAGE }}:${{ steps.tag.outputs.value }}
+          echo "=== push 结束 $(date +%T) ==="
 
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
