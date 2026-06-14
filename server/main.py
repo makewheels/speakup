@@ -25,8 +25,8 @@ app.include_router(correct.router)
 app.include_router(practice_sessions.router)
 app.include_router(review_items.router)
 
-# 生产环境 FastAPI 直接托管前端静态（Docker 里不用再起 nginx）
-static = Path(__file__).parent.parent / "static"
+# 生产环境 FastAPI 直接托管前端静态（Docker 里 WORKDIR=/app，static 在 /app/static）
+static = Path(__file__).parent / "static"
 if static.exists():
     app.mount("/", StaticFiles(directory=str(static), html=True), name="spa")
 
