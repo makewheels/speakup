@@ -104,3 +104,25 @@ def test_only_viewed_not_excluded_next_round(client, user_id, scenario_id):
     client.post("/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id})
     resp = client.get(f"/api/scenarios/next?userId={user_id}")
     assert resp.json()["scenarioId"] == scenario_id
+
+
+def test_repeated_switch_no_immediate_repeat(client, user_id, scenario_id):
+    """连续换题（累加 exclude）应一直给没出现过的题，直到题库穷尽——不重复给当前题。"""
+    db = _db()
+    for i in range(4):
+        db.scenarios.insert_one({
+            "_id": f"sc_p{i}",
+            "slug": f"p{i}",
+            "where": "x", "story": "s", "mission": "m",
+            "difficulty": 2, "imageKey": f"scenarios/sc_p{i}/cover.jpg",
+            "ownerUserId": None,
+            "status": "active",
+        })
+    # 共 5 道公共题（含 fixture 的 coffee）。连换 5 次，累加 exclude，应全不同。
+    seen, excludes = [], []
+    for _ in range(5):
+        q = "".join(f"&exclude={e}" for e in excludes)
+        sid = client.get(f"/api/scenarios/next?userId={user_id}{q}").json()["scenarioId"]
+        seen.append(sid)
+        excludes.append(sid)
+    assert len(set(seen)) == 5  # 5 道全不重复
