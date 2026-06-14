@@ -75,7 +75,10 @@ async def get_practice(pid: str):
 
 @router.get("")
 async def list_practices(userId: str = Query(...), limit: int = 20, skip: int = 0):
-    cursor = get_db().practiceSessions.find({"userId": userId}).sort("createdAt", -1).skip(skip).limit(limit)
+    # 只返回真正开口评估过的（attempts 非空）；看了图没说的空记录不进历史，
+    # 否则前端二次过滤会出现"拉了一页全被滤光、要点很多次 load more"。
+    query = {"userId": userId, "attempts.0": {"$exists": True}}
+    cursor = get_db().practiceSessions.find(query).sort("createdAt", -1).skip(skip).limit(limit)
     items = []
     async for p in cursor:
         p["_id"] = str(p["_id"])
