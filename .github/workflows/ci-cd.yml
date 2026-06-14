@@ -136,9 +136,16 @@ jobs:
           IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
           cd /opt/speakup
 
-          # 旧 :latest → :previous（回滚用）
-          docker pull "${IMG}:latest" 2>/dev/null && \
-            docker tag "${IMG}:latest" "${IMG}:previous" || true
+          # 把"当前正在跑的 image"标成 :previous（回滚锚点）。
+          # 一定在 pull 新版之前做：否则 :latest 已被新版覆盖，previous 会指向新版本身。
+          # 基于 running container 的 image ID 而不是 tag，确保抓到的是"实际在跑的"那一版。
+          RUNNING=$(docker inspect speakup --format '{{.Image}}' 2>/dev/null || true)
+          if [ -n "$RUNNING" ]; then
+            docker tag "$RUNNING" "${IMG}:previous"
+            echo "tagged previous -> $RUNNING"
+          else
+            echo "no running speakup container, skip previous tag"
+          fi
 
           docker pull "${IMG}:latest"
           docker compose down --remove-orphans 2>/dev/null || true
@@ -150,6 +157,16 @@ jobs:
 
       - name: Smoke check
         run: |
-          sleep 5
-          curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/scenarios/next?userId=u_probe" | head -c 100
-          echo
+          set -euo pipefail
+          # 容器刚 up 时第一次请求可能还没就绪：重试 6 次，每次 5s
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/scenarios/next?userId=u_probe" -o /tmp/probe.json; then
+              echo "smoke ok (attempt $i)"
+              head -c 200 /tmp/probe.json; echo
+              exit 0
+            fi
+            echo "smoke attempt $i failed, sleep 5"
+            sleep 5
+          done
+          echo "smoke check failed after 6 attempts"
+          exit 1
