@@ -1,28 +1,24 @@
-// 浏览器内置语音合成：播放地道说法（Phase 2 再换 CosyVoice）
+// 朗读：点击时调后端 /api/tts（DashScope CosyVoice，自然音），结果按文本缓存。
+// 后端已按文本哈希缓存到 OSS，同一句话第二次不再花钱。
+import { api } from "../api/client.js";
 
-let voice = null;
+const urlCache = new Map(); // text -> oss url
+let current = null; // 当前播放的 Audio，切歌时停掉
 
-function pickVoice() {
-  const vs = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-  voice =
-    vs.find((v) => v.name === "Samantha") ||
-    vs.find((v) => v.name.includes("Google US")) ||
-    vs.find((v) => v.lang === "en-US") ||
-    vs[0] ||
-    null;
-}
-
-if (typeof speechSynthesis !== "undefined") {
-  speechSynthesis.onvoiceschanged = pickVoice;
-  pickVoice();
-}
-
-export function speak(text, rate = 1.0) {
-  if (typeof speechSynthesis === "undefined" || !text) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  if (voice) u.voice = voice;
-  u.lang = "en-US";
-  u.rate = rate;
-  speechSynthesis.speak(u);
+export async function speak(text) {
+  text = (text || "").trim();
+  if (!text) return;
+  try {
+    if (current) { current.pause(); current = null; }
+    let url = urlCache.get(text);
+    if (!url) {
+      url = await api.tts(text);
+      urlCache.set(text, url);
+    }
+    const audio = new Audio(url);
+    current = audio;
+    await audio.play();
+  } catch (e) {
+    console.warn("TTS failed:", e);
+  }
 }

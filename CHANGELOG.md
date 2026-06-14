@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
+### Added
+- **雅思口语评分**：每次评估额外给一个 0~9（0.5 进制）的 IELTS band 分，反馈页 / 历史详情顶部大字号展示，存进 attempt。
+- **CosyVoice 朗读**（替换浏览器内置 TTS）：新增 `POST /api/tts`，DashScope CosyVoice 合成英文朗读，按「模型+音色+文本」哈希缓存到 OSS（`tts/<sha1>.mp3`），同一句话第二次直接走缓存不再花钱；前端点击喇叭才请求合成。
+
+### Changed
+- **UI 全面英文化**：按钮 / 提示 / 标签 / 底部导航 / 登录页全改英文（Tap to start、Redo、Get feedback、Place/Scene/Goal、You said/Say this、Practice/Review/History/Me 等），学习内容里的中文「解释」保留中文；日期格式改 en-US。
+- **反馈页视觉简化**：
+  - 「我说的」去掉删除线、颜色加深（`--ink-3`→`--ink-2`），不再浅灰难辨
+  - native 版按句换行展示，更清晰
+  - 去掉 gap 分类徽章（语法/自然度…）和那行中文 summary（突兀）
+  - 朗读按钮去掉「慢」、只留正常语速，喇叭图标放大（16→22）并加底色
+- **练习页 URL 带 practiceId**：开始练习后地址栏变成 `/practice/<id>`，方便复制 id 排查 / 分享（内存已加载则不重复拉取）。
+- 「我的」页移除过时的「语音识别 Chrome only」（现在全平台走后端 ASR）。
+
 ### Fixed
 - **部署冷启动 502 / 偶发「语音识别失败」**（同一根因）：容器 `CMD` 用 `uv run`，每次冷启动都重新 `sync` 依赖 + 编译字节码（日志可见 `Downloading pygments` / `Bytecode compiled 3515 files`），启动慢 → 这段窗口 caddy 转发是 502。落在这窗口的 `/api/transcribe` 请求拿到 502，前端 `err.detail` 为空兜底成「ASR 失败」。修复：
   - Dockerfile：venv 进 PATH，`CMD` 直接 `uvicorn`（不再 runtime re-sync）

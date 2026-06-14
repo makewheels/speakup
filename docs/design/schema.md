@@ -52,6 +52,7 @@
       "round":         1,                  // 第几轮重说（最多 3）
       "transcript":    "I ordered a hot latte but...",
       "summary":       "...",
+      "score":         6.5,                // 雅思口语 band，0~9，0.5 进制
       "nativeVersion": "...",
       "gaps": [
         { "original": "...", "better": "...", "why": "...", "category": "vocabulary", "saveToReview": true }

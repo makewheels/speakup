@@ -9,9 +9,11 @@
 ```
 scenarios/{scenarioId}/cover.jpg                                  ← 场景图（题目共享资产，全用户复用）
 practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm ← 每轮练习录音
+tts/{sha1(model:voice:text)}.mp3                                  ← CosyVoice 朗读缓存（按文本去重，全用户复用）
 ```
 
 - 场景图属于题目本身（一题一图、全体共用），所以挂在 `scenarios/{id}/` 下。
+- 朗读音频按「模型+音色+文本」哈希命名，同一句话只合成一次、全用户复用，命中即免费。
 - 一次练习的产物（录音，将来可能加反馈归档）都收在 `practiceSessions/{userId}/{yyyyMM}/{practiceId}/` 下，按类型分子目录。
 
 ## 关联关系

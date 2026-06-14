@@ -14,7 +14,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!valid) {
-      setError("手机号格式不对，请重新输入");
+      setError("Invalid phone number, please check");
       return;
     }
     setLoading(true);
@@ -23,7 +23,7 @@ export default function LoginPage() {
       await login(phone);
       navigate("/");
     } catch {
-      setError("登录失败，请重试");
+      setError("Login failed, please try again");
     } finally {
       setLoading(false);
     }
@@ -35,13 +35,13 @@ export default function LoginPage() {
         <div className="eyebrow brand-eyebrow">v0.1 · DEMO</div>
         <h1>SpeakUp</h1>
         <p className="subtitle">
-          看场景，开口完成任务。<br />
-          AI 帮你对照 native 怎么说。
+          See a scene, speak to get it done.<br />
+          AI shows you how a native would say it.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="login-field">
-        <div className="eyebrow" style={{ marginBottom: 10 }}>手机号</div>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>Phone</div>
         <div className={`login-field-row${error ? " error" : ""}`}>
           <span className="cc">+86</span>
           <input
@@ -57,7 +57,7 @@ export default function LoginPage() {
           />
         </div>
         {error && <div className="error-text">{error}</div>}
-        <p className="hint">输入手机号即注册，无需验证码。</p>
+        <p className="hint">Enter your phone to sign up — no code needed.</p>
 
         <div className="spacer" />
 
@@ -66,11 +66,11 @@ export default function LoginPage() {
           className={`su-btn su-btn-primary submit${!valid && !loading ? " disabled" : ""}`}
           disabled={!valid || loading}
         >
-          {loading ? (<><span className="spin" />&nbsp;进入</>) : "进入"}
+          {loading ? (<><span className="spin" />&nbsp;Enter</>) : "Enter"}
         </button>
       </form>
 
-      <p className="footer-note">支持 PC / Android / iOS（Chrome、Safari 均可）</p>
+      <p className="footer-note">Works on PC / Android / iOS (Chrome & Safari)</p>
     </div>
   );
 }

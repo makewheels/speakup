@@ -100,6 +100,8 @@ export const api = {
 
   correct: (data) => request("/correct", { method: "POST", body: data }),
 
+  tts: (text) => request("/tts", { method: "POST", body: { text } }).then((r) => r.url),
+
   uploadRecording: (practiceId, userId, blob, attemptIndex = -1) => {
     const form = new FormData();
     form.append("userId", userId);

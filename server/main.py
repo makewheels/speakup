@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from db.connection import connect_db
-from routes import auth, correct, practice_sessions, review_items, scenarios, transcribe
+from routes import auth, correct, practice_sessions, review_items, scenarios, transcribe, tts
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ app.include_router(correct.router)
 app.include_router(practice_sessions.router)
 app.include_router(review_items.router)
 app.include_router(transcribe.router)
+app.include_router(tts.router)
 
 
 @app.get("/api/health")
