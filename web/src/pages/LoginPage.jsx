@@ -35,8 +35,8 @@ export default function LoginPage() {
         <div className="eyebrow brand-eyebrow">v0.1 · DEMO</div>
         <h1>SpeakUp</h1>
         <p className="subtitle">
-          看图片，用英语描述。<br />
-          AI 把你和母语者的差距指出来。
+          看场景，开口完成任务。<br />
+          AI 帮你对照 native 怎么说。
         </p>
       </div>
 
@@ -54,7 +54,6 @@ export default function LoginPage() {
               if (error) setError("");
             }}
             maxLength={11}
-            autoFocus
           />
         </div>
         {error && <div className="error-text">{error}</div>}
@@ -71,7 +70,7 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="footer-note">please use chrome · 仅支持 chrome 浏览器</p>
+      <p className="footer-note">建议电脑或 Android Chrome 使用（iOS 暂不支持麦克风识别）</p>
     </div>
   );
 }
