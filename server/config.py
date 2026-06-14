@@ -10,6 +10,7 @@ DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
 DASHSCOPE_BASE_URL = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com")
 CHAT_MODEL = os.getenv("CHAT_MODEL", "qwen3.7-plus")
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "wan2.7-image")
+ASR_MODEL = os.getenv("ASR_MODEL", "qwen3-asr-flash")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/speakup")
 PORT = int(os.getenv("PORT", "3001"))
 

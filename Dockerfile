@@ -9,6 +9,8 @@ RUN pnpm run build
 
 # ---- 后端 + 托管前端静态 ----
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY server/pyproject.toml server/uv.lock ./
