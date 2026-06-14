@@ -27,6 +27,11 @@ app.include_router(practice_sessions.router)
 app.include_router(review_items.router)
 app.include_router(transcribe.router)
 
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
+
 # 生产环境 FastAPI 直接托管前端静态（Docker 里 WORKDIR=/app，static 在 /app/static）
 static = Path(__file__).parent / "static"
 if static.exists():
