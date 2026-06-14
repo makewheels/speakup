@@ -1,5 +1,6 @@
 """场景题库取题逻辑：定制题优先、未练优先。"""
 
+from bson import ObjectId
 from pymongo import MongoClient
 
 from tests.conftest import TEST_DB_NAME
@@ -60,10 +61,16 @@ def test_other_users_custom_not_served(client, user_id, scenario_id):
 
 
 def test_practiced_scenario_deprioritized(client, user_id, scenario_id):
-    """练过的题往后排：再插入一道没练过的公共题后，应优先出新题。"""
-    # 练第一题（建练习即视为已开练）
-    client.post("/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id})
+    """开口评估过的题往后排：再插入一道没练过的公共题后，应优先出新题。
+    注意：判定标准是 attempts 非空（开过口），只看了图没说话不算练过。
+    """
+    # 建练习并塞一个 attempt（模拟评估完成）
+    sess = client.post("/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id}).json()
     db = _db()
+    db.practiceSessions.update_one(
+        {"_id": ObjectId(sess["_id"])},
+        {"$set": {"attempts": [{"transcript": "hi", "round": 1}]}},
+    )
     db.scenarios.insert_one({
         "_id": "sc_fresh",
         "slug": "fresh",
@@ -74,3 +81,26 @@ def test_practiced_scenario_deprioritized(client, user_id, scenario_id):
     })
     resp = client.get(f"/api/scenarios/next?userId={user_id}")
     assert resp.json()["scenarioId"] == "sc_fresh"
+
+
+def test_skip_excludes_scenario(client, user_id, scenario_id):
+    """exclude 参数应跳过当前题、出下一道（哪怕没开口练过也排除）。"""
+    db = _db()
+    db.scenarios.insert_one({
+        "_id": "sc_other",
+        "slug": "other",
+        "where": "x", "story": "s", "mission": "m",
+        "difficulty": 2, "imageKey": "scenarios/sc_other/cover.jpg",
+        "ownerUserId": None,
+        "status": "active",
+    })
+    resp = client.get(f"/api/scenarios/next?userId={user_id}&exclude={scenario_id}")
+    assert resp.json()["scenarioId"] == "sc_other"
+
+
+def test_only_viewed_not_excluded_next_round(client, user_id, scenario_id):
+    """看了图没说话（没 attempts）不算练过：下次取题还能再出。"""
+    # 建练习但不放 attempt
+    client.post("/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id})
+    resp = client.get(f"/api/scenarios/next?userId={user_id}")
+    assert resp.json()["scenarioId"] == scenario_id

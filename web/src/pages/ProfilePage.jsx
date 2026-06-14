@@ -25,17 +25,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="info-list">
-        <div className="info-row">
-          <span>Speech</span>
-          <span className="v">All platforms</span>
-        </div>
-        <div className="info-row">
-          <span>Version</span>
-          <span className="v">v0.1 · DEMO</span>
-        </div>
-      </div>
-
       <button className="su-btn su-btn-danger" onClick={handleLogout}>
         Log out
       </button>
