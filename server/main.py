@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from db.connection import connect_db
@@ -28,7 +29,17 @@ app.include_router(review_items.router)
 # 生产环境 FastAPI 直接托管前端静态（Docker 里 WORKDIR=/app，static 在 /app/static）
 static = Path(__file__).parent / "static"
 if static.exists():
-    app.mount("/", StaticFiles(directory=str(static), html=True), name="spa")
+    # 显式挂 /assets，让构建产物按真实路径返回
+    app.mount("/assets", StaticFiles(directory=str(static / "assets")), name="assets")
+
+    # SPA fallback：任何未匹配 API/资源的路径都返回 index.html
+    # 这样 /login /practice 等前端路由刷新不再 404
+    @app.get("/{full_path:path}")
+    async def spa(full_path: str):
+        candidate = static / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(static / "index.html")
 
 
 if __name__ == "__main__":
