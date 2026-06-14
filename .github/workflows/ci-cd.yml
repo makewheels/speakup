@@ -8,7 +8,6 @@ on:
 env:
   ACR: registry.cn-beijing.aliyuncs.com
   ACR_IMAGE: registry.cn-beijing.aliyuncs.com/b4/speakup
-  CADDY_IMAGE: registry.cn-beijing.aliyuncs.com/b4/caddy
   SERVER_DIR: /opt/speakup
 
 jobs:
@@ -82,17 +81,6 @@ jobs:
             ${{ env.ACR_IMAGE }}:latest
             ${{ env.ACR_IMAGE }}:${{ github.sha }}
 
-      - name: Mirror caddy:2-alpine to ACR (if missing)
-        run: |
-          if docker manifest inspect ${{ env.CADDY_IMAGE }}:2-alpine >/dev/null 2>&1; then
-            echo "caddy:2-alpine 已在 ACR，跳过同步"
-          else
-            echo "拉 docker.io/caddy:2-alpine → 推 ACR"
-            docker pull caddy:2-alpine
-            docker tag caddy:2-alpine ${{ env.CADDY_IMAGE }}:2-alpine
-            docker push ${{ env.CADDY_IMAGE }}:2-alpine
-          fi
-
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -138,7 +126,6 @@ jobs:
             docker tag "${IMG}:latest" "${IMG}:previous" || true
 
           docker pull "${IMG}:latest"
-          docker pull registry.cn-beijing.aliyuncs.com/b4/caddy:2-alpine
           docker compose down --remove-orphans 2>/dev/null || true
           docker compose up -d --wait --wait-timeout 60
           docker image prune -f

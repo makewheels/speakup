@@ -18,7 +18,7 @@ services:
       - "3001"
 
   caddy:
-    image: registry.cn-beijing.aliyuncs.com/b4/caddy:2-alpine
+    image: caddy:2-alpine
     restart: unless-stopped
     ports:
       - "80:80"
