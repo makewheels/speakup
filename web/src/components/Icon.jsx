@@ -113,6 +113,19 @@ export default function Icon({ name, size = 20, color = "currentColor", stroke =
           <path d="M12 5v14M5 12h14" />
         </svg>
       );
+    case "play":
+      return (
+        <svg {...p}>
+          <path d="M8 5v14l11-7z" fill={color} stroke="none" />
+        </svg>
+      );
+    case "pause":
+      return (
+        <svg {...p}>
+          <rect x="7" y="5" width="3.5" height="14" rx="1" fill={color} stroke="none" />
+          <rect x="13.5" y="5" width="3.5" height="14" rx="1" fill={color} stroke="none" />
+        </svg>
+      );
     default:
       return null;
   }

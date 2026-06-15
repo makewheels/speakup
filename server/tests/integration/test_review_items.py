@@ -10,13 +10,16 @@ def _add(client, user_id, expression="some people", original="some peoples", not
 
 def test_add_returns_count(client, user_id):
     r = _add(client, user_id)
-    assert r.json() == {"added": 1}
+    body = r.json()
+    assert body["added"] == 1
+    assert len(body["ids"]) == 1 and body["ids"][0]  # 回传 id 供前端「取消收录」
 
 
 def test_add_dedups_same_expression_for_same_user(client, user_id):
-    _add(client, user_id, expression="x")
-    r = _add(client, user_id, expression="x", original="different original")
-    assert r.json() == {"added": 0}
+    r1 = _add(client, user_id, expression="x")
+    r2 = _add(client, user_id, expression="x", original="different original")
+    assert r2.json()["added"] == 0
+    assert r2.json()["ids"] == r1.json()["ids"]  # 重复表达返回已存在记录的同一个 id
 
 
 def test_list_returns_new_field_names_and_spaced_rep_defaults(client, user_id):

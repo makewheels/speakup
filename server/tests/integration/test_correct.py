@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import AsyncMock, patch
 
 FAKE_AI_RESULT = {
@@ -36,7 +37,8 @@ FAKE_ROUND2_RESULT = {
 
 
 def _mock_correct(result=FAKE_AI_RESULT):
-    return patch("routes.correct.correct_text", new=AsyncMock(return_value=result))
+    # 深拷贝：路由会给收录的 gap 回写 reviewItemId，避免污染共享的 FAKE_AI_RESULT
+    return patch("routes.correct.correct_text", new=AsyncMock(return_value=deepcopy(result)))
 
 
 def test_correct_returns_layered_schema(client, user_id, practice_id):
@@ -70,7 +72,10 @@ def test_correct_persists_attempt_with_round(client, user_id, practice_id):
     a = p["attempts"][0]
     assert a["transcript"] == "test text here ok"
     assert a["summary"] == FAKE_AI_RESULT["summary"]
-    assert a["gaps"] == FAKE_AI_RESULT["gaps"]
+    assert len(a["gaps"]) == 2
+    assert a["gaps"][0]["better"] == FAKE_AI_RESULT["gaps"][0]["better"]
+    assert a["gaps"][0]["reviewItemId"]            # saveToReview=True → 自动收录并回写 id
+    assert "reviewItemId" not in a["gaps"][1]       # saveToReview=False → 不收录、不回写
     assert a["round"] == 1
     assert "createdAt" in a
 

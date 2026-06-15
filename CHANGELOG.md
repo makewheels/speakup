@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
+- **错题本可取消收录**：反馈页每条 gap 的收录按钮从只读「Saved」改成可点切换——`+ Add to Review` / `✓ In Review`（英文，对齐底部 Review tab，明确收录去向），再点一下即从错题本移除。AI 自动收录的 gap 现在也回传 `reviewItemId`（`POST /api/correct` 把 id 回写进 gap，`POST /api/review-items` 返回 `ids` 列表），所以自动收录的同样能取消。
+- **朗读按钮播放态**：`SpeakBtn` 增加 idle/loading/playing 三态，播放中显示停止图标 + 实心高亮，再点即停（`tts.js` 暴露 `stop()` 并返回 Audio 实例供监听 ended/pause）。
+- **自定义录音回放** `RecordingPlayer`（蓝色播放/暂停键 + 进度条 + 时间）：替换 history 里的浏览器原生 `<audio controls>`；结果页评估完也用本地录音 object URL 即时展示回放——两个页面播放控件统一。新增 `play`/`pause` 图标。
+- **新增 3 道公共场景题**（LLM 生成 + 万相配图）。
 - **首页「换一道题」按钮**（底部录音按钮下方的药丸按钮 `Try another scenario`）：点了跳到下一题，当前题记进本会话 skip 列表（sessionStorage，刷新也不再返回）。`GET /api/scenarios/next` 支持 `exclude=` 参数排除指定 scenarioId。
 - **LLM 批量出题脚本** `scripts/generate_public_scenarios.py`：用 LLM 在不同 kind/主题间轮换生成 N 道公共题（含万相配图），`--dry-run` 只看文案不调图、不入库。
 - **雅思口语评分**：每次评估额外给一个 0~9（0.5 进制）的 IELTS band 分，反馈页 / 历史详情顶部大字号展示，存进 attempt。
@@ -17,6 +21,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **History「load more」要点很多次**：后端 `GET /api/practice-sessions` 之前返回所有 session（含只看图没说话的空记录），前端再二次过滤——常常一页 20 条滤剩没几条，得反复点。改成数据库查询层就只返回 `attempts` 非空的记录，一次稳定给 20 条真历史；前端去掉冗余过滤、`hasMore` 判断也准了。
 
 ### Changed
+- **评估 prompt 收紧**（`corrector.py`）：`nativeVersion` 必须是「学习者原话的直接改写」、最多 3 句；gap 上限 2 条、优先 1-3 词的小修；每个 gap 的 `better` 必须逐字出现在 `nativeVersion` 里（gap 与地道版对齐）。出题脚本同步要求「任务 3 句话以内能答完，points 2-3 个」。
+- **反馈页 gap 卡视觉**：`Gaps · N` 字号 17→20 加粗、与上方多 22px 间距；gap 三行做成**细线表格**（行间 + 标题下 1px 浅色分隔线）；三列正文字号统一 16px（差异只靠颜色/加粗）、标签统一 14px；**局部红**——只把 You said 标签标红、正文保持中性，不整行飘红。history 详情页 gap 同步加 `is-said`/`is-fix`，与结果页一致。
+- **结果页场景图高度还原**：`.fb-img img` 去掉 `max-height:180px`，改回与起始页一致的 `aspect-ratio:1/1` 正方形。
+- **评估时自动滚到进度处**：点 Get feedback 后页面自动 `scrollIntoView` 到流式进度文字，移动端不再需要手动下滑才能看到 token 回显。
 - **「练过」判定收紧**：取题时只把「开口评估过至少 1 次」（`attempts` 非空）的题视为练过、不再返回；只看了图没说话的不算，下次还会再出。
 - **Profile 页精简**：删掉无用的 Speech / All platforms / Version v0.1·DEMO 信息块。
 - **新用户昵称英文化**：注册昵称 `用户xxxx` → `Userxxxx`。

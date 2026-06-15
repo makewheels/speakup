@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import SpeakBtn from "../components/SpeakBtn.jsx";
+import RecordingPlayer from "../components/RecordingPlayer.jsx";
 
 const splitSentences = (s = "") =>
   s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
@@ -72,7 +73,7 @@ export default function SessionDetailPage() {
                 <span className="attempt-idx">Attempt {attempts.length - i}</span>
                 {attempt.createdAt && <span className="attempt-time">{formatDateTime(attempt.createdAt)}</span>}
               </div>
-              {recording?.url && <audio controls src={recording.url} className="recording-player" />}
+              {recording?.url && <RecordingPlayer src={recording.url} />}
 
               {attempt.score != null && (
                 <div className="fb-score">
@@ -107,11 +108,11 @@ export default function SessionDetailPage() {
                         <span className="fb-gap-num">{j + 1}</span>
                       </div>
                       <div className="fb-gap-table">
-                        <div className="fb-gap-line">
+                        <div className="fb-gap-line is-said">
                           <span className="fb-gap-tag">You said</span>
                           <span className="fb-gap-said">{g.original}</span>
                         </div>
-                        <div className="fb-gap-line">
+                        <div className="fb-gap-line is-fix">
                           <span className="fb-gap-tag">Say this</span>
                           <span className="fb-gap-fix">{g.better}</span>
                           <SpeakBtn text={g.better} />
