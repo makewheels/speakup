@@ -21,13 +21,15 @@ class ReviewRequest(BaseModel):
 async def add_items(req: AddItemsRequest):
     now = datetime.now(timezone.utc)
     added = 0
+    ids = []  # 与 req.items 顺序对应：每条返回新建或已存在的 reviewItem id，方便前端「取消收录」
     for it in req.items:
         existing = await get_db().reviewItems.find_one(
             {"userId": req.userId, "expression": it["expression"]}
         )
         if existing:
+            ids.append(str(existing["_id"]))
             continue
-        await get_db().reviewItems.insert_one({
+        res = await get_db().reviewItems.insert_one({
             "userId": req.userId,
             "expression": it["expression"],
             "original": it.get("original", ""),
@@ -40,8 +42,9 @@ async def add_items(req: AddItemsRequest):
             "interval": 1,
             "easiness": 2.5,
         })
+        ids.append(str(res.inserted_id))
         added += 1
-    return {"added": added}
+    return {"added": added, "ids": ids}
 
 
 @router.get("")

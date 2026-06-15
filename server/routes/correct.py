@@ -43,21 +43,8 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
     """写入练习的 attempts，并自动把 saveToReview=true 的 gap 存进 reviewItems（错题/复习项）。
     返回实际新增的复习项数量。
     """
-    attempt = {
-        "transcript": req.text,
-        "round": round_no,
-        "summary": result["summary"],
-        "nativeVersion": result["nativeVersion"],
-        "score": result.get("score"),
-        "gaps": result["gaps"],
-        "progress": result.get("progress"),
-        "createdAt": datetime.now(timezone.utc),
-    }
-    await get_db().practiceSessions.update_one(
-        {"_id": ObjectId(req.practiceId)},
-        {"$push": {"attempts": attempt}},
-    )
-
+    # 先自动收录 saveToReview 的 gap，把 reviewItemId 回写到 gap 上，
+    # 再写入 attempt —— 这样存进库的 attempt 和回给前端的 result 都带 id。
     auto_saved = 0
     now = datetime.now(timezone.utc)
     for gap in result.get("gaps", []):
@@ -68,8 +55,9 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
             continue
         existing = await get_db().reviewItems.find_one({"userId": req.userId, "expression": expression})
         if existing:
+            gap["reviewItemId"] = str(existing["_id"])
             continue
-        await get_db().reviewItems.insert_one({
+        res = await get_db().reviewItems.insert_one({
             "userId": req.userId,
             "title": gap.get("title", ""),
             "expression": expression,
@@ -83,7 +71,23 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
             "interval": 1,
             "easiness": 2.5,
         })
+        gap["reviewItemId"] = str(res.inserted_id)
         auto_saved += 1
+
+    attempt = {
+        "transcript": req.text,
+        "round": round_no,
+        "summary": result["summary"],
+        "nativeVersion": result["nativeVersion"],
+        "score": result.get("score"),
+        "gaps": result["gaps"],
+        "progress": result.get("progress"),
+        "createdAt": now,
+    }
+    await get_db().practiceSessions.update_one(
+        {"_id": ObjectId(req.practiceId)},
+        {"$push": {"attempts": attempt}},
+    )
     return auto_saved
 
 

@@ -1377,12 +1377,47 @@ button { font-family: inherit; }
   color: var(--ink-4);
 }
 
-.recording-player {
-  width: 100%;
-  height: 36px;
-  margin: 6px 0 12px;
-  border-radius: 8px;
-  accent-color: var(--accent);
+/* 自定义录音回放（结果页 + history 共用），替换原生 <audio controls> */
+.rec-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 14px;
+}
+.rec-player-btn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.rec-player-btn:active { transform: scale(1.08); }
+.rec-player-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-deep);
+  cursor: pointer;
+  overflow: hidden;
+}
+.rec-player-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+.rec-player-time {
+  flex: 0 0 auto;
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  min-width: 70px;
+  text-align: right;
 }
 
 .attempt-summary {
@@ -1531,13 +1566,13 @@ button { font-family: inherit; }
   line-height: 1.6;
   text-align: center;
 }
-.fb-gaps-section { margin-bottom: 8px; }
+.fb-gaps-section { margin-top: 22px; margin-bottom: 8px; }
 .fb-section-label {
   font-family: var(--ff-cn);
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--ink);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 /* 差距点：编号卡片 + 三行表格（我说的 / 应该说 / 为什么）*/
 .fb-gap-card {
@@ -1551,7 +1586,8 @@ button { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
 }
 .fb-gap-num {
   flex: 0 0 auto;
@@ -1591,38 +1627,46 @@ button { font-family: inherit; }
 }
 .fb-gap-add.added { color: var(--ok); background: var(--ok-soft); }
 .fb-gap-add:disabled { cursor: default; }
+/* 三行做成表格：细分隔线分隔 You said / Say this / Why */
 .fb-gap-table {
   display: flex;
   flex-direction: column;
-  gap: 9px;
 }
 .fb-gap-line {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
 }
+.fb-gap-line:last-child { border-bottom: none; padding-bottom: 0; }
 .fb-gap-tag {
-  flex: 0 0 42px;
+  flex: 0 0 64px;
   font-family: var(--ff-cn);
-  font-size: 13px;
-  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-3);
 }
+/* 局部红：只把 You said 这行的标签标红，正文保持中性，不整行飘红 */
+.fb-gap-line.is-said .fb-gap-tag { color: var(--warn); }
+.fb-gap-line.is-fix  .fb-gap-tag { color: var(--accent); }
+/* 三列正文字号统一 16px，差异只靠颜色/粗细 */
 .fb-gap-said {
   font-family: var(--ff-en);
   font-size: 16px;
-  color: var(--ink);
+  color: var(--ink-2);
 }
 .fb-gap-fix {
   font-family: var(--ff-en);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--accent);
 }
 .fb-gap-whytext {
   font-family: var(--ff-cn);
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink-2);
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 /* ── 反馈页：gap 对比卡片 ──────────────────────────────────────── */
@@ -2000,9 +2044,9 @@ button { font-family: inherit; }
 
 .fb-img img {
   width: calc(100% - 20px);
-  max-height: 180px;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
-  border-radius: 14px;
+  border-radius: 18px;
   display: block;
   margin: 0 auto 16px;
 }
@@ -2132,6 +2176,7 @@ button { font-family: inherit; }
 }
 .spk-btn:disabled { opacity: 0.7; cursor: progress; }
 .spk-btn:active { transform: scale(1.1); }
+.spk-btn.playing { background: var(--accent); color: #fff; }
 
 .fb-passed {
   font-family: var(--ff-cn);

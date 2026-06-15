@@ -4,6 +4,7 @@ import { useUser } from "../context/UserContext.jsx";
 import { api, correctStream } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import SpeakBtn from "../components/SpeakBtn.jsx";
+import RecordingPlayer from "../components/RecordingPlayer.jsx";
 
 const MAX_ROUNDS = 2;
 
@@ -59,11 +60,13 @@ export default function PracticePage() {
   const [hintGaps, setHintGaps] = useState([]);
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
-  const [savedIdx, setSavedIdx] = useState(() => new Set()); // 手动「+复习」过的 gap 下标
+  const [savedMap, setSavedMap] = useState({}); // gap 下标 -> reviewItem id（自动收录的初始就带，手动加/取消同步）
+  const [recordingUrl, setRecordingUrl] = useState(""); // 本次录音的本地 object URL，结果页回放用
 
   const timerRef = useRef(null);
   const secondsRef = useRef(0);
   const evalTimerRef = useRef(null);
+  const evalAnchorRef = useRef(null);
   const sseControllerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef(null);
@@ -89,6 +92,13 @@ export default function PracticePage() {
     mediaRecorderRef.current?.stop();
   }, []);
 
+  // 评估开始时自动滚到进度处：流式 token 回显在按钮下方，移动端常在视口外
+  useEffect(() => {
+    if (phase === "evaluating") {
+      evalAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [phase]);
+
   // 本会话「看过但跳过」的 scenarioId（sessionStorage 跨刷新保留，不串号到其他用户）
   const skipKey = `skipped:${user.userId}`;
   const readSkipped = () => {
@@ -103,11 +113,12 @@ export default function PracticePage() {
     setAutoSaved(0);
     setRound(1);
     setHintGaps([]);
-    setSavedIdx(new Set());
+    setSavedMap({});
     setElapsed("0:00");
     secondsRef.current = 0;
     setSession(null);
     audioChunksRef.current = null;
+    setRecordingUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return ""; });
     let skipped = readSkipped();
     if (extraSkip && !skipped.includes(extraSkip)) {
       skipped = [...skipped, extraSkip];
@@ -136,7 +147,7 @@ export default function PracticePage() {
     setTranscript("");
     setAutoSaved(0);
     setRound((r) => Math.min(r + 1, MAX_ROUNDS));
-    setSavedIdx(new Set());
+    setSavedMap({});
     setPhase("ready");
     window.scrollTo(0, 0);
   };
@@ -149,6 +160,7 @@ export default function PracticePage() {
 
     // 先清上一次录音
     audioChunksRef.current = null;
+    setRecordingUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return ""; });
 
     secondsRef.current = 0;
     setElapsed("0:00");
@@ -170,6 +182,7 @@ export default function PracticePage() {
       recorder.onstop = async () => {
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
         audioChunksRef.current = blob;
+        setRecordingUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
         stream.getTracks().forEach((t) => t.stop());
         clearInterval(timerRef.current);
         setPhase("transcribing");
@@ -223,7 +236,10 @@ export default function PracticePage() {
         onDone: ({ result: res, autoSaved: n, round: r }) => {
           clearInterval(evalTimerRef.current);
           setResult(res);
-          setSavedIdx(new Set());
+          // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
+          const init = {};
+          (res.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
+          setSavedMap(init);
           setAutoSaved(n);
           if (r) setRound(r);
           setPhase("feedback");
@@ -243,20 +259,31 @@ export default function PracticePage() {
     );
   };
 
-  // 手动把某条差距加入复习本（AI 没自动收进去的，用户可自己加）
-  const addGap = async (g, i) => {
-    if (!session?._id || savedIdx.has(i)) return;
+  // 收录 / 取消收录：点一下加入错题本，再点一下取消
+  const toggleGap = async (g, i) => {
+    if (!session?._id) return;
+    const savedId = savedMap[i];
+    if (savedId) {
+      try {
+        await api.deleteReviewItem(savedId, user.userId);
+        setSavedMap((m) => { const n = { ...m }; delete n[i]; return n; });
+      } catch (e) {
+        alert("取消收录失败：" + e.message);
+      }
+      return;
+    }
     try {
-      await api.addReviewItems(user.userId, [{
+      const { ids } = await api.addReviewItems(user.userId, [{
         expression: g.better,
         original: g.original,
         note: g.why,
         contextSentence: result?.nativeVersion || "",
         practiceId: session._id,
       }]);
-      setSavedIdx((prev) => new Set(prev).add(i));
+      const id = ids?.[0];
+      if (id) setSavedMap((m) => ({ ...m, [i]: id }));
     } catch (e) {
-      alert("Failed to add to review: " + e.message);
+      alert("加入错题本失败：" + e.message);
     }
   };
 
@@ -306,6 +333,8 @@ export default function PracticePage() {
         )}
         <ScenarioCard />
 
+        {recordingUrl && <RecordingPlayer src={recordingUrl} />}
+
         <ScoreBadge score={result.score} />
 
         {passed && <div className="fb-passed">Sounded native this time ✓</div>}
@@ -348,27 +377,27 @@ export default function PracticePage() {
           <div className="fb-gaps-section">
             <div className="fb-section-label">Gaps · {gaps.length}</div>
             {gaps.map((g, i) => {
-              const added = savedIdx.has(i) || g.saveToReview;
+              const added = Boolean(savedMap[i]);
               return (
                 <div key={i} className="fb-gap-card">
                   <div className="fb-gap-head">
                     <span className="fb-gap-num">{i + 1}</span>
                     <button
                       className={"fb-gap-add" + (added ? " added" : "")}
-                      onClick={() => addGap(g, i)}
-                      disabled={added}
+                      onClick={() => toggleGap(g, i)}
+                      title={added ? "Tap to remove from Review" : "Add to Review"}
                     >
                       {added
-                        ? <><Icon name="check" size={13} />&nbsp;Saved</>
-                        : <><Icon name="plus" size={13} />&nbsp;Review</>}
+                        ? <><Icon name="check" size={14} />&nbsp;In Review</>
+                        : <><Icon name="plus" size={14} />&nbsp;Add to Review</>}
                     </button>
                   </div>
                   <div className="fb-gap-table">
-                    <div className="fb-gap-line">
+                    <div className="fb-gap-line is-said">
                       <span className="fb-gap-tag">You said</span>
                       <span className="fb-gap-said">{g.original}</span>
                     </div>
-                    <div className="fb-gap-line">
+                    <div className="fb-gap-line is-fix">
                       <span className="fb-gap-tag">Say this</span>
                       <span className="fb-gap-fix">{g.better}</span>
                       <SpeakBtns text={g.better} />
@@ -387,7 +416,7 @@ export default function PracticePage() {
         )}
 
         {autoSaved > 0 && (
-          <p className="fb-autosaved">{autoSaved} expression(s) added to review</p>
+          <p className="fb-autosaved">{autoSaved} added to Review · tap “In Review” on any card to remove</p>
         )}
 
         <div className="actions-row" style={{ marginTop: 8 }}>
@@ -517,7 +546,7 @@ export default function PracticePage() {
               <span className="spin" />&nbsp;AI is reviewing… {evalElapsed > 0 && <span style={{ marginLeft: 4, opacity: 0.8 }}>({evalElapsed}s)</span>}
             </button>
           </div>
-          <p style={{
+          <p ref={evalAnchorRef} style={{
             fontFamily: "var(--ff-cn)", fontSize: 12, color: "var(--ink-3)",
             textAlign: "center", marginTop: 14, lineHeight: 1.6,
           }}>
