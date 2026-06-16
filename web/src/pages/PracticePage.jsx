@@ -421,7 +421,7 @@ export default function PracticePage() {
 
         <div className="actions-row" style={{ marginTop: 8 }}>
           {passed || lastRound ? (
-            <button className="su-btn su-btn-primary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
+            <button className="su-btn su-btn-primary" onClick={() => startNewRound(session?.scenarioId)} style={{ flex: 1, height: 48 }}>
               Next scenario&nbsp;<Icon name="next" size={16} />
             </button>
           ) : (
@@ -429,7 +429,7 @@ export default function PracticePage() {
               <button className="su-btn su-btn-primary" onClick={retrySame} style={{ flex: 2, height: 48 }}>
                 <Icon name="refresh" size={16} />&nbsp;Say it again
               </button>
-              <button className="su-btn su-btn-secondary" onClick={startNewRound} style={{ flex: 1, height: 48 }}>
+              <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} style={{ flex: 1, height: 48 }}>
                 Next&nbsp;<Icon name="next" size={16} />
               </button>
             </>
