@@ -53,6 +53,9 @@ jobs:
       - name: Run vitest
         working-directory: web
         run: pnpm test
+      - name: Coverage check
+        working-directory: web
+        run: pnpm test:coverage
       - name: Build
         working-directory: web
         run: pnpm run build

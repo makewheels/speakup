@@ -152,8 +152,9 @@ git checkout -b <type>/<slug>   # feat/ fix/ chore/ docs/
 
 # 3. 跑测试（必须全绿才能提 PR）
 cd server && uv run pytest tests/ -q          # 后端全套
+cd web && pnpm test                           # vitest（前端行为测试，任何改动都要跑）
+cd web && pnpm test:coverage                  # 覆盖率门槛检查（lines/functions/statements≥60%，branches≥50%）
 cd web && pnpm run build                      # 前端构建（捕捉类型/import 错误）
-# 有前端逻辑变更时：pnpm test run            # vitest
 
 # 4. 更新 CHANGELOG.md（## [Unreleased] 段）
 
@@ -178,6 +179,7 @@ git checkout master && git pull
 - `conftest.py` 的 `_no_real_llm` fixture 会拒绝任何真实 DashScope 调用，测试里必须 mock `services.corrector._get_client`
 - OSS 上传（`upload_bytes_async`）和 HTTP 下载（`httpx.AsyncClient`）在测试里必须 mock，不能打真实外部服务
 - async 函数的单元测试：mock `get_db()` 返回 MagicMock 避免 Motor 事件循环冲突，用 `pytestmark = pytest.mark.asyncio`
+- **前端每个页面和有状态组件必须有对应的 `.test.jsx`**，覆盖 happy path + 关键交互；新增页面/组件时同步新增测试文件
 
 ### 新增服务/路由时的 checklist
 
@@ -186,6 +188,8 @@ git checkout master && git pull
 - [ ] `docs/design/schema.md` 同步更新（如有新集合或字段变更）
 - [ ] `docs/design/storage.md` 同步更新（如有新 OSS 路径）
 - [ ] `CHANGELOG.md` 更新
+- [ ] 对应 `.test.jsx` 覆盖新增页面/组件的 happy path 及关键交互（前端改动必选）
+- [ ] `pnpm test` 全绿，`pnpm test:coverage` 门槛通过（前端改动必选）
 - [ ] `pnpm run build` 通过（如有前端改动）
 
 ### 仓库工作流约定

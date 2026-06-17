@@ -16,7 +16,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **雅思口语评分**：每次评估额外给一个 0~9（0.5 进制）的 IELTS band 分，反馈页 / 历史详情顶部大字号展示，存进 attempt。
 - **CosyVoice 朗读**（替换浏览器内置 TTS）：新增 `POST /api/tts`，DashScope CosyVoice 合成英文朗读，按「模型+音色+文本」哈希缓存到 OSS（`tts/<sha1>.mp3`），同一句话第二次直接走缓存不再花钱；前端点击喇叭才请求合成。
 
+### Added (tests)
+- **前端行为测试全面补齐**：为所有页面（`PracticePage`、`HistoryPage`、`ReviewPage`、`SessionDetailPage`、`ProfilePage`）和核心组件（`SpeakBtn`、`RecordingPlayer`、`Layout`）新增 `.test.jsx`，共 92 个测试覆盖 happy path + 关键交互（换题、复习流程、删除确认、分页等）。
+- **前端覆盖率门槛**：`vite.config.js` 新增 coverage 配置（`@vitest/coverage-v8`），对业务逻辑代码设置 statements/lines/functions ≥60%、branches ≥50% 的强制门槛；CI `test-web` job 新增 `pnpm test:coverage` 步骤，未达标阻断部署。
+- **AGENTS.md 开发流程更新**：明确前端测试为强制步骤（任何改动都要跑 `pnpm test`，有前端改动还要跑 `pnpm test:coverage`），checklist 新增「对应 `.test.jsx` 文件」和「`pnpm test:coverage` 通过」两项。
+
 ### Fixed
+- **ProfilePage 空用户崩溃**：退出登录后 React 短暂以 `user=null` 重渲染 `ProfilePage`，访问 `user.phone` 抛错。加 `if (!user) return null` 守卫修复。
 - **反馈页「下一题」重复给同一道**：feedback 阶段的 "Next scenario" / "Next" 按钮调用 `startNewRound` 时未传当前 `scenarioId`，当前题不进 skip 列表，后端可能立刻给回同一道。改为 `startNewRound(session?.scenarioId)`，与 ready 阶段的「换一道题」按钮行为一致。
 - **换题反复给同一道**：取题逻辑原本是确定性的——fresh 池排序后永远取 `pool[0]`，全练过后的兜底用 `user_id+日期` 哈希（同一天恒定同一题），且兜底池没排除当前题。改成分层候选（没练过且没 skip → 没练过 → 没 skip → 全池），每层内 `random.choice`，且 skip/当前题为硬约束：只要库里还有别的题，绝不返回刚跳过的那几道。
 - **History「load more」要点很多次**：后端 `GET /api/practice-sessions` 之前返回所有 session（含只看图没说话的空记录），前端再二次过滤——常常一页 20 条滤剩没几条，得反复点。改成数据库查询层就只返回 `attempts` 非空的记录，一次稳定给 20 条真历史；前端去掉冗余过滤、`hasMore` 判断也准了。
