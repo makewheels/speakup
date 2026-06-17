@@ -5,6 +5,8 @@ export default function ProfilePage() {
   const { user, logout } = useUser();
   const navigate = useNavigate();
 
+  if (!user) return null;
+
   const handleLogout = () => {
     logout();
     navigate("/login");
