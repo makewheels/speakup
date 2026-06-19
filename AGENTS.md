@@ -196,6 +196,6 @@ git checkout master && git pull
 ### 仓库工作流约定
 
 1. **每次改动都开 PR**（不直接 push master）
-2. **每个 PR 更 CHANGELOG.md**：`## [Unreleased]` 段，Keep a Changelog 分类
+2. **每个 PR 更 CHANGELOG.md**：写在 `## [Unreleased]` 段。一天多次改动按时间倒序分组，每段标题用 `### YYYY-MM-DD HH:MM`（本地时区，精确到分钟，从 commit 时间取），段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。最新放最上。
 3. **测试要是代码**：不靠 curl 一次性脚本
 4. **中文优先**：PR / commit / CHANGELOG / 文档 / 对话回复用中文，代码标识符和技术术语保持英文

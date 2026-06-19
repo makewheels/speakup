@@ -6,37 +6,70 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
-### Fixed
+> 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，本地时区）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
-**2026-06-19**
+### 2026-06-19 16:03
 
-- **结果页刷新不再丢**：练习评估完成后 URL 带上 `?result=1`，刷新时若该练习已有 attempt，则从最近一轮重建反馈视图（成绩 / native version / gaps / 用户原录音回放），不再回到初始录音态。AGENTS.md 加规则：页面关键状态必须可被 URL 还原。
-- **TTS 喇叭"一直生成中"**：`tts.js` 之前 `await audio.play()` 阻塞返回，浏览器音频缓冲卡死时 SpeakBtn 永远停在 loading 态。现在合成完拿到 URL 立刻退 loading，play() 不阻塞；同时给合成本身加 30s 超时兜底。
-- **结果页"Say this"行高被喇叭顶高**：把行内喇叭按钮压扁（30×30，原 40×40），并把这一行 `align-items: center`，文字与按钮居中对齐。
-- **`Gaps · 2` 含义不清**：改成 `Gaps · N total`，让用户一眼知道这是总数。
+- **fix(corrector)**：风格优化不再算 gap。`I'm a software engineer` → `working as a software engineer` 这种纯地道化替换不再被标——只有真错（语法 / 用错单词 / native 听了会困惑）才算 gap。0-2 个 gap 都行，宁缺毋滥；答得到位时 summary 用鼓励代替挑刺。
+- **test**：测试 cost-guard 加严。`conftest._no_real_llm` 默认 stub 所有外部出口（LLM / 万相 / CosyVoice / ASR / OSS upload），新加测试漏 patch 也不会误调真接口。76 测试仍全过。
 
-### Changed
+### 2026-06-19 15:58
 
-**2026-06-19**
+- **test**：补 TTS 路径 + practiceId 透传 + tts.js 关键 bug 回归测试（后端 +6 / 前端 +7）。覆盖 `_cache_key` session/全局两分支、路由 practiceId 透传、tts.js 不阻塞 play 与 30s 超时、urlCache 按 (practiceId, text) 分键、空文本不调后端、SpeakBtn practiceId prop 透传。
 
-- **TTS 朗读音频挪到 session 下** `practiceSessions/{practiceId}/tts/{sha1}.mp3`（之前 `tts/{sha1}.mp3` 全局）：LLM 个性化生成的 nativeVersion / gap.better 几乎不跨 session 撞同句，全局缓存命中率约等于 0，挂 session 下让所有资源结构对齐（题目图在 `scenarios/`，session 内的录音+朗读都在 `practiceSessions/`）。session 内重听仍按 hash 复用 OSS 缓存。`/api/tts` 接受可选 `practiceId`；前端 SpeakBtn 接受 `practiceId` prop，PracticePage / SessionDetailPage / ReviewPage 各调用点都传了。
-- **场景卡 Place / Scene 字体统一放大**：地点和情景两块字号 16px → 19px（与 native version 一致）、去掉标签灰底色、颜色统一为深色，更易读。
-- **"You said" 卡片样式同 native version**：去灰底改细边框、字号 17→19px、字重加粗、颜色黑色——与 native version 视觉对齐，区别只在颜色（黑 vs 蓝）。
-- **TTS 喇叭 loading 态**：原来纯转圈 → 改成三个跳动的点（更像"生成中…"的反馈，不像加载中失败）。
+### 2026-06-19 15:50
 
-### Added
+- **change(tts)**：朗读音频挪到 session 下 `practiceSessions/{practiceId}/tts/{sha1}.mp3`（之前 `tts/{sha1}.mp3` 全局）。LLM 个性化生成的 nativeVersion / gap.better 几乎不跨 session 撞同句，全局缓存命中率约等于 0；挂 session 下让所有资源结构对齐（题目图在 `scenarios/`，session 内的录音 + 朗读都在 `practiceSessions/`）。session 内重听仍按 hash 复用 OSS 缓存。`/api/tts` 接受可选 `practiceId`；前端 `SpeakBtn` 接受 `practiceId` prop，PracticePage / SessionDetailPage / ReviewPage 各调用点都传了。
 
-- **成本报表脚本 `scripts/cost_report.py`**：从 `llmCalls` 审计表按天 / kind / 模型汇总花了多少钱，`--days N` 看最近 N 天。
-- **本地→生产同步脚本 `scripts/sync_public_scenarios.py`**：把本地 dev 生成好的公共题（文档 + OSS 图）同步到生产，避免在生产重新调 LLM/万相花钱。默认 dry-run，真写要 `--execute` + 配 `PROD_SYNC_MONGO_URI`。
-- **`IMAGE_MODEL` 默认值改 `wanx2.1-t2i-turbo`**（之前 `wan2.7-image`）：生产不改 env 也自动用上便宜款。
-- **LLM/图片调用审计表 `llmCalls`**：每次调 qwen / 万相都记一行（prompt + raw response + tokens + 估算成本 + 耗时），用 `linkedTo` 挂到 scenarioId / sessionId / round / userId，方便事后查"为什么这道题烂 / 评估为什么漏抓错"。包装在 `services/llm_audit.py`，写库失败只 warning 不阻塞主路径。schema 见 `docs/design/schema.md`。
-- **成本字段**：`llmCalls.cost`（元）按 `llm_audit.py` 里的 `TEXT_PRICING` / `IMAGE_PRICING` 估算。
-- **图片成本优化**：`IMAGE_MODEL` 默认从 `wan2.7-image`（约 ¥0.30/张）换 `wanx2.1-t2i-turbo`（约 ¥0.14/张，省 ~50%）；分辨率从 `1280*720` 降到 `1024*576`。`wanx.py` 同时支持同步（老模型）和异步轮询（新一代便宜模型）两套 endpoint，按模型名自动选。
-- **公共题库主题坐标系（`server/data/scenario_taxonomy.yaml`）**：16 大类 × 67 个子场景，覆盖中国成年人日常英语真用得到的处境（旅游 12 / 社交 8 / 工作 5 / 餐饮 5 / ...），含 16 个本土化补丁（火锅/春节亲戚/996/微信支付等 IELTS+CEFR 不会有的）。来源：IELTS Speaking Part 1/2/3 + CEFR Companion 2020 + 中国本土化。
-- **公共题自动补题（按 yaml 坐标系）**：`scenario_service.topup_public_scenario()` 找 `actual<target` 的子场景，调 LLM 按坐标编故事 + 万相配图入库；scenarios 集合新增 `category: {domain, subId}` 字段。
-- **取题钩子顺带补公共池**：`/api/scenarios/next` 触发的 `_maybe_topup` 后台任务原本只补用户定制题，现在同时检查公共池缺口并补一道（每次最多 1 道，全 sub 达 target 后短路，可控成本）。
-- **新文档** `docs/design/scenario-taxonomy.md`：讲清楚公共题不是手工写的，是系统按 yaml 自动调 LLM 生成的；含扩容步骤、prompt 调优 dry-run 流程、给后续 agent 的注意事项。
-- **测试 cost guard 加固**：`conftest._no_real_llm` 现在同时 patch `services.scenario_service._get_client`（之前只 patch corrector 模块的，scenario_service 的本地引用漏了——背景 topup 任务可能在测试结束后真调 LLM）。
+### 2026-06-19 15:35
+
+- **fix(ui)**：TTS 喇叭"一直生成中"。`tts.js` 之前 `await audio.play()` 阻塞，浏览器音频缓冲卡死时 `SpeakBtn` 永远停在 loading。现在合成完拿到 URL 立刻退 loading，play() 不阻塞；合成本身加 30s 超时兜底。
+- **fix(ui)**："Say this" 行高被喇叭顶高。把行内喇叭按钮压扁（30×30，原 40×40），并把这一行 `align-items: center`，文字与按钮居中对齐。
+- **change(ui)**："You said" 卡片样式同 native version：去灰底改细边框、字号 17→19px、字重加粗、颜色黑色——与 native version 视觉对齐，区别只在颜色（黑 vs 蓝）。
+- **change(ui)**：TTS 喇叭 loading 态从纯转圈 → 三个跳动的点（更像"生成中…"，不像加载失败）。
+- **fix(ui)**：`Gaps · 2` 含义不清，改成 `Gaps · N total`。
+
+### 2026-06-19 15:15
+
+- **fix(practice)**：结果页刷新不再丢。评估完成后 URL 带 `?result=1`，刷新时若已有 attempt 则从最近一轮重建反馈视图（成绩 / native version / gaps / 用户原录音回放），不再回到初始录音态。AGENTS.md 加规则：页面关键状态必须可被 URL 还原。
+- **change(ui)**：场景卡 Place / Scene 字体统一放大。两块字号 16px → 19px（与 native version 一致）、去掉标签灰底色、颜色统一为深色。
+
+### 2026-06-19 13:36
+
+- **chore**：`docker-compose.yml` 默认 `IMAGE_MODEL` 改 `wanx2.1-t2i-turbo`（之前 `wan2.7-image`），与 `config.py` 默认对齐。生产 `.env` 已覆盖，此改动让新机器 / 没设 env 覆盖的部署也默认便宜款。
+
+### 2026-06-19 13:25
+
+- **add**：成本报表脚本 `scripts/cost_report.py`——从 `llmCalls` 审计表按天 / kind / 模型汇总花了多少钱，`--days N` 看最近 N 天。
+- **add**：本地→生产同步脚本 `scripts/sync_public_scenarios.py`——把本地 dev 生成好的公共题（文档 + OSS 图）同步到生产，避免在生产重新调 LLM/万相花钱。默认 dry-run，真写要 `--execute` + 配 `PROD_SYNC_MONGO_URI`。
+- **change**：`IMAGE_MODEL` 默认值改 `wanx2.1-t2i-turbo`（之前 `wan2.7-image`），生产不改 env 也自动用上便宜款。
+
+### 2026-06-19 13:10
+
+- **add**：LLM/图片调用审计表 `llmCalls`——每次调 qwen / 万相都记一行（prompt + raw response + tokens + 估算成本 + 耗时），用 `linkedTo` 挂到 scenarioId / sessionId / round / userId，方便事后查"为什么这道题烂 / 评估为什么漏抓错"。包装在 `services/llm_audit.py`，写库失败只 warning 不阻塞主路径。schema 见 `docs/design/schema.md`。
+- **add**：成本字段 `llmCalls.cost`（元），按 `llm_audit.py` 里的 `TEXT_PRICING` / `IMAGE_PRICING` 估算。
+- **change**：图片成本优化。`IMAGE_MODEL` 从 `wan2.7-image`（约 ¥0.30/张）换 `wanx2.1-t2i-turbo`（约 ¥0.14/张，省约 50%）；分辨率从 `1280*720` 降到 `1024*576`。`wanx.py` 同时支持同步（老模型）和异步轮询（新一代便宜模型）两套 endpoint，按模型名自动选。
+
+### 2026-06-19 12:45
+
+- **change(prompts)**：`corrector` `SYSTEM_PROMPT` / `RETRY_PROMPT` 全部翻成中文（生产 prompt，不只是展示）。中文 prompt 让 LLM 输出中文 summary / why 更稳定，不再偶尔英文化。
+- **change(scenario gen)**：prompt 加紧约束——禁场景设在考场 / 课堂 / 语言考试（修 travel.memorable_trip 出"雅思考场"那个 bug）；禁列三点演讲式指令；imagePrompt 规则放宽——从"no faces close-up"（被 LLM 误读为 no people）改成"必须展示场景核心动作和人物，用广角 / 侧面 / 背影避免 close-up 脸"。
+- **fix(scenario yaml)**：scrub `scenario_taxonomy.yaml` 注释里的 `IELTS` / `雅思`字样，避免 LLM 把 sub.note 里的"IELTS P2 经典"当成场景设定。
+
+### 2026-06-19 11:14
+
+- **change(scenario gen)**：同 gap 内 random shuffle，避免空池子时所有人都先生成 `bank.*` / `biz.*`（字母序前缀）；不同 gap 之间仍确定性（缺得越多越先补）。
+- **fix(script)**：`generate_public_scenarios.py` 输出 bug——原来 print 调用了一次 `undercovered_subs`（拿到一个 shuffle），`topup_public_scenario` 内部又调了一次（拿到另一个 shuffle），打印的 sub 跟实际入库 category 对不上。改成只调一次，print 用 doc 结果。
+- **add(docs)**：`docs/design/scenario-taxonomy.md`——讲清楚公共题不是手工写的，是系统按 yaml 自动调 LLM 生成的；含扩容步骤、prompt 调优 dry-run 流程、给后续 agent 的注意事项。
+- **add(dev)**：`scripts/preview_scenarios_html.py` / `llm_breakdown_html.py` / `corrector_breakdown_html.py`——dry-run 渲染 HTML 给人眼审，拆解一次真实 LLM 调用的输入/输出色块对比。
+- **chore(changelog)**：Unreleased 段开始按日期分组（2026-06-19 + Earlier），后续进一步精确到分钟。
+
+### 2026-06-19 11:04
+
+- **add**：公共题库主题坐标系 `server/data/scenario_taxonomy.yaml`——16 大类 × 67 个子场景，覆盖中国成年人日常英语真用得到的处境（旅游 12 / 社交 8 / 工作 5 / 餐饮 5 / ...），含 16 个本土化补丁（火锅 / 春节亲戚 / 996 / 微信支付等 IELTS+CEFR 不会有的）。来源：IELTS Speaking Part 1/2/3 + CEFR Companion 2020 + 中国本土化。
+- **add**：公共题自动补题（按 yaml 坐标系）——`scenario_service.topup_public_scenario()` 找 `actual<target` 的子场景，调 LLM 按坐标编故事 + 万相配图入库；`scenarios` 集合新增 `category: {domain, subId}` 字段。
+- **add**：取题钩子顺带补公共池——`/api/scenarios/next` 触发的 `_maybe_topup` 后台任务原本只补用户定制题，现在同时检查公共池缺口并补一道（每次最多 1 道，全 sub 达 target 后短路，可控成本）。
+- **fix(test)**：`conftest._no_real_llm` 同时 patch `services.scenario_service._get_client`（之前只 patch corrector 模块的，scenario_service 的本地引用漏了——背景 topup 任务可能在测试结束后真调 LLM）。
 
 **Earlier**
 
