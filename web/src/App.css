@@ -1494,7 +1494,8 @@ button { font-family: inherit; }
 
 /* ── 反馈页：新布局 ────────────────────────────────────────────── */
 .fb-transcript-card {
-  background: var(--bg-mute);
+  background: transparent;
+  border: 1.5px solid var(--rule);
   border-radius: 14px;
   padding: 14px 16px;
   margin-bottom: 10px;
@@ -1513,11 +1514,13 @@ button { font-family: inherit; }
   margin-bottom: 6px;
 }
 .fb-card-label.native { color: var(--accent); display: flex; align-items: center; }
+/* You said —— 与 native version 同字号(19)，无底色，区别只在颜色（黑 vs 蓝） */
 .fb-transcript-text {
   font-family: var(--ff-en);
-  font-size: 17px;
+  font-size: 19px;
+  font-weight: 700;
   line-height: 1.6;
-  color: var(--ink-2);
+  color: var(--ink);
   margin: 0;
 }
 .fb-native-text {
@@ -1640,6 +1643,14 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--rule);
 }
 .fb-gap-line:last-child { border-bottom: none; padding-bottom: 0; }
+/* Say this 行带喇叭按钮：居中对齐，且把按钮压扁不撑高整行（之前 40px 按钮把这行顶高了） */
+.fb-gap-line.is-fix { align-items: center; }
+.fb-gap-line .spk-btn {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 5px;
+  margin-left: 6px;
+}
 .fb-gap-tag {
   flex: 0 0 64px;
   font-family: var(--ff-cn);
@@ -2173,9 +2184,26 @@ button { font-family: inherit; }
   min-width: 40px;
   min-height: 40px;
 }
-.spk-btn:disabled { opacity: 0.7; cursor: progress; }
+.spk-btn:disabled { opacity: 1; cursor: progress; }
 .spk-btn:active { transform: scale(1.1); }
 .spk-btn.playing { background: var(--accent); color: #fff; }
+/* loading：喇叭变成「生成中」三个跳动的点（不是干巴巴转圈） */
+.spk-btn.loading { padding-left: 10px; padding-right: 10px; }
+.spk-gen { display: inline-flex; align-items: center; gap: 3px; height: 22px; }
+.spk-gen i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+  animation: spkGen 1s ease-in-out infinite;
+}
+.spk-gen i:nth-child(2) { animation-delay: 0.15s; }
+.spk-gen i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes spkGen {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
 
 .fb-passed {
   font-family: var(--ff-cn);

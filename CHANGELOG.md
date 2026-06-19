@@ -10,13 +10,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 **2026-06-19**
 
-- **结果页刷新不再丢**：练习评估完成后 URL 带上 `?result=1`，刷新时若该练习已有 attempt，则从最近一轮重建反馈视图（成绩 / native version / gaps），不再回到初始录音态。AGENTS.md 加规则：页面关键状态必须可被 URL 还原。
+- **结果页刷新不再丢**：练习评估完成后 URL 带上 `?result=1`，刷新时若该练习已有 attempt，则从最近一轮重建反馈视图（成绩 / native version / gaps / 用户原录音回放），不再回到初始录音态。AGENTS.md 加规则：页面关键状态必须可被 URL 还原。
+- **TTS 喇叭"一直生成中"**：`tts.js` 之前 `await audio.play()` 阻塞返回，浏览器音频缓冲卡死时 SpeakBtn 永远停在 loading 态。现在合成完拿到 URL 立刻退 loading，play() 不阻塞；同时给合成本身加 30s 超时兜底。
+- **结果页"Say this"行高被喇叭顶高**：把行内喇叭按钮压扁（30×30，原 40×40），并把这一行 `align-items: center`，文字与按钮居中对齐。
+- **`Gaps · 2` 含义不清**：改成 `Gaps · N total`，让用户一眼知道这是总数。
 
 ### Changed
 
 **2026-06-19**
 
 - **场景卡 Place / Scene 字体统一放大**：地点和情景两块字号 16px → 19px（与 native version 一致）、去掉标签灰底色、颜色统一为深色，更易读。
+- **"You said" 卡片样式同 native version**：去灰底改细边框、字号 17→19px、字重加粗、颜色黑色——与 native version 视觉对齐，区别只在颜色（黑 vs 蓝）。
+- **TTS 喇叭 loading 态**：原来纯转圈 → 改成三个跳动的点（更像"生成中…"的反馈，不像加载中失败）。
 
 ### Added
 

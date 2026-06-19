@@ -90,6 +90,7 @@ export default function PracticePage() {
             progress: last.progress ?? null,
           });
           setTranscript(last.transcript ?? "");
+          if (last.recordingUrl) setRecordingUrl(last.recordingUrl);  // 用户原声从 OSS 还原，刷新后可回放
           const init = {};
           (last.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
           setSavedMap(init);
@@ -398,7 +399,7 @@ export default function PracticePage() {
 
         {gaps.length > 0 && (
           <div className="fb-gaps-section">
-            <div className="fb-section-label">Gaps · {gaps.length}</div>
+            <div className="fb-section-label">Gaps · {gaps.length} total</div>
             {gaps.map((g, i) => {
               const added = Boolean(savedMap[i]);
               return (
