@@ -7,12 +7,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
+
+**2026-06-19**
+
+- **成本报表脚本 `scripts/cost_report.py`**：从 `llmCalls` 审计表按天 / kind / 模型汇总花了多少钱，`--days N` 看最近 N 天。
+- **本地→生产同步脚本 `scripts/sync_public_scenarios.py`**：把本地 dev 生成好的公共题（文档 + OSS 图）同步到生产，避免在生产重新调 LLM/万相花钱。默认 dry-run，真写要 `--execute` + 配 `PROD_SYNC_MONGO_URI`。
+- **`IMAGE_MODEL` 默认值改 `wanx2.1-t2i-turbo`**（之前 `wan2.7-image`）：生产不改 env 也自动用上便宜款。
+- **LLM/图片调用审计表 `llmCalls`**：每次调 qwen / 万相都记一行（prompt + raw response + tokens + 估算成本 + 耗时），用 `linkedTo` 挂到 scenarioId / sessionId / round / userId，方便事后查"为什么这道题烂 / 评估为什么漏抓错"。包装在 `services/llm_audit.py`，写库失败只 warning 不阻塞主路径。schema 见 `docs/design/schema.md`。
+- **成本字段**：`llmCalls.cost`（元）按 `llm_audit.py` 里的 `TEXT_PRICING` / `IMAGE_PRICING` 估算。
+- **图片成本优化**：`IMAGE_MODEL` 默认从 `wan2.7-image`（约 ¥0.30/张）换 `wanx2.1-t2i-turbo`（约 ¥0.14/张，省 ~50%）；分辨率从 `1280*720` 降到 `1024*576`。`wanx.py` 同时支持同步（老模型）和异步轮询（新一代便宜模型）两套 endpoint，按模型名自动选。
+- **公共题库主题坐标系（`server/data/scenario_taxonomy.yaml`）**：16 大类 × 67 个子场景，覆盖中国成年人日常英语真用得到的处境（旅游 12 / 社交 8 / 工作 5 / 餐饮 5 / ...），含 16 个本土化补丁（火锅/春节亲戚/996/微信支付等 IELTS+CEFR 不会有的）。来源：IELTS Speaking Part 1/2/3 + CEFR Companion 2020 + 中国本土化。
+- **公共题自动补题（按 yaml 坐标系）**：`scenario_service.topup_public_scenario()` 找 `actual<target` 的子场景，调 LLM 按坐标编故事 + 万相配图入库；scenarios 集合新增 `category: {domain, subId}` 字段。
+- **取题钩子顺带补公共池**：`/api/scenarios/next` 触发的 `_maybe_topup` 后台任务原本只补用户定制题，现在同时检查公共池缺口并补一道（每次最多 1 道，全 sub 达 target 后短路，可控成本）。
+- **新文档** `docs/design/scenario-taxonomy.md`：讲清楚公共题不是手工写的，是系统按 yaml 自动调 LLM 生成的；含扩容步骤、prompt 调优 dry-run 流程、给后续 agent 的注意事项。
+- **测试 cost guard 加固**：`conftest._no_real_llm` 现在同时 patch `services.scenario_service._get_client`（之前只 patch corrector 模块的，scenario_service 的本地引用漏了——背景 topup 任务可能在测试结束后真调 LLM）。
+
+**Earlier**
+
 - **错题本可取消收录**：反馈页每条 gap 的收录按钮从只读「Saved」改成可点切换——`+ Add to Review` / `✓ In Review`（英文，对齐底部 Review tab，明确收录去向），再点一下即从错题本移除。AI 自动收录的 gap 现在也回传 `reviewItemId`（`POST /api/correct` 把 id 回写进 gap，`POST /api/review-items` 返回 `ids` 列表），所以自动收录的同样能取消。
 - **朗读按钮播放态**：`SpeakBtn` 增加 idle/loading/playing 三态，播放中显示停止图标 + 实心高亮，再点即停（`tts.js` 暴露 `stop()` 并返回 Audio 实例供监听 ended/pause）。
 - **自定义录音回放** `RecordingPlayer`（蓝色播放/暂停键 + 进度条 + 时间）：替换 history 里的浏览器原生 `<audio controls>`；结果页评估完也用本地录音 object URL 即时展示回放——两个页面播放控件统一。新增 `play`/`pause` 图标。
 - **新增 3 道公共场景题**（LLM 生成 + 万相配图）。
 - **首页「换一道题」按钮**（底部录音按钮下方的药丸按钮 `Try another scenario`）：点了跳到下一题，当前题记进本会话 skip 列表（sessionStorage，刷新也不再返回）。`GET /api/scenarios/next` 支持 `exclude=` 参数排除指定 scenarioId。
-- **LLM 批量出题脚本** `scripts/generate_public_scenarios.py`：用 LLM 在不同 kind/主题间轮换生成 N 道公共题（含万相配图），`--dry-run` 只看文案不调图、不入库。
+- **LLM 批量出题脚本** `scripts/generate_public_scenarios.py`：重写为按 yaml 坐标系驱动——找 gap 最大的 sub → LLM 编故事 → 万相配图 → 入库；保留 `--dry-run` 只看文案不花生图钱。原来按 `KIND_ROTATION` 随机轮换的实现已替换。
 - **雅思口语评分**：每次评估额外给一个 0~9（0.5 进制）的 IELTS band 分，反馈页 / 历史详情顶部大字号展示，存进 attempt。
 - **CosyVoice 朗读**（替换浏览器内置 TTS）：新增 `POST /api/tts`，DashScope CosyVoice 合成英文朗读，按「模型+音色+文本」哈希缓存到 OSS（`tts/<sha1>.mp3`），同一句话第二次直接走缓存不再花钱；前端点击喇叭才请求合成。
 

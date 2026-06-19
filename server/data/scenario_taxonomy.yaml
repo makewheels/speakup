@@ -1,0 +1,449 @@
+# speakup 日常英语主题骨架（自动出题坐标系）
+#
+# 目标用户：中国成年学习者，B1-B2 目标水平
+# 来源：IELTS Speaking Part 1/2/3 + CEFR Companion 2020 + 中国本土化补丁
+# 设计原则：
+#   - 砍掉 IELTS 凑数题（描述自行车 / 字典 / 梦境等无共鸣题）
+#   - 强化"用户立刻想答"的实用旅游 + 八卦感社交
+#   - 中国成年人特有处境（春节亲戚、火锅、996 等）独立标 bonus_zh
+#
+# kind: task / chat / describe / opinion / explain
+# difficulty: 1 / 2 / 3
+# bonus_zh: 国际框架不覆盖、专为中国成年人补的处境
+#
+# 这文件是"主题坐标系"，LLM 只负责按坐标编故事，不许越界改 domain/sub/kind。
+
+target_per_sub: 2  # 每个 sub 公共池目标数量；达到就停止生成
+
+domains:
+
+  - domain: 旅行出行
+    short: travel
+    sources: [IELTS-P1-Travel, IELTS-P1-Transport, CEFR-Public-Travel]
+    subs:
+      - id: travel.airport_checkin
+        sub: 机场值机柜台
+        kind: task
+        difficulty: 2
+        note: 行李超重 / 改签 / 升舱 / 座位调换
+      - id: travel.customs
+        sub: 入境海关问询
+        kind: task
+        difficulty: 3
+        note: 被问访问目的、停留时长、携带物品、住址
+      - id: travel.taxi_chat
+        sub: 网约车或出租车上的闲聊
+        kind: chat
+        difficulty: 1
+        note: 司机突问从哪来、做什么、对城市印象
+      - id: travel.train_rebooking
+        sub: 火车站票务窗口改签
+        kind: task
+        difficulty: 2
+        note: 误车 / 退票手续费 / 换乘衔接
+      - id: travel.memorable_trip
+        sub: 描述一次难忘的旅行
+        kind: describe
+        difficulty: 2
+        note: 跟朋友聊起的某次旅行，地点 + 发生了什么 + 你的感受
+      - id: travel.ask_directions
+        sub: 街上问路找地铁站或景点
+        kind: task
+        difficulty: 1
+        note: 听不懂指路、需要让对方画地图或重复
+      - id: travel.buy_attraction_ticket
+        sub: 景点买票
+        kind: task
+        difficulty: 2
+        note: 学生票 / 老人票 / 团体票 / 联票优惠
+      - id: travel.ask_photo
+        sub: 求陌生人帮拍照
+        kind: task
+        difficulty: 1
+        note: 怎么按、要竖拍还是横拍、再来一张
+      - id: travel.bargain
+        sub: 跟司机或小贩砍价
+        kind: task
+        difficulty: 2
+        note: 嫌贵 / 比价 / 假装走开 / 礼貌成交
+      - id: travel.refuse_tout
+        sub: 礼貌拒绝拉客或推销
+        kind: task
+        difficulty: 2
+        note: 景区拉客、街边发传单、分时度假推销
+      - id: travel.museum_question
+        sub: 博物馆跟讲解员问问题
+        kind: chat
+        difficulty: 2
+        note: 这件文物什么时期 / 还有没有特展 / 讲解时间
+      - id: travel.ask_local_tips
+        sub: 向当地人问推荐美食或景点
+        kind: chat
+        difficulty: 1
+        note: 哪家好吃 / 不踩雷 / 一日游怎么安排
+
+  - domain: 住宿
+    short: lodging
+    sources: [IELTS-P1-Home, CEFR-Personal-Accommodation]
+    subs:
+      - id: lodging.hotel_checkin
+        sub: 酒店前台办理入住
+        kind: task
+        difficulty: 1
+        note: 押金 / 早餐券 / 房型不符 / 加床
+      - id: lodging.hotel_complain
+        sub: 酒店投诉房间问题
+        kind: task
+        difficulty: 2
+        note: 隔音差 / 空调坏 / 隔壁吵 / 要求换房
+      - id: lodging.airbnb_host
+        sub: 跟 Airbnb 房东沟通钥匙或设施
+        kind: task
+        difficulty: 2
+        note: 取钥匙密码 / wifi / 热水器 / 退房流程
+      - id: lodging.lease_negotiate
+        sub: 跟房东谈租约续签或押金
+        kind: task
+        difficulty: 3
+        note: 涨租谈判 / 退租押金扣款争议
+
+  - domain: 购物消费
+    short: shopping
+    sources: [IELTS-P1-Shopping, CEFR-Transactions]
+    subs:
+      - id: shopping.return_clothes
+        sub: 服装店退换货
+        kind: task
+        difficulty: 2
+        note: 没小票 / 过保修期 / 已洗过 / 要求全额退
+      - id: shopping.duty_free
+        sub: 海外免税店买化妆品
+        kind: task
+        difficulty: 1
+        note: 询价 / 配套礼盒 / 试用 / 刷卡问题
+      - id: shopping.online_damaged
+        sub: 网购商品到货损坏申请赔偿
+        kind: task
+        difficulty: 2
+        note: 跟客服描述破损 + 要求退款或重发
+
+  - domain: 餐饮饮食
+    short: food
+    sources: [IELTS-P1-Food, IELTS-P2-Meal]
+    subs:
+      - id: food.order_special
+        sub: 餐厅点单和特殊饮食要求
+        kind: task
+        difficulty: 1
+        note: 过敏 / 素食 / 不要香菜 / 推荐招牌
+      - id: food.bill_dispute
+        sub: 餐厅账单错误或服务不满
+        kind: task
+        difficulty: 2
+        note: 多收费 / 上菜慢 / 要求叫经理
+      - id: food.memorable_meal
+        sub: 描述一次印象深刻的聚餐
+        kind: describe
+        difficulty: 2
+        note: 谁 / 在哪 / 发生了什么
+      - id: food.explain_cn_food
+        sub: 给老外解释火锅或麻辣烫或螺蛳粉
+        kind: explain
+        difficulty: 3
+        bonus_zh: true
+        note: 吃法 / 味道 / 文化背景，3 句以内讲透
+      - id: food.delivery_complaint
+        sub: 外卖到了发现少送或洒了
+        kind: task
+        difficulty: 2
+        bonus_zh: true
+        note: 跟骑手或平台客服理赔（中国外卖文化场景）
+
+  - domain: 工作职场
+    short: work
+    sources: [IELTS-P1-Work, CEFR-Occupational]
+    subs:
+      - id: work.tea_room_chat
+        sub: 跟外国同事的茶水间寒暄
+        kind: chat
+        difficulty: 1
+        note: 周末过得怎样 / 项目进度 / 天气
+      - id: work.disagree_meeting
+        sub: 远程会议中表达不同意见
+        kind: opinion
+        difficulty: 3
+        note: 礼貌反对 / 给出替代方案
+      - id: work.ask_leave
+        sub: 跟老板请假或申请远程办公
+        kind: task
+        difficulty: 2
+        note: 给理由 / 交接安排 / 补偿
+      - id: work.explain_my_job
+        sub: 被老外问你具体做什么工作的
+        kind: describe
+        difficulty: 2
+        note: 不是空洞自我介绍，是被追问后的具体场景说明
+      - id: work.discuss_996
+        sub: 跟老外聊 996 或加班文化
+        kind: opinion
+        difficulty: 3
+        bonus_zh: true
+        note: 立场+理由+得体表达，避免抱怨过度
+
+  - domain: 求职面试
+    short: job
+    sources: [CEFR-Occupational]
+    subs:
+      - id: job.phone_intro
+        sub: 英文电话面试自我介绍
+        kind: describe
+        difficulty: 2
+        note: 60-90 秒讲清背景+优势+求职动机
+      - id: job.gap_explain
+        sub: 被问职业空窗期或离职原因
+        kind: task
+        difficulty: 3
+        note: 委婉解释，不踩前东家
+      - id: job.salary_talk
+        sub: 跟猎头谈薪资期望
+        kind: task
+        difficulty: 3
+        note: 报数 / 不报数 / 反问对方区间
+
+  - domain: 医疗健康
+    short: health
+    sources: [CEFR-Public-Healthcare, IELTS-P1-Health]
+    subs:
+      - id: health.clinic_register
+        sub: 诊所登记描述症状
+        kind: task
+        difficulty: 2
+        note: 哪里疼 / 多久了 / 既往史 / 过敏史
+      - id: health.pharmacy
+        sub: 药房买非处方药
+        kind: task
+        difficulty: 1
+        note: 感冒药 / 止痛药 / 用法用量问询
+      - id: health.illness_story
+        sub: 描述一次生病或受伤的经历
+        kind: describe
+        difficulty: 2
+        note: 怎么发生的 / 怎么处理的 / 之后
+
+  - domain: 银行金融
+    short: bank
+    sources: [CEFR-Public-Banking, CEFR-Transactions]
+    subs:
+      - id: bank.foreign_currency
+        sub: 出国前去银行办外币和电汇
+        kind: task
+        difficulty: 2
+        note: 汇率 / 手续费 / 限额 / SWIFT
+      - id: bank.card_fraud
+        sub: 信用卡盗刷打客服报失
+        kind: task
+        difficulty: 3
+        note: 描述异常交易 / 冻结卡 / 申请退款
+      - id: bank.explain_wechat_pay
+        sub: 跟外国朋友解释微信支付或支付宝
+        kind: explain
+        difficulty: 2
+        bonus_zh: true
+        note: 二维码 / 红包 / 没现金的中国
+
+  - domain: 通讯服务
+    short: telecom
+    sources: [CEFR-Transactions, CEFR-Telephoning]
+    subs:
+      - id: telecom.sim_abroad
+        sub: 在国外办手机卡套餐
+        kind: task
+        difficulty: 2
+        note: 流量 / 通话 / 合约 / SIM 激活
+      - id: telecom.broadband_repair
+        sub: 客服电话报修宽带
+        kind: task
+        difficulty: 2
+        note: 描述故障 / 排除步骤 / 上门时间
+      - id: telecom.cancel_subscription
+        sub: 取消订阅服务被挽留
+        kind: task
+        difficulty: 2
+        note: Netflix / 健身房会员，礼貌但坚定
+
+  - domain: 社交闲聊
+    short: social
+    sources: [IELTS-P1-Personal, CEFR-Conversation]
+    subs:
+      - id: social.party_icebreak
+        sub: 派对上跟陌生人破冰
+        kind: chat
+        difficulty: 1
+        note: 你怎么认识主人 / 做什么工作 / 来这多久
+      - id: social.hometown
+        sub: 老外问你家乡在哪
+        kind: describe
+        difficulty: 1
+        note: 位置 + 特色 + 一两个亮点
+      - id: social.how_are_you
+        sub: 朋友突然问你最近怎么样
+        kind: chat
+        difficulty: 1
+        note: 别只回 fine，给一两件具体事
+      - id: social.spring_festival_inquisition
+        sub: 春节亲戚盘问什么时候结婚或工资多少
+        kind: task
+        difficulty: 3
+        bonus_zh: true
+        note: 中国式社交，跟在场老外解释 + 自己得体闪避
+      - id: social.reunion_reconnect
+        sub: 同学会跟多年没见的人重连
+        kind: chat
+        difficulty: 2
+        note: 这些年在哪 / 做什么 / 还联系谁
+      - id: social.first_date
+        sub: 跟相亲对象或第一次约会的人 small talk
+        kind: chat
+        difficulty: 2
+        note: 既要有话题又不能像查户口
+      - id: social.vent_about_boss
+        sub: 跟朋友吐槽老板或同事
+        kind: chat
+        difficulty: 2
+        note: 八卦但不刻薄，带感情但要克制
+      - id: social.live_with_parents
+        sub: 跟外国朋友聊该不该跟父母同住
+        kind: opinion
+        difficulty: 3
+        bonus_zh: true
+        note: 中西差异话题，立场+文化背景说明
+
+  - domain: 兴趣爱好
+    short: hobby
+    sources: [IELTS-P1-Hobbies, IELTS-P1-Music]
+    subs:
+      - id: hobby.passionate_about
+        sub: 描述一个让你着迷的兴趣
+        kind: describe
+        difficulty: 2
+        note: 音乐 / 舞蹈 / 手工 / 烹饪 / 游戏 / 摄影，怎么入坑、什么吸引你
+      - id: hobby.recommend_cn_show
+        sub: 推荐你常追的中剧或综艺或短视频博主
+        kind: explain
+        difficulty: 2
+        bonus_zh: true
+        note: 是什么 / 讲什么 / 为什么值得看
+      - id: hobby.short_video_addiction
+        sub: 跟外国人讨论刷短视频是否上瘾
+        kind: opinion
+        difficulty: 2
+        note: 立场 + 自己的真实经历 + 利弊
+
+  - domain: 节日与文化
+    short: festival
+    sources: [IELTS-P1-Festivals, BONUS-China]
+    subs:
+      - id: festival.spring_festival
+        sub: 给老外讲春节怎么过
+        kind: explain
+        difficulty: 2
+        bonus_zh: true
+        note: 团圆饭 / 红包 / 春晚 / 拜年，挑 3 个讲透
+      - id: festival.mid_autumn_etc
+        sub: 解释中秋或端午或清明的来由
+        kind: explain
+        difficulty: 3
+        bonus_zh: true
+        note: 神话 / 历史背景，词汇要够
+      - id: festival.tradition_decline
+        sub: 你怎么看年轻人不爱过传统节日
+        kind: opinion
+        difficulty: 3
+        bonus_zh: true
+        note: 立场 + 原因 + 反例
+
+  - domain: 科技互联网
+    short: tech
+    sources: [IELTS-P3-Technology, BONUS-China]
+    subs:
+      - id: tech.explain_cn_apps
+        sub: 给老外解释小红书或抖音或美团
+        kind: explain
+        difficulty: 3
+        bonus_zh: true
+        note: 国外没对应物的中国 app，类比 + 差异
+      - id: tech.ai_at_work
+        sub: 跟同事聊用 AI 工具帮工作的经验
+        kind: chat
+        difficulty: 2
+        note: 用了什么 / 帮多大 / 哪里还不行
+      - id: tech.cn_internet_advanced
+        sub: 跟外国朋友聊中国移动互联网为什么这么发达
+        kind: explain
+        difficulty: 3
+        bonus_zh: true
+        note: 历史背景 + 现状 + 自己的体验
+
+  - domain: 教育学习
+    short: education
+    sources: [IELTS-P1-Study, BONUS-China]
+    subs:
+      - id: education.tutoring_opinion
+        sub: 你支持给孩子报很多补习班吗
+        kind: opinion
+        difficulty: 3
+        bonus_zh: true
+        note: 双减背景下的中国家长话题
+      - id: education.discuss_parenting_pressure
+        sub: 跟外国朋友聊中国家长鸡娃现象
+        kind: opinion
+        difficulty: 3
+        bonus_zh: true
+        note: 现象描述 + 立场 + 跟你自己的关系
+      - id: education.recommend_english_method
+        sub: 推荐一个学英语的方法或 app
+        kind: explain
+        difficulty: 2
+        note: 是什么 / 怎么用 / 适合谁
+
+  - domain: 涉外商务接待
+    short: biz
+    sources: [CEFR-Occupational, BONUS-China]
+    subs:
+      - id: biz.airport_pickup
+        sub: 接机外国客户首日寒暄
+        kind: chat
+        difficulty: 2
+        bonus_zh: true
+        note: 一路顺利吗 / 时差 / 行程概览
+      - id: biz.host_cn_meal
+        sub: 带外宾吃中餐解释菜品
+        kind: explain
+        difficulty: 3
+        bonus_zh: true
+        note: 转盘 / 敬酒 / 不要点过多 / 川菜辣度提醒
+      - id: biz.intl_conference
+        sub: 国际会议上提问或评论
+        kind: opinion
+        difficulty: 3
+        note: 短开场 + 核心问题，别绕
+
+  - domain: 应急意外
+    short: emergency
+    sources: [CEFR-Public-Emergency]
+    subs:
+      - id: emergency.lost_passport
+        sub: 国外丢护照去使馆求助
+        kind: task
+        difficulty: 3
+        note: 时间地点 / 已尝试什么 / 临时身份
+      - id: emergency.public_collapse
+        sub: 公共场所有人晕倒怎么办
+        kind: task
+        difficulty: 3
+        note: 报警 / 描述现场 / 协助救护
+      - id: emergency.taxi_overcharge
+        sub: 国外打车被绕路或多收费
+        kind: task
+        difficulty: 3
+        note: 当场质疑 / 投诉 / 拒付差额

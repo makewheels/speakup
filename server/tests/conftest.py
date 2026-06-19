@@ -42,6 +42,11 @@ def _no_real_llm(monkeypatch):
             "Patch services.corrector._get_client or routes.correct.correct_text."
         )
     monkeypatch.setattr("services.corrector._get_client", _block)
+    # scenario_service imports _get_client directly, so it holds its own ref;
+    # patch that ref too. Background public-pool topup hits this path on every
+    # `/scenarios/next` integration test — without this patch the fire-and-forget
+    # task can outlive the test and call real LLM.
+    monkeypatch.setattr("services.scenario_service._get_client", _block)
 
 
 @pytest.fixture
