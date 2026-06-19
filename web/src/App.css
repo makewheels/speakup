@@ -2098,18 +2098,17 @@ button { font-family: inherit; }
 .sc-k {
   display: flex;
   align-items: flex-start;
-  background: var(--bg-mute);
   color: var(--ink-2);
   font-size: 16px;
   font-weight: 600;
   white-space: nowrap;
 }
-/* 地点、场景 —— 同一普通样式，不抢注意力 */
+/* 地点、场景 —— 同一样式，字号同 native version（19px），无底色 */
 .sc-v {
   border-left: 1px solid var(--rule);
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 400;
-  color: var(--ink-2);
+  color: var(--ink);
   line-height: 1.6;
 }
 .sc-v-where {

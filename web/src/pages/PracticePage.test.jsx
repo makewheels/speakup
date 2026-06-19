@@ -111,6 +111,44 @@ describe("PracticePage", () => {
     );
   });
 
+  // ── 结果页刷新可还原（URL ?result=1）────────────────────
+  it("restores the feedback view from the latest attempt when URL has ?result=1", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        {
+          round: 1,
+          transcript: "Can you redo my latte",
+          summary: "整体不错，请求可以更自然",
+          nativeVersion: "Could you remake my latte? I'm in a hurry.",
+          score: 6.5,
+          gaps: [],
+          progress: null,
+        },
+      ],
+    });
+    setup("/practice/sess_abc?result=1");
+    await waitFor(() =>
+      expect(screen.getByText("Native version")).toBeInTheDocument(),
+    );
+    // nativeVersion 被 splitSentences 拆成多个 <p>，匹配其中一句即可
+    expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
+  });
+
+  it("does NOT show feedback (shows ready) when attempts exist but URL lacks ?result=1", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [{ round: 1, transcript: "x", summary: "s", nativeVersion: "N", score: 6, gaps: [], progress: null }],
+    });
+    setup("/practice/sess_abc");
+    await waitFor(() =>
+      expect(screen.getByText("You got the wrong drink.")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Native version")).not.toBeInTheDocument();
+  });
+
   it("renders scenario points after session loads", async () => {
     setup("/practice/sess_abc");
     await waitFor(() =>

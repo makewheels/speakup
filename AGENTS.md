@@ -80,6 +80,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 - pnpm 全局 store: `~/Library/pnpm/store/v10`
 - uv 全局 cache: `~/.cache/uv`
 - **不要重复启动 dev server**：前端默认跑在 :5173，启动前先 `lsof -ti :5173` 检查是否已有进程；有则直接用，不要再 `pnpm run dev`
+- **页面的关键状态必须可被 URL 还原**：进入一个新视图/子状态（如练习的"结果/反馈页"）时，URL 要跟着变（path 段或 query param），且刷新后能从 URL + 后端数据重建该状态——绝不能"刷新就回到初始态、结果没了"。数据已落库的（如 attempt）刷新时从库里重建，不要只存在内存。
 - 部署详情见 `docs/deploy.md`（回滚、多服务约定、运维命令）
 
 ## 已知不足（待迭代）

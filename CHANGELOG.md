@@ -6,9 +6,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
 **2026-06-19**
+
+- **结果页刷新不再丢**：练习评估完成后 URL 带上 `?result=1`，刷新时若该练习已有 attempt，则从最近一轮重建反馈视图（成绩 / native version / gaps），不再回到初始录音态。AGENTS.md 加规则：页面关键状态必须可被 URL 还原。
+
+### Changed
+
+**2026-06-19**
+
+- **场景卡 Place / Scene 字体统一放大**：地点和情景两块字号 16px → 19px（与 native version 一致）、去掉标签灰底色、颜色统一为深色，更易读。
+
+### Added
 
 - **成本报表脚本 `scripts/cost_report.py`**：从 `llmCalls` 审计表按天 / kind / 模型汇总花了多少钱，`--days N` 看最近 N 天。
 - **本地→生产同步脚本 `scripts/sync_public_scenarios.py`**：把本地 dev 生成好的公共题（文档 + OSS 图）同步到生产，避免在生产重新调 LLM/万相花钱。默认 dry-run，真写要 `--execute` + 配 `PROD_SYNC_MONGO_URI`。
