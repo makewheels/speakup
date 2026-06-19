@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
 import { api, correctStream } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
@@ -26,8 +26,8 @@ const stripEmoji = (s = "") =>
     .replace(/\s{2,}/g, " ")
     .trim();
 
-function SpeakBtns({ text }) {
-  return <SpeakBtn text={text} />;
+function SpeakBtns({ text, practiceId }) {
+  return <SpeakBtn text={text} practiceId={practiceId} />;
 }
 
 // 按句拆分 native 版，每句一行更清晰
@@ -48,6 +48,7 @@ function ScoreBadge({ score }) {
 export default function PracticePage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useUser();
 
   const [session, setSession] = useState(null);
@@ -77,8 +78,28 @@ export default function PracticePage() {
     if (practiceId) {
       api.getPractice(practiceId).then((s) => {
         setSession(s);
-        setRound(Math.min((s.attempts?.length ?? 0) + 1, MAX_ROUNDS));
-        setPhase("ready");
+        const attempts = s.attempts ?? [];
+        // URL 带 ?result=1 且已有 attempt → 从最近一轮重建反馈视图（刷新不丢结果页）
+        if (searchParams.get("result") && attempts.length > 0) {
+          const last = attempts[attempts.length - 1];
+          setResult({
+            summary: last.summary,
+            nativeVersion: last.nativeVersion,
+            score: last.score,
+            gaps: last.gaps ?? [],
+            progress: last.progress ?? null,
+          });
+          setTranscript(last.transcript ?? "");
+          if (last.recordingUrl) setRecordingUrl(last.recordingUrl);  // 用户原声从 OSS 还原，刷新后可回放
+          const init = {};
+          (last.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
+          setSavedMap(init);
+          setRound(Math.min(attempts.length, MAX_ROUNDS));
+          setPhase("feedback");
+        } else {
+          setRound(Math.min(attempts.length + 1, MAX_ROUNDS));
+          setPhase("ready");
+        }
       }).catch(console.error);
       return;
     }
@@ -149,6 +170,7 @@ export default function PracticePage() {
     setRound((r) => Math.min(r + 1, MAX_ROUNDS));
     setSavedMap({});
     setPhase("ready");
+    setSearchParams({}, { replace: true });   // 离开结果态，清掉 URL 标记
     window.scrollTo(0, 0);
   };
 
@@ -243,6 +265,8 @@ export default function PracticePage() {
           setAutoSaved(n);
           if (r) setRound(r);
           setPhase("feedback");
+          // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
+          setSearchParams({ result: "1" }, { replace: true });
           // 评估完成后异步上传录音，关联到本轮 attempt（失败静默忽略）
           if (audioChunksRef.current && session?._id) {
             api.uploadRecording(session._id, user.userId, audioChunksRef.current, (r ?? round) - 1)
@@ -366,7 +390,7 @@ export default function PracticePage() {
 
         {result.nativeVersion && (
           <div className="fb-native-card">
-            <div className="fb-card-label native">Native version<SpeakBtns text={result.nativeVersion} /></div>
+            <div className="fb-card-label native">Native version<SpeakBtns text={result.nativeVersion} practiceId={session?._id} /></div>
             {splitSentences(result.nativeVersion).map((s, i) => (
               <p key={i} className="fb-native-text">{s}</p>
             ))}
@@ -375,7 +399,7 @@ export default function PracticePage() {
 
         {gaps.length > 0 && (
           <div className="fb-gaps-section">
-            <div className="fb-section-label">Gaps · {gaps.length}</div>
+            <div className="fb-section-label">Gaps · {gaps.length} total</div>
             {gaps.map((g, i) => {
               const added = Boolean(savedMap[i]);
               return (
@@ -400,7 +424,7 @@ export default function PracticePage() {
                     <div className="fb-gap-line is-fix">
                       <span className="fb-gap-tag">Say this</span>
                       <span className="fb-gap-fix">{g.better}</span>
-                      <SpeakBtns text={g.better} />
+                      <SpeakBtns text={g.better} practiceId={session?._id} />
                     </div>
                     {g.why && (
                       <div className="fb-gap-line">
@@ -456,7 +480,7 @@ export default function PracticePage() {
         <div className="sc-hintbar">
           💡 Try to use:
           {hintGaps.map((g, i) => (
-            <span key={i} className="sc-hint-item"><b>{g.better}</b><SpeakBtns text={g.better} /></span>
+            <span key={i} className="sc-hint-item"><b>{g.better}</b><SpeakBtns text={g.better} practiceId={session?._id} /></span>
           ))}
         </div>
       )}

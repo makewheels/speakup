@@ -30,23 +30,44 @@ def _drop_test_db():
 
 @pytest.fixture(autouse=True)
 def _no_real_llm(monkeypatch):
-    """Cost guard: refuse any real DashScope call during tests.
+    """Cost guard：测试默认全部出口 mock，绝不调真 DashScope / 真 OSS。
 
-    Tests that need an LLM response should patch within the test body
-    (e.g. patch routes.correct.correct_text, or services.corrector._get_client
-    with a MagicMock returning a fake response).
+    要真测某条路径的少数测试，可在测试体内 monkeypatch.undo() 或自己 patch 回去。
     """
-    def _block(*args, **kwargs):
+    # 1) LLM 文本（qwen）：scenario_service / corrector 各持一份引用
+    def _block_llm(*args, **kwargs):
         raise RuntimeError(
-            "Real DashScope call attempted in test. "
-            "Patch services.corrector._get_client or routes.correct.correct_text."
+            "Real DashScope LLM call attempted in test. "
+            "Patch services.corrector._get_client or services.scenario_service._get_client."
         )
-    monkeypatch.setattr("services.corrector._get_client", _block)
-    # scenario_service imports _get_client directly, so it holds its own ref;
-    # patch that ref too. Background public-pool topup hits this path on every
-    # `/scenarios/next` integration test — without this patch the fire-and-forget
-    # task can outlive the test and call real LLM.
-    monkeypatch.setattr("services.scenario_service._get_client", _block)
+    monkeypatch.setattr("services.corrector._get_client", _block_llm)
+    monkeypatch.setattr("services.scenario_service._get_client", _block_llm)
+
+    # 2) 文生图（万相）：httpx 直发，需要 stub 整个 wanx_generate；
+    #    注意要 patch 调用方的引用（scenario_service.wanx_generate）才生效
+    async def _fake_wanx(prompt, size="1024*576", link_to=None):
+        return b"FAKE_PNG_BYTES"
+    monkeypatch.setattr("services.wanx.wanx_generate", _fake_wanx)
+    monkeypatch.setattr("services.scenario_service.wanx_generate", _fake_wanx)
+
+    # 3) TTS（CosyVoice）：service 层直接 stub，不走 dashscope SDK
+    async def _fake_speak(text, practice_id=None):
+        return f"https://oss.example/fake-tts/{(practice_id or 'global')}.mp3?sig=x"
+    monkeypatch.setattr("services.tts.speak_url", _fake_speak)
+    monkeypatch.setattr("routes.tts.speak_url", _fake_speak)
+
+    # 4) ASR：transcribe 也走 service 层 stub（test_transcribe.py 自己 patch 解开）
+    async def _fake_transcribe(audio_bytes, content_type=""):
+        return "fake transcript text"
+    monkeypatch.setattr("services.transcriber.transcribe", _fake_transcribe)
+
+    # 5) OSS 上传：oss2 SDK 不出网。get_url 是本地 HMAC 签名，不出网，留着
+    def _noop(*args, **kwargs):
+        return None
+    async def _noop_async(*args, **kwargs):
+        return None
+    monkeypatch.setattr("services.oss_storage.upload_bytes", _noop)
+    monkeypatch.setattr("services.oss_storage.upload_bytes_async", _noop_async)
 
 
 @pytest.fixture

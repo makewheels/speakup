@@ -129,10 +129,10 @@ export default function ReviewPage() {
               ) : (
                 <>
                   <div className="rv-card-label answer">Native version</div>
-                  <p className="rv-card-a">{w.expression}<SpeakBtn text={w.expression} /></p>
+                  <p className="rv-card-a">{w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} /></p>
                   {w.note && <p className="rv-card-note">{w.note}</p>}
                   {w.contextSentence && (
-                    <p className="rv-card-ctx">{w.contextSentence}<SpeakBtn text={w.contextSentence} /></p>
+                    <p className="rv-card-ctx">{w.contextSentence}<SpeakBtn text={w.contextSentence} practiceId={w.practiceId} /></p>
                   )}
                   <button
                     className="su-btn su-btn-primary rv-practice-btn"
@@ -186,7 +186,7 @@ export default function ReviewPage() {
             <div className="review-card-body">
               {w.original && <div className="review-said">{w.original}</div>}
               <div className="review-better">
-                <span className="arrow">→</span> {w.expression}<SpeakBtn text={w.expression} />
+                <span className="arrow">→</span> {w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} />
               </div>
               {w.note && <div className="review-why">{w.note}</div>}
               <div className="review-foot">

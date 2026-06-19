@@ -30,6 +30,16 @@ describe("SpeakBtn", () => {
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
   });
 
+  it("passes practiceId through to speak() / isCached() so audio挂在该 session 下", async () => {
+    const { speak, isCached } = await import("../utils/tts.js");
+    isCached.mockReturnValue(false);
+    speak.mockResolvedValue(null);
+    render(<SpeakBtn text="Native version of latte" practiceId="sess_xyz" />);
+    await userEvent.click(screen.getByRole("button"));
+    expect(isCached).toHaveBeenCalledWith("Native version of latte", "sess_xyz");
+    expect(speak).toHaveBeenCalledWith("Native version of latte", "sess_xyz");
+  });
+
   it("shows Synthesizing state while loading (text not cached)", async () => {
     const { speak, isCached } = await import("../utils/tts.js");
     isCached.mockReturnValue(false);

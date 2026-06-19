@@ -2,10 +2,11 @@ import { useState, useRef } from "react";
 import Icon from "./Icon.jsx";
 import { speak, stop, isCached } from "../utils/tts.js";
 
-// 点击 → 没缓存就先合成（显示 spin），合成完播放；缓存命中直接播放。
-// 三态：idle(喇叭) / loading(转圈) / playing(停止键+实心高亮)，播放中再点即停。
+// 点击 → 没缓存就先合成（显示「生成中」动画文字），合成完播放；缓存命中直接播放。
+// 三态：idle(喇叭) / loading(生成中动画点) / playing(停止键+实心高亮)，播放中再点即停。
+// practiceId：传进来则朗读音频按 (practiceId, 文本) 挂在该 session 下；不传走全局兜底。
 // stopPropagation 让按钮可以嵌进可点击行里不连带触发。
-export default function SpeakBtn({ text, size = 22, className = "spk-btn" }) {
+export default function SpeakBtn({ text, practiceId, size = 22, className = "spk-btn" }) {
   const [state, setState] = useState("idle"); // idle | loading | playing
   const audioRef = useRef(null);
   if (!text) return null;
@@ -17,13 +18,14 @@ export default function SpeakBtn({ text, size = 22, className = "spk-btn" }) {
     if (state === "playing") { stop(); reset(); return; }
     if (state === "loading") return;
     try {
-      if (!isCached(text)) setState("loading");
-      const audio = await speak(text);
+      if (!isCached(text, practiceId)) setState("loading");
+      const audio = await speak(text, practiceId);
       if (!audio) { reset(); return; }
       audioRef.current = audio;
       setState("playing");
       audio.addEventListener("ended", reset, { once: true });
       audio.addEventListener("pause", reset, { once: true });
+      audio.addEventListener("error", reset, { once: true });   // 播放失败也复位，不卡在播放态
     } catch (err) {
       console.warn("TTS failed:", err);
       reset();
@@ -32,17 +34,25 @@ export default function SpeakBtn({ text, size = 22, className = "spk-btn" }) {
 
   return (
     <button
-      className={className + (state === "playing" ? " playing" : "")}
+      className={
+        className +
+        (state === "playing" ? " playing" : "") +
+        (state === "loading" ? " loading" : "")
+      }
       title={state === "playing" ? "Stop" : "Play"}
       aria-label={state === "loading" ? "Synthesizing" : state === "playing" ? "Stop" : "Play"}
       onClick={onClick}
       disabled={state === "loading"}
     >
-      {state === "loading"
-        ? <span className="spin" />
-        : state === "playing"
-        ? <Icon name="stop" size={size} />
-        : <Icon name="volume" size={size} />}
+      {state === "loading" ? (
+        <span className="spk-gen">
+          <i>·</i><i>·</i><i>·</i>
+        </span>
+      ) : state === "playing" ? (
+        <Icon name="stop" size={size} />
+      ) : (
+        <Icon name="volume" size={size} />
+      )}
     </button>
   );
 }

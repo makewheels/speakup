@@ -92,7 +92,7 @@ export default function SessionDetailPage() {
 
               {attempt.nativeVersion && (
                 <div className="fb-native-card">
-                  <div className="fb-card-label native">Native version<SpeakBtn text={attempt.nativeVersion} /></div>
+                  <div className="fb-card-label native">Native version<SpeakBtn text={attempt.nativeVersion} practiceId={practiceId} /></div>
                   {splitSentences(attempt.nativeVersion).map((s, k) => (
                     <p key={k} className="fb-native-text">{s}</p>
                   ))}
@@ -115,7 +115,7 @@ export default function SessionDetailPage() {
                         <div className="fb-gap-line is-fix">
                           <span className="fb-gap-tag">Say this</span>
                           <span className="fb-gap-fix">{g.better}</span>
-                          <SpeakBtn text={g.better} />
+                          <SpeakBtn text={g.better} practiceId={practiceId} />
                         </div>
                         {g.why && (
                           <div className="fb-gap-line">
