@@ -36,36 +36,30 @@ async def main(count: int, dry_run: bool) -> None:
     total_gap = sum(g["gap"] for g in gaps)
     print(f"待补缺口：{len(gaps)} 个 sub，总共 {total_gap} 道题。本次最多生成 {count} 道。")
 
-    generated_ids: set[str] = set() if not dry_run else set()
+    generated_ids: set[str] = set()
     created = 0
     for i in range(count):
-        # dry-run 时同 sub 不重复选；真跑时入库后 _undercovered_subs 自然不再选
+        # dry-run 时同 sub 不重复选；真跑时入库后 undercovered_subs 自然不再选
         skip = generated_ids if dry_run else None
-        candidates = await undercovered_subs(skip_ids=skip)
-        if not candidates:
-            print("已无 gap，提前停止。")
-            break
-
-        coord = candidates[0]
-        print(f"\n[{i+1}/{count}] {coord['domainName']} / {coord['subName']} "
-              f"(kind={coord['kind']} d{coord['difficulty']} gap={coord['gap']})")
         try:
             doc = await topup_public_scenario(skip_ids=skip, dry_run=dry_run)
         except Exception as e:
             print(f"  ⚠️ 失败：{e}")
             continue
         if not doc:
-            print("  无候选，停止。")
+            print("已无 gap，提前停止。")
             break
 
+        sub_id = doc["category"]["subId"]
+        generated_ids.add(sub_id)
+        print(f"\n[{i+1}/{count}] subId={sub_id} kind={doc['kind']} d{doc['difficulty']}")
         if dry_run:
             print(f"  → {doc['title']} | {doc['where']}")
             print(f"     story:   {doc['story']}")
             print(f"     mission: {doc['mission']}")
             print(f"     points:  {doc['points']}")
-            generated_ids.add(doc["category"]["subId"])
         else:
-            print(f"  ✓ {doc['_id']}: {doc['title']}")
+            print(f"  ✓ {doc['_id']}: {doc['title']} | {doc['where']}")
         created += 1
 
     if not dry_run:

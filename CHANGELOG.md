@@ -7,10 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ## [Unreleased]
 
 ### Added
+
+**2026-06-19**
+
 - **公共题库主题坐标系（`server/data/scenario_taxonomy.yaml`）**：16 大类 × 67 个子场景，覆盖中国成年人日常英语真用得到的处境（旅游 12 / 社交 8 / 工作 5 / 餐饮 5 / ...），含 16 个本土化补丁（火锅/春节亲戚/996/微信支付等 IELTS+CEFR 不会有的）。来源：IELTS Speaking Part 1/2/3 + CEFR Companion 2020 + 中国本土化。
 - **公共题自动补题（按 yaml 坐标系）**：`scenario_service.topup_public_scenario()` 找 `actual<target` 的子场景，调 LLM 按坐标编故事 + 万相配图入库；scenarios 集合新增 `category: {domain, subId}` 字段。
 - **取题钩子顺带补公共池**：`/api/scenarios/next` 触发的 `_maybe_topup` 后台任务原本只补用户定制题，现在同时检查公共池缺口并补一道（每次最多 1 道，全 sub 达 target 后短路，可控成本）。
+- **新文档** `docs/design/scenario-taxonomy.md`：讲清楚公共题不是手工写的，是系统按 yaml 自动调 LLM 生成的；含扩容步骤、prompt 调优 dry-run 流程、给后续 agent 的注意事项。
 - **测试 cost guard 加固**：`conftest._no_real_llm` 现在同时 patch `services.scenario_service._get_client`（之前只 patch corrector 模块的，scenario_service 的本地引用漏了——背景 topup 任务可能在测试结束后真调 LLM）。
+
+**Earlier**
+
 - **错题本可取消收录**：反馈页每条 gap 的收录按钮从只读「Saved」改成可点切换——`+ Add to Review` / `✓ In Review`（英文，对齐底部 Review tab，明确收录去向），再点一下即从错题本移除。AI 自动收录的 gap 现在也回传 `reviewItemId`（`POST /api/correct` 把 id 回写进 gap，`POST /api/review-items` 返回 `ids` 列表），所以自动收录的同样能取消。
 - **朗读按钮播放态**：`SpeakBtn` 增加 idle/loading/playing 三态，播放中显示停止图标 + 实心高亮，再点即停（`tts.js` 暴露 `stop()` 并返回 Audio 实例供监听 ended/pause）。
 - **自定义录音回放** `RecordingPlayer`（蓝色播放/暂停键 + 进度条 + 时间）：替换 history 里的浏览器原生 `<audio controls>`；结果页评估完也用本地录音 object URL 即时展示回放——两个页面播放控件统一。新增 `play`/`pause` 图标。

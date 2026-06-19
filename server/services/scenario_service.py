@@ -273,7 +273,10 @@ async def undercovered_subs(skip_ids: set[str] | None = None) -> list[dict]:
                 "target": target,
                 "gap": gap,
             })
-    out.sort(key=lambda x: (-x["gap"], x["subId"]))
+    # 同 gap 内 shuffle，避免空池子时所有人都先生成 bank.* / biz.*（字母序前缀）；
+    # 不同 gap 之间仍按 gap 大的优先（缺得越多越先补）。
+    random.shuffle(out)
+    out.sort(key=lambda x: -x["gap"])
     return out
 
 

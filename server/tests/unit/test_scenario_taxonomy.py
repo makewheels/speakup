@@ -47,7 +47,7 @@ def _fake_db_with_counts(counts: dict[str, int]):
 @patch.object(scenario_service, "get_db")
 @pytest.mark.asyncio
 async def test_undercovered_subs_empty_pool(mock_get_db, mock_load):
-    """空池子时所有 sub 都欠覆盖，返回数 = sub 总数，按 subId 字典序稳定。"""
+    """空池子时所有 sub 都欠覆盖，返回数 = sub 总数；同 gap 内 shuffle 不保证顺序。"""
     mock_load.return_value = {
         "target_per_sub": 2,
         "domains": [
@@ -61,8 +61,7 @@ async def test_undercovered_subs_empty_pool(mock_get_db, mock_load):
 
     out = await scenario_service.undercovered_subs()
     assert len(out) == 2
-    # 全部 gap=2 时按 subId 字典序：travel.a 先于 travel.b
-    assert [x["subId"] for x in out] == ["travel.a", "travel.b"]
+    assert {x["subId"] for x in out} == {"travel.a", "travel.b"}
     assert all(x["gap"] == 2 for x in out)
 
 
@@ -70,7 +69,7 @@ async def test_undercovered_subs_empty_pool(mock_get_db, mock_load):
 @patch.object(scenario_service, "get_db")
 @pytest.mark.asyncio
 async def test_undercovered_subs_partial_coverage(mock_get_db, mock_load):
-    """部分覆盖：actual >= target 的 sub 不出现，gap 大的优先。"""
+    """部分覆盖：actual >= target 的 sub 不出现，gap 大的优先（gap 间确定性，gap 内随机）。"""
     mock_load.return_value = {
         "target_per_sub": 2,
         "domains": [
@@ -90,8 +89,9 @@ async def test_undercovered_subs_partial_coverage(mock_get_db, mock_load):
     out = await scenario_service.undercovered_subs()
     ids = [x["subId"] for x in out]
     assert "travel.full" not in ids
-    # gap=2 排在 gap=1 前
-    assert ids == ["travel.zero", "travel.half"]
+    # gap=2 必须排在 gap=1 前（确定性），但同 gap 内顺序由 shuffle 决定
+    assert ids[0] == "travel.zero"
+    assert ids[1] == "travel.half"
 
 
 @patch.object(scenario_service, "load_taxonomy")
