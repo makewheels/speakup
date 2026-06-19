@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，本地时区）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-19 16:22
+
+- **chore(docs)**：抽出 `CONTRIBUTING.md`（82 行）—— AGENTS.md 里通用的开发流程 / 测试分层 / CHANGELOG 格式 / PR 约定 / 工程规则（URL 状态可还原 / 测试是代码 / LLM 调用成本）都挪过去（人 + AI agent 共用）。AGENTS.md 瘦身到 141 行（原 201），只留 agent 专属的硬上下文（敏感信息 / 部署运维 / SSH / 凭据旋转 / agent 卫生约束）。README 加贡献入口链接。
+
 ### 2026-06-19 16:03
 
 - **fix(corrector)**：风格优化不再算 gap。`I'm a software engineer` → `working as a software engineer` 这种纯地道化替换不再被标——只有真错（语法 / 用错单词 / native 听了会困惑）才算 gap。0-2 个 gap 都行，宁缺毋滥；答得到位时 summary 用鼓励代替挑刺。

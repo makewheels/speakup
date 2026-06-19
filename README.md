@@ -70,3 +70,7 @@ speakup/
 ├── .github/workflows/    # CI/CD
 └── scripts/              # 部署脚本
 ```
+
+## 想贡献 / 改 bug
+
+见 [CONTRIBUTING.md](CONTRIBUTING.md)（开发流程、测试分层、CHANGELOG 格式）；AI agent 的项目硬上下文（敏感信息 / 部署 / SSH）见 [AGENTS.md](AGENTS.md)。
