@@ -27,6 +27,7 @@
   "imageKey":    "scenarios/sc_.../cover.jpg",  // 场景图 OSS key（私有桶，读取时现签 URL）
   "imagePrompt": "busy specialty coffee shop counter, ...",
   "ownerUserId": null,                     // null=公共题；u_xxx=只派给该用户的定制题
+  "category":    { "domain": "travel", "subId": "travel.airport_checkin" },  // 公共题：从 server/data/scenario_taxonomy.yaml 落 (domainShort, subId)；定制题不写
   "targetWords": ["could you take a look"], // 定制题：必须逼用户用上的弱点表达
   "status":      "active | archived",
   "createdAt":   datetime

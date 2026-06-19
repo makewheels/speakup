@@ -10,6 +10,7 @@ from services.scenario_service import (
     generate_custom_scenario,
     generate_scenario_for_expression,
     next_scenario,
+    topup_public_scenario,
 )
 
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
@@ -18,16 +19,25 @@ logger = logging.getLogger(__name__)
 
 
 def _maybe_topup(user_id: str) -> None:
-    """取题时若"没练过的题"不足阈值，后台静默补一道定制题（基于错题本，失败只记日志）。"""
+    """取题时静默补题：用户定制题（基于错题本）+ 公共池按 yaml 坐标系补缺。两条独立失败只记日志。"""
     async def _run():
         try:
-            if await fresh_scenario_count(user_id) >= FRESH_THRESHOLD:
-                return
-            doc = await generate_custom_scenario(user_id)
-            if doc:
-                logger.info("topped up custom scenario for %s: %s", user_id, doc["slug"])
+            if await fresh_scenario_count(user_id) < FRESH_THRESHOLD:
+                doc = await generate_custom_scenario(user_id)
+                if doc:
+                    logger.info("topped up custom scenario for %s: %s", user_id, doc["slug"])
         except Exception as e:
-            logger.warning("scenario top-up failed for %s: %s", user_id, e)
+            logger.warning("custom scenario top-up failed for %s: %s", user_id, e)
+
+        try:
+            doc = await topup_public_scenario()
+            if doc:
+                logger.info(
+                    "topped up public scenario: %s [%s]",
+                    doc["slug"], doc["category"]["subId"],
+                )
+        except Exception as e:
+            logger.warning("public scenario top-up failed: %s", e)
 
     asyncio.create_task(_run())
 

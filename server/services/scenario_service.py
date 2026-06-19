@@ -1,14 +1,20 @@
-"""场景题库服务：取题（定制题优先）+ 因材施教后台生成定制题。
+"""场景题库服务：取题（定制题优先）+ 因材施教后台生成定制题 + 公共池按 yaml 坐标系自动补题。
 
 题目存 scenarios 集合：ownerUserId 为 None 是公共题，为 u_xxx 是只出给该用户的定制题。
 场景图存 OSS `scenarios/{scenarioId}/cover.jpg`，库里只存 imageKey，URL 读取时现签。
+
+公共池增长靠 `data/scenario_taxonomy.yaml`：每个 (domain × sub) 是一个坐标，目标 N 道；
+取题时用户触发后台 topup → 找 actual<target 的坐标 → LLM 按坐标编故事 → 入库。全部
+达 target 后短路停止花钱；要扩容只改 yaml。
 """
 
 import json
 import random
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 
+import yaml
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from db.connection import get_db
@@ -19,6 +25,8 @@ from utils.id_generator import scenario_id
 
 MAX_PENDING_CUSTOM = 2  # 每个用户最多攒 2 道没练过的定制题，攒够就不再生成
 FRESH_THRESHOLD = 3     # 没练过的题少于这个数时，取题会后台补一道定制题
+
+TAXONOMY_PATH = Path(__file__).parent.parent / "data" / "scenario_taxonomy.yaml"
 
 
 def scenario_image_key(sid: str) -> str:
@@ -181,3 +189,155 @@ async def fresh_scenario_count(user_id: str) -> int:
         "_id": {"$nin": list(practiced)},
         "$or": [{"ownerUserId": None}, {"ownerUserId": user_id}],
     })
+
+
+# ---------- 公共题池：按 yaml 坐标系自动补题 ----------
+
+PUBLIC_GEN_PROMPT = """你是英语口语教练，给中国成年学习者出题。
+
+请严格按以下坐标出一道场景题（不许改 domain / sub / kind / difficulty）：
+
+域：{domain}
+子场景：{sub}
+kind：{kind}
+难度：{difficulty}/3
+提示：{note}
+
+要求：
+- 场景必须基于上面坐标展开。具体冲突 / 人物 / 时间 / 地点 / 台词压力点你来设计
+- 场景具体到地点+当下处境（"咖啡店做错单且赶飞机" 远胜 "在咖啡店"）
+- 真实可发生，不要套话不要鸡汤
+- mission 是 1 句中文动词指令，逼着学习者必须开口说英语
+- 任务规模小：3 句话以内能讲完，points 控制在 2-3 个
+- 标题、地点、描述里都不能用 emoji
+- 中国成年学习者真生活会用得到
+
+只输出 strict JSON，不要 markdown 围栏：
+{{
+  "title": "中文短标题，6-12 字",
+  "where": "地点 · 时间，例如：商务酒店前台 · 深夜",
+  "story": "1-2 句中文情境描述，交代冲突 / 处境",
+  "mission": "1 句中文任务指令，动词开头",
+  "points": ["要让学习者用英语说出来的 2-4 个具体要点（中文表述就行）"],
+  "imagePrompt": "English photo description for an image generator: concrete scene, objects, setting, lighting; no faces close-up; no text in image"
+}}"""
+
+
+def load_taxonomy() -> dict:
+    """从 yaml 加载主题骨架。每次调用都重新读，方便热更新。"""
+    with open(TAXONOMY_PATH, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+async def undercovered_subs(skip_ids: set[str] | None = None) -> list[dict]:
+    """返回 actual<target 的坐标列表，按 gap 降序、subId 字典序稳定排序。
+
+    skip_ids: 不参与排序的 subId 集合（脚本批量跑时用来避免同 sub 选两次）。
+    """
+    skip_ids = skip_ids or set()
+    tax = load_taxonomy()
+    target_default = tax.get("target_per_sub", 2)
+
+    counts: dict[str, int] = {}
+    async for d in get_db().scenarios.aggregate([
+        {"$match": {
+            "ownerUserId": None,
+            "status": "active",
+            "category.subId": {"$exists": True},
+        }},
+        {"$group": {"_id": "$category.subId", "n": {"$sum": 1}}},
+    ]):
+        counts[d["_id"]] = d["n"]
+
+    out = []
+    for domain in tax["domains"]:
+        for sub in domain["subs"]:
+            sub_id = sub["id"]
+            if sub_id in skip_ids:
+                continue
+            target = sub.get("target", target_default)
+            actual = counts.get(sub_id, 0)
+            gap = target - actual
+            if gap <= 0:
+                continue
+            out.append({
+                "domainName": domain["domain"],
+                "domainShort": domain["short"],
+                "subId": sub_id,
+                "subName": sub["sub"],
+                "kind": sub["kind"],
+                "difficulty": sub["difficulty"],
+                "note": sub.get("note", ""),
+                "bonusZh": sub.get("bonus_zh", False),
+                "actual": actual,
+                "target": target,
+                "gap": gap,
+            })
+    out.sort(key=lambda x: (-x["gap"], x["subId"]))
+    return out
+
+
+async def _llm_spec_for_coord(coord: dict) -> dict:
+    """调 LLM 按坐标编故事，返回解析后的 spec dict（不入库不生图）。"""
+    messages = [
+        SystemMessage(content=PUBLIC_GEN_PROMPT.format(
+            domain=coord["domainName"],
+            sub=coord["subName"],
+            kind=coord["kind"],
+            difficulty=coord["difficulty"],
+            note=coord["note"],
+        )),
+        HumanMessage(content="出一道。"),
+    ]
+    raw = (await _get_client().ainvoke(messages)).content
+    raw = re.sub(r"```(json)?", "", raw)
+    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+    return json.loads(raw)
+
+
+async def topup_public_scenario(
+    skip_ids: set[str] | None = None,
+    dry_run: bool = False,
+) -> dict | None:
+    """生成 1 道公共题：选 gap 最大的 sub → LLM 编故事 → 万相生图 → 入库。
+
+    dry_run=True 只跑 LLM 拿文案，不调万相、不入库；用来验证 prompt 质量。
+    全部 sub 达 target 时返回 None（系统短路停止花钱）。
+    """
+    candidates = await undercovered_subs(skip_ids=skip_ids)
+    if not candidates:
+        return None
+    coord = candidates[0]
+    spec = await _llm_spec_for_coord(coord)
+
+    base = {
+        "category": {"domain": coord["domainShort"], "subId": coord["subId"]},
+        "kind": coord["kind"],
+        "title": spec.get("title", ""),
+        "where": spec.get("where", ""),
+        "story": spec.get("story", ""),
+        "mission": spec.get("mission", ""),
+        "points": spec.get("points", []),
+        "difficulty": coord["difficulty"],
+        "imagePrompt": spec.get("imagePrompt", ""),
+    }
+    if dry_run:
+        return {"_dry_run": True, **base, "subName": coord["subName"]}
+
+    image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}")
+    now = datetime.now(timezone.utc)
+    sid = scenario_id()
+    key = scenario_image_key(sid)
+    await upload_bytes_async(key, image, "image/jpeg")
+
+    doc = {
+        "_id": sid,
+        "slug": f"auto-{coord['subId']}-{int(now.timestamp())}",
+        "imageKey": key,
+        "ownerUserId": None,
+        "status": "active",
+        "createdAt": now,
+        **base,
+    }
+    await get_db().scenarios.insert_one(doc)
+    return doc
