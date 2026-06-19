@@ -1,6 +1,10 @@
-"""文本转语音：DashScope CosyVoice 合成英文朗读，结果按文本哈希缓存到 OSS。
+"""文本转语音：DashScope CosyVoice 合成英文朗读。
 
-点击朗读时才合成；同一句话第二次直接走 OSS 缓存，不再花钱。
+朗读音频存 `practiceSessions/{practiceId}/tts/{hash}.mp3`，挂在 session 下——
+LLM 个性化生成的 nativeVersion / gap.better 几乎不会跨 session 撞同一句，
+全局 tts/ 缓存命中率约等于 0；挂 session 下让所有资源结构对齐
+（题目图在 scenarios/，session 内的录音 + 朗读都在 practiceSessions/ 下）。
+session 内重听同一段仍走 OSS 缓存（按 hash 去重）。
 """
 import asyncio
 import hashlib
@@ -16,8 +20,11 @@ TTS_MODEL = os.getenv("TTS_MODEL", "cosyvoice-v2")
 TTS_VOICE = os.getenv("TTS_VOICE", "longxiaochun_v2")
 
 
-def _cache_key(text: str) -> str:
+def _cache_key(text: str, practice_id: str | None = None) -> str:
     digest = hashlib.sha1(f"{TTS_MODEL}:{TTS_VOICE}:{text}".encode()).hexdigest()
+    if practice_id:
+        return f"practiceSessions/{practice_id}/tts/{digest}.mp3"
+    # 兜底（目前无调用方走这条；保留以防将来有不在 session 上下文里的朗读需求）
     return f"tts/{digest}.mp3"
 
 
@@ -29,12 +36,12 @@ def _synthesize(text: str) -> bytes:
     return audio
 
 
-async def speak_url(text: str) -> str:
+async def speak_url(text: str, practice_id: str | None = None) -> str:
     """返回这句话朗读音频的 OSS 签名 URL。命中缓存直接返回，否则合成后存 OSS。"""
     text = (text or "").strip()
     if not text:
         raise ValueError("empty text")
-    key = _cache_key(text)
+    key = _cache_key(text, practice_id)
     if not await asyncio.to_thread(exists, key):
         audio = await asyncio.to_thread(_synthesize, text)
         await asyncio.to_thread(upload_bytes, key, audio, "audio/mpeg")

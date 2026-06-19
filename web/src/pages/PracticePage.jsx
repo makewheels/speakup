@@ -26,8 +26,8 @@ const stripEmoji = (s = "") =>
     .replace(/\s{2,}/g, " ")
     .trim();
 
-function SpeakBtns({ text }) {
-  return <SpeakBtn text={text} />;
+function SpeakBtns({ text, practiceId }) {
+  return <SpeakBtn text={text} practiceId={practiceId} />;
 }
 
 // 按句拆分 native 版，每句一行更清晰
@@ -390,7 +390,7 @@ export default function PracticePage() {
 
         {result.nativeVersion && (
           <div className="fb-native-card">
-            <div className="fb-card-label native">Native version<SpeakBtns text={result.nativeVersion} /></div>
+            <div className="fb-card-label native">Native version<SpeakBtns text={result.nativeVersion} practiceId={session?._id} /></div>
             {splitSentences(result.nativeVersion).map((s, i) => (
               <p key={i} className="fb-native-text">{s}</p>
             ))}
@@ -424,7 +424,7 @@ export default function PracticePage() {
                     <div className="fb-gap-line is-fix">
                       <span className="fb-gap-tag">Say this</span>
                       <span className="fb-gap-fix">{g.better}</span>
-                      <SpeakBtns text={g.better} />
+                      <SpeakBtns text={g.better} practiceId={session?._id} />
                     </div>
                     {g.why && (
                       <div className="fb-gap-line">
@@ -480,7 +480,7 @@ export default function PracticePage() {
         <div className="sc-hintbar">
           💡 Try to use:
           {hintGaps.map((g, i) => (
-            <span key={i} className="sc-hint-item"><b>{g.better}</b><SpeakBtns text={g.better} /></span>
+            <span key={i} className="sc-hint-item"><b>{g.better}</b><SpeakBtns text={g.better} practiceId={session?._id} /></span>
           ))}
         </div>
       )}

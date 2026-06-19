@@ -19,6 +19,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 **2026-06-19**
 
+- **TTS 朗读音频挪到 session 下** `practiceSessions/{practiceId}/tts/{sha1}.mp3`（之前 `tts/{sha1}.mp3` 全局）：LLM 个性化生成的 nativeVersion / gap.better 几乎不跨 session 撞同句，全局缓存命中率约等于 0，挂 session 下让所有资源结构对齐（题目图在 `scenarios/`，session 内的录音+朗读都在 `practiceSessions/`）。session 内重听仍按 hash 复用 OSS 缓存。`/api/tts` 接受可选 `practiceId`；前端 SpeakBtn 接受 `practiceId` prop，PracticePage / SessionDetailPage / ReviewPage 各调用点都传了。
 - **场景卡 Place / Scene 字体统一放大**：地点和情景两块字号 16px → 19px（与 native version 一致）、去掉标签灰底色、颜色统一为深色，更易读。
 - **"You said" 卡片样式同 native version**：去灰底改细边框、字号 17→19px、字重加粗、颜色黑色——与 native version 视觉对齐，区别只在颜色（黑 vs 蓝）。
 - **TTS 喇叭 loading 态**：原来纯转圈 → 改成三个跳动的点（更像"生成中…"的反馈，不像加载中失败）。

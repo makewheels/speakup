@@ -4,8 +4,9 @@ import { speak, stop, isCached } from "../utils/tts.js";
 
 // 点击 → 没缓存就先合成（显示「生成中」动画文字），合成完播放；缓存命中直接播放。
 // 三态：idle(喇叭) / loading(生成中动画点) / playing(停止键+实心高亮)，播放中再点即停。
+// practiceId：传进来则朗读音频按 (practiceId, 文本) 挂在该 session 下；不传走全局兜底。
 // stopPropagation 让按钮可以嵌进可点击行里不连带触发。
-export default function SpeakBtn({ text, size = 22, className = "spk-btn" }) {
+export default function SpeakBtn({ text, practiceId, size = 22, className = "spk-btn" }) {
   const [state, setState] = useState("idle"); // idle | loading | playing
   const audioRef = useRef(null);
   if (!text) return null;
@@ -17,8 +18,8 @@ export default function SpeakBtn({ text, size = 22, className = "spk-btn" }) {
     if (state === "playing") { stop(); reset(); return; }
     if (state === "loading") return;
     try {
-      if (!isCached(text)) setState("loading");
-      const audio = await speak(text);
+      if (!isCached(text, practiceId)) setState("loading");
+      const audio = await speak(text, practiceId);
       if (!audio) { reset(); return; }
       audioRef.current = audio;
       setState("playing");
