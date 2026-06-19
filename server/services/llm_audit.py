@@ -1,0 +1,180 @@
+"""LLM 调用审计：把每次调 LLM / 万相的 prompt + response + tokens + 估算成本写进
+`llmCalls` 集合，用 linkedTo 字段挂到 scenarioId / sessionId / attemptIndex / userId，
+方便事后调试题目质量、反馈漏抓等问题。
+
+用法：
+    from services.llm_audit import audited_invoke, log_image_call
+
+    # LLM 调用
+    result = await audited_invoke(
+        client, messages,
+        kind="scenario_gen_public",
+        link_to={"scenarioId": sid},
+    )
+    raw = result["raw"]
+    parsed = result["parsed"]      # 如果 parser 给了，自动入库
+
+    # 万相生图（不是 LangChain 客户端）
+    await log_image_call(
+        model="wanx2.1-t2i-turbo",
+        prompt=prompt,
+        size_bytes=len(image),
+        link_to={"scenarioId": sid},
+    )
+
+写库失败只记日志不抛——绝不让 audit 拖垮主路径。
+"""
+
+import logging
+import time
+from datetime import datetime, timezone
+from typing import Any, Callable
+
+from db.connection import get_db
+
+logger = logging.getLogger(__name__)
+
+# ---------- 成本估算 ----------
+# 单位：元/百万 tokens（DashScope 2025 大致价，跟实际账单可能差几分钱，调试用够了）
+TEXT_PRICING = {
+    "qwen3.7-plus":     {"prompt": 0.4,  "completion": 1.2},
+    "qwen3-max":        {"prompt": 4.0,  "completion": 12.0},
+    "qwen-plus":        {"prompt": 0.4,  "completion": 1.2},
+    "qwen-max":         {"prompt": 4.0,  "completion": 12.0},
+    "qwen-turbo":       {"prompt": 0.3,  "completion": 0.6},
+}
+TEXT_PRICING_FALLBACK = {"prompt": 1.0, "completion": 3.0}
+
+# 单位：元/张（按张计费）
+IMAGE_PRICING = {
+    "wanx2.1-t2i-turbo": 0.14,
+    "wan2.2-t2i-flash":  0.05,
+    "wanx-v1":           0.30,
+    "wan2.7-image":      0.30,
+    "wanx2.1-t2i-plus":  0.20,
+}
+IMAGE_PRICING_FALLBACK = 0.30
+
+
+def estimate_text_cost(model: str, prompt_tok: int, completion_tok: int) -> float:
+    p = TEXT_PRICING.get(model, TEXT_PRICING_FALLBACK)
+    return prompt_tok / 1_000_000 * p["prompt"] + completion_tok / 1_000_000 * p["completion"]
+
+
+def estimate_image_cost(model: str) -> float:
+    return IMAGE_PRICING.get(model, IMAGE_PRICING_FALLBACK)
+
+
+# ---------- 写库（fire-and-forget 安全包装） ----------
+
+async def _safe_insert(doc: dict) -> None:
+    try:
+        await get_db().llmCalls.insert_one(doc)
+    except Exception as e:
+        logger.warning("llmCalls 写入失败（不影响主路径）: %s", e)
+
+
+# ---------- 公共 API ----------
+
+async def audited_invoke(
+    client: Any,
+    messages: list,
+    *,
+    kind: str,
+    link_to: dict | None = None,
+    parser: Callable[[str], dict] | None = None,
+) -> dict:
+    """包装 LLM 调用：调 + 解析 + 入库。
+
+    Args:
+        client: LangChain client（必须支持 .ainvoke(messages)）
+        messages: SystemMessage + HumanMessage 列表
+        kind: 调用类型（scenario_gen_public / scenario_gen_custom / correct / correct_retry）
+        link_to: 反查用，e.g. {"scenarioId": "...", "sessionId": "...", "userId": "..."}
+        parser: 可选，对 raw response 做结构化解析；解析失败留 error 字段
+
+    Returns:
+        {"raw": str | None, "parsed": dict | None, "tokens": dict, "model": str,
+         "cost": float, "durationMs": int, "error": str | None,
+         "metadata": dict | None, "_id": ObjectId | None}
+    """
+    started = time.monotonic()
+    raw: str | None = None
+    metadata: dict | None = None
+    error: str | None = None
+    parsed: dict | None = None
+
+    try:
+        resp = await client.ainvoke(messages)
+        raw = resp.content
+        metadata = resp.response_metadata or {}
+    except Exception as e:
+        error = f"llm_invoke_failed: {e}"
+
+    if raw is not None and parser is not None:
+        try:
+            parsed = parser(raw)
+        except Exception as e:
+            error = f"parse_failed: {e}"
+
+    duration_ms = int((time.monotonic() - started) * 1000)
+    tokens = (metadata or {}).get("token_usage", {}) or {}
+    model = (metadata or {}).get("model_name") or "?"
+    prompt_tok = int(tokens.get("prompt_tokens") or 0)
+    completion_tok = int(tokens.get("completion_tokens") or 0)
+    cost = estimate_text_cost(model, prompt_tok, completion_tok)
+
+    doc = {
+        "kind": kind,
+        "model": model,
+        "request": {
+            "systemPrompt": messages[0].content if messages else "",
+            "userPrompt": messages[1].content if len(messages) > 1 else "",
+        },
+        "response": {
+            "raw": (raw or "")[:8000],   # cap 8K 字符防爆库
+            "parsed": parsed,
+        },
+        "tokens": {"prompt": prompt_tok, "completion": completion_tok},
+        "cost": round(cost, 6),
+        "durationMs": duration_ms,
+        "error": error,
+        "linkedTo": link_to or {},
+        "createdAt": datetime.now(timezone.utc),
+    }
+    await _safe_insert(doc)
+
+    return {
+        "raw": raw,
+        "parsed": parsed,
+        "tokens": tokens,
+        "model": model,
+        "cost": cost,
+        "durationMs": duration_ms,
+        "error": error,
+        "metadata": metadata,
+    }
+
+
+async def log_image_call(
+    *,
+    model: str,
+    prompt: str,
+    size_bytes: int = 0,
+    link_to: dict | None = None,
+    error: str | None = None,
+) -> None:
+    """图片生成（万相）的审计——不走 LLM 链路所以单独 API。"""
+    cost = 0.0 if error else estimate_image_cost(model)
+    doc = {
+        "kind": "image",
+        "model": model,
+        "request": {"prompt": (prompt or "")[:2000]},
+        "response": {"sizeBytes": size_bytes},
+        "tokens": {},
+        "cost": round(cost, 6),
+        "error": error,
+        "linkedTo": link_to or {},
+        "createdAt": datetime.now(timezone.utc),
+    }
+    await _safe_insert(doc)

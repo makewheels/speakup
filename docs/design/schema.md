@@ -98,3 +98,44 @@
 - `reviewItems`: `{userId, expression}` 唯一索引（去重）
 - `scenarios`: `{slug}` 唯一索引（脚本幂等）
 - `practiceSessions`: `{userId, createdAt}` 复合索引（历史列表）
+
+## llmCalls（LLM/图片调用审计日志）
+
+每次调 qwen / 万相都写一行，记 prompt + response + tokens + 估算成本，挂到对应业务实体（scenarioId / sessionId / userId）。诊断"为什么这道题烂 / 为什么 corrector 没抓到 thief"用。
+
+```json
+{
+  "_id":         ObjectId,
+  "kind":        "scenario_gen_public",  // scenario_gen_public / scenario_gen_custom / correct / correct_retry / correct_stream / image
+  "model":       "qwen3.7-plus",          // 真实用的模型名（来自 response_metadata，不是配置里写的）
+  "request": {
+    "systemPrompt": "...",
+    "userPrompt":   "..."
+  },
+  "response": {
+    "raw":    "{...}",                    // LLM 原始返回（capped 8K 字符防爆库）
+    "parsed": { ... }                     // 结构化解析结果；解析失败留 null + error 字段
+  },
+  "tokens":      { "prompt": 918, "completion": 176 },  // image 类型为空对象
+  "cost":        0.000644,                // 元，按 PRICING 表估算（见 services/llm_audit.py）
+  "durationMs":  3787,                    // 调用耗时
+  "error":       null,                    // 失败时填错误描述
+  "linkedTo": {                           // 反查用：业务实体 → 这次调用
+    "scenarioId":   "sc_xxx",             // 出题 / 图片生成时
+    "sessionId":    "ObjectId string",    // 评估时
+    "round":        1,                    // 评估第几轮
+    "userId":       "u_xxx",              // 评估 / 定制题
+    "subId":        "tech.ai_at_work"     // 公共题坐标系
+  },
+  "createdAt":   datetime
+}
+```
+
+写入由 `services/llm_audit.py` 包装：所有走 `audited_invoke` / `log_image_call` 的 LLM 调用自动入库；写库失败只记 warning 不抛，不阻塞主路径。
+
+成本估算的价格表也在 `services/llm_audit.py`（`TEXT_PRICING` / `IMAGE_PRICING`），跟实际账单可能差几分钱，调试用够。
+
+索引建议：
+- `llmCalls`: `{linkedTo.scenarioId}` 单字段索引（按题反查所有调用）
+- `llmCalls`: `{linkedTo.sessionId, linkedTo.round}` 复合索引（按 attempt 反查）
+- `llmCalls`: `{createdAt: -1}` 单字段索引（最近 N 条排查）

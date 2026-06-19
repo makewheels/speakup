@@ -19,6 +19,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from db.connection import get_db
 from services.corrector import _get_client
+from services.llm_audit import audited_invoke
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
 from services.wanx import PHOTO_STYLE, wanx_generate
 from utils.id_generator import scenario_id
@@ -117,15 +118,24 @@ async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
         SystemMessage(content=GEN_PROMPT.format(words=word_lines)),
         HumanMessage(content="出一道题。"),
     ]
-    raw = (await _get_client().ainvoke(messages)).content
-    raw = re.sub(r"```(json)?", "", raw)
-    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-    spec = json.loads(raw)
+    sid = scenario_id()  # 提前生成 sid 让 audit + image 都能挂上
+    link = {"scenarioId": sid, "userId": user_id}
 
-    image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}")
+    def _parse(raw: str) -> dict:
+        cleaned = re.sub(r"```(json)?", "", raw)
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
+        return json.loads(cleaned)
+
+    result = await audited_invoke(
+        _get_client(), messages, kind="scenario_gen_custom", link_to=link, parser=_parse,
+    )
+    if result["error"] or not result["parsed"]:
+        raise RuntimeError(f"custom scenario gen failed: {result['error']}")
+    spec = result["parsed"]
+
+    image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}", link_to=link)
 
     now = datetime.now(timezone.utc)
-    sid = scenario_id()
     key = scenario_image_key(sid)
     await upload_bytes_async(key, image, "image/jpeg")
 
@@ -310,8 +320,10 @@ async def undercovered_subs(skip_ids: set[str] | None = None) -> list[dict]:
     return out
 
 
-async def _llm_spec_for_coord(coord: dict) -> dict:
-    """调 LLM 按坐标编故事，返回解析后的 spec dict（不入库不生图）。"""
+async def _llm_spec_for_coord(coord: dict, link_to: dict | None = None) -> dict:
+    """调 LLM 按坐标编故事，返回解析后的 spec dict（不入库不生图）。
+    link_to 用于 audit 表挂 scenarioId。
+    """
     messages = [
         SystemMessage(content=PUBLIC_GEN_PROMPT.format(
             domain=coord["domainName"],
@@ -322,10 +334,18 @@ async def _llm_spec_for_coord(coord: dict) -> dict:
         )),
         HumanMessage(content="出一道。"),
     ]
-    raw = (await _get_client().ainvoke(messages)).content
-    raw = re.sub(r"```(json)?", "", raw)
-    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-    return json.loads(raw)
+
+    def _parse(raw: str) -> dict:
+        cleaned = re.sub(r"```(json)?", "", raw)
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
+        return json.loads(cleaned)
+
+    result = await audited_invoke(
+        _get_client(), messages, kind="scenario_gen_public", link_to=link_to, parser=_parse,
+    )
+    if result["error"] or not result["parsed"]:
+        raise RuntimeError(f"public scenario gen failed: {result['error']}")
+    return result["parsed"]
 
 
 async def topup_public_scenario(
@@ -341,7 +361,9 @@ async def topup_public_scenario(
     if not candidates:
         return None
     coord = candidates[0]
-    spec = await _llm_spec_for_coord(coord)
+    sid = scenario_id()  # 提前生成，让 audit + image 都挂同一个 scenarioId
+    link = {"scenarioId": sid, "subId": coord["subId"]}
+    spec = await _llm_spec_for_coord(coord, link_to=link)
 
     base = {
         "category": {"domain": coord["domainShort"], "subId": coord["subId"]},
@@ -357,9 +379,8 @@ async def topup_public_scenario(
     if dry_run:
         return {"_dry_run": True, **base, "subName": coord["subName"]}
 
-    image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}")
+    image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}", link_to=link)
     now = datetime.now(timezone.utc)
-    sid = scenario_id()
     key = scenario_image_key(sid)
     await upload_bytes_async(key, image, "image/jpeg")
 

@@ -1,4 +1,6 @@
 import re
+import time
+from datetime import datetime, timezone
 from typing import AsyncGenerator, Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -6,6 +8,11 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from config import CHAT_MODEL, DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL
+from services.llm_audit import (
+    _safe_insert as audit_safe_insert,
+    audited_invoke,
+    estimate_text_cost,
+)
 
 _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
@@ -196,19 +203,27 @@ async def correct_text(
     scenario: dict | None = None,
     prev_attempt: dict | None = None,
     round: int = 1,
+    link_to: dict | None = None,
 ) -> dict:
     if not text or len(text.strip().split()) < 3:
         return {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
 
     messages = _build_messages(text, scenario, prev_attempt, round)
-    try:
-        result: CorrectResult = await _get_client().with_structured_output(CorrectResult).ainvoke(messages)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error("correct_text error: %s: %s", type(e).__name__, e)
-        return {**_EMPTY, "summary": "AI service error. Please try again."}
 
-    return result.model_dump()
+    def _parse(raw: str) -> dict:
+        return _parse_result(raw)
+
+    result = await audited_invoke(
+        _get_client(), messages,
+        kind="correct" if round == 1 else "correct_retry",
+        link_to=link_to,
+        parser=_parse,
+    )
+    if result["error"]:
+        import logging
+        logging.getLogger(__name__).error("correct_text error: %s", result["error"])
+        return {**_EMPTY, "summary": "AI service error. Please try again."}
+    return result["parsed"] or _EMPTY
 
 
 async def correct_text_stream(
@@ -216,6 +231,7 @@ async def correct_text_stream(
     scenario: dict | None = None,
     prev_attempt: dict | None = None,
     round: int = 1,
+    link_to: dict | None = None,
 ) -> AsyncGenerator[tuple[str, dict], None]:
     """流式版本，yield (event_type, data) 元组：
     - ("chunk", {"text": "..."})  — 原始 token
@@ -227,17 +243,51 @@ async def correct_text_stream(
         return
 
     messages = _build_messages(text, scenario, prev_attempt, round)
+    started = time.monotonic()
+    full_text = ""
+    final_metadata: dict | None = None
+    err: str | None = None
+    parsed: dict | None = None
+
     try:
-        full_text = ""
         async for chunk in _get_client().astream(messages):
             delta = chunk.content or ""
             if delta:
                 full_text += delta
                 yield "chunk", {"text": delta}
+            # 流末尾的 chunk 可能带 usage_metadata
+            if hasattr(chunk, "response_metadata") and chunk.response_metadata:
+                final_metadata = chunk.response_metadata
 
-        yield "done", _parse_result(full_text)
+        parsed = _parse_result(full_text)
+        yield "done", parsed
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("correct_text_stream error: %s: %s", type(e).__name__, e)
+        err = f"{type(e).__name__}: {e}"
         msg = "AI service timed out. Please try again." if "timeout" in type(e).__name__.lower() else f"AI service error ({type(e).__name__}). Please try again."
         yield "error", {"message": msg}
+
+    # 流式结束后异步写 audit（不在 yield 链路上做，免得阻塞前端）
+    duration_ms = int((time.monotonic() - started) * 1000)
+    tokens = (final_metadata or {}).get("token_usage") or (final_metadata or {}).get("usage_metadata") or {}
+    model = (final_metadata or {}).get("model_name") or "?"
+    prompt_tok = int(tokens.get("prompt_tokens") or tokens.get("input_tokens") or 0)
+    completion_tok = int(tokens.get("completion_tokens") or tokens.get("output_tokens") or 0)
+    cost = estimate_text_cost(model, prompt_tok, completion_tok)
+    audit_doc = {
+        "kind": "correct_stream" if round == 1 else "correct_retry_stream",
+        "model": model,
+        "request": {
+            "systemPrompt": messages[0].content,
+            "userPrompt": messages[1].content,
+        },
+        "response": {"raw": full_text[:8000], "parsed": parsed},
+        "tokens": {"prompt": prompt_tok, "completion": completion_tok},
+        "cost": float(f"{cost:.6f}"),
+        "durationMs": duration_ms,
+        "error": err,
+        "linkedTo": link_to or {},
+        "createdAt": datetime.now(timezone.utc),
+    }
+    await audit_safe_insert(audit_doc)

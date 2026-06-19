@@ -95,7 +95,8 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
 async def correct(req: CorrectRequest):
     practice = await _load_practice(req)
     scenario, prev, round_no = _round_context(practice)
-    result = await correct_text(req.text, scenario, prev, round_no)
+    link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
+    result = await correct_text(req.text, scenario, prev, round_no, link_to=link)
     auto_saved = await _save_attempt_and_review(req, result, round_no)
     return {"practiceId": req.practiceId, "autoSaved": auto_saved, "round": round_no, **result}
 
@@ -104,10 +105,11 @@ async def correct(req: CorrectRequest):
 async def correct_stream(req: CorrectRequest):
     practice = await _load_practice(req)
     scenario, prev, round_no = _round_context(practice)
+    link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
 
     async def generate():
         full_result = None
-        async for event_type, data in correct_text_stream(req.text, scenario, prev, round_no):
+        async for event_type, data in correct_text_stream(req.text, scenario, prev, round_no, link_to=link):
             if event_type == "chunk":
                 yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
             elif event_type == "error":

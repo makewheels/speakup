@@ -10,6 +10,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 **2026-06-19**
 
+- **LLM/图片调用审计表 `llmCalls`**：每次调 qwen / 万相都记一行（prompt + raw response + tokens + 估算成本 + 耗时），用 `linkedTo` 挂到 scenarioId / sessionId / round / userId，方便事后查"为什么这道题烂 / 评估为什么漏抓错"。包装在 `services/llm_audit.py`，写库失败只 warning 不阻塞主路径。schema 见 `docs/design/schema.md`。
+- **成本字段**：`llmCalls.cost`（元）按 `llm_audit.py` 里的 `TEXT_PRICING` / `IMAGE_PRICING` 估算。
+- **图片成本优化**：`IMAGE_MODEL` 默认从 `wan2.7-image`（约 ¥0.30/张）换 `wanx2.1-t2i-turbo`（约 ¥0.14/张，省 ~50%）；分辨率从 `1280*720` 降到 `1024*576`。`wanx.py` 同时支持同步（老模型）和异步轮询（新一代便宜模型）两套 endpoint，按模型名自动选。
 - **公共题库主题坐标系（`server/data/scenario_taxonomy.yaml`）**：16 大类 × 67 个子场景，覆盖中国成年人日常英语真用得到的处境（旅游 12 / 社交 8 / 工作 5 / 餐饮 5 / ...），含 16 个本土化补丁（火锅/春节亲戚/996/微信支付等 IELTS+CEFR 不会有的）。来源：IELTS Speaking Part 1/2/3 + CEFR Companion 2020 + 中国本土化。
 - **公共题自动补题（按 yaml 坐标系）**：`scenario_service.topup_public_scenario()` 找 `actual<target` 的子场景，调 LLM 按坐标编故事 + 万相配图入库；scenarios 集合新增 `category: {domain, subId}` 字段。
 - **取题钩子顺带补公共池**：`/api/scenarios/next` 触发的 `_maybe_topup` 后台任务原本只补用户定制题，现在同时检查公共池缺口并补一道（每次最多 1 道，全 sub 达 target 后短路，可控成本）。

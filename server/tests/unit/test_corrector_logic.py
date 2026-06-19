@@ -28,11 +28,16 @@ PREV_ATTEMPT = {
 
 
 def _fake_llm(result: CorrectResult):
-    """Build a fake LangChain client whose structured output returns the given CorrectResult."""
-    fake_chain = MagicMock()
-    fake_chain.ainvoke = AsyncMock(return_value=result)
+    """Build a fake LangChain client. correct_text 现在走 raw ainvoke + JSON 解析路径，
+    所以 fake client 直接返回带 .content 的 message 对象。"""
+    fake_response = MagicMock()
+    fake_response.content = result.model_dump_json()
+    fake_response.response_metadata = {
+        "model_name": "qwen3.7-plus-test",
+        "token_usage": {"prompt_tokens": 100, "completion_tokens": 50},
+    }
     fake_client = MagicMock()
-    fake_client.with_structured_output = MagicMock(return_value=fake_chain)
+    fake_client.ainvoke = AsyncMock(return_value=fake_response)
     return fake_client
 
 
@@ -63,10 +68,8 @@ def test_valid_json_response_mapped_to_schema():
 
 
 def test_llm_exception_returns_error_message_not_crash():
-    fake_chain = MagicMock()
-    fake_chain.ainvoke = AsyncMock(side_effect=Exception("DashScope 400 BadRequest"))
     fake_client = MagicMock()
-    fake_client.with_structured_output = MagicMock(return_value=fake_chain)
+    fake_client.ainvoke = AsyncMock(side_effect=Exception("DashScope 400 BadRequest"))
     with patch("services.corrector._get_client", return_value=fake_client):
         result = asyncio.run(correct_text("There is a cat outside", SCENARIO))
     assert result["gaps"] == []
