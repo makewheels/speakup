@@ -10,6 +10,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 **2026-06-19**
 
+- **成本报表脚本 `scripts/cost_report.py`**：从 `llmCalls` 审计表按天 / kind / 模型汇总花了多少钱，`--days N` 看最近 N 天。
+- **本地→生产同步脚本 `scripts/sync_public_scenarios.py`**：把本地 dev 生成好的公共题（文档 + OSS 图）同步到生产，避免在生产重新调 LLM/万相花钱。默认 dry-run，真写要 `--execute` + 配 `PROD_SYNC_MONGO_URI`。
+- **`IMAGE_MODEL` 默认值改 `wanx2.1-t2i-turbo`**（之前 `wan2.7-image`）：生产不改 env 也自动用上便宜款。
 - **LLM/图片调用审计表 `llmCalls`**：每次调 qwen / 万相都记一行（prompt + raw response + tokens + 估算成本 + 耗时），用 `linkedTo` 挂到 scenarioId / sessionId / round / userId，方便事后查"为什么这道题烂 / 评估为什么漏抓错"。包装在 `services/llm_audit.py`，写库失败只 warning 不阻塞主路径。schema 见 `docs/design/schema.md`。
 - **成本字段**：`llmCalls.cost`（元）按 `llm_audit.py` 里的 `TEXT_PRICING` / `IMAGE_PRICING` 估算。
 - **图片成本优化**：`IMAGE_MODEL` 默认从 `wan2.7-image`（约 ¥0.30/张）换 `wanx2.1-t2i-turbo`（约 ¥0.14/张，省 ~50%）；分辨率从 `1280*720` 降到 `1024*576`。`wanx.py` 同时支持同步（老模型）和异步轮询（新一代便宜模型）两套 endpoint，按模型名自动选。
