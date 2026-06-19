@@ -203,23 +203,53 @@ kind：{kind}
 难度：{difficulty}/3
 提示：{note}
 
-要求：
-- 场景必须基于上面坐标展开。具体冲突 / 人物 / 时间 / 地点 / 台词压力点你来设计
-- 场景具体到地点+当下处境（"咖啡店做错单且赶飞机" 远胜 "在咖啡店"）
-- 真实可发生，不要套话不要鸡汤
-- mission 是 1 句中文动词指令，逼着学习者必须开口说英语
-- 任务规模小：3 句话以内能讲完，points 控制在 2-3 个
-- 标题、地点、描述里都不能用 emoji
-- 中国成年学习者真生活会用得到
+# 三段式：情景 / 任务 / 提示——每段都极简，用户没耐心看说明书
+
+## 绝对底线（违反任何一条 = 整道题报废）
+
+❌ **场景绝不能设在考场 / 课堂 / 语言考试 / 面试官评估你的语言能力 / "考官请你描述..."** —— 必须是真实生活处境（咖啡馆、机场、酒店、家里、街头），用户在练真用得上的英语，不是练考试题。
+❌ **不准让对方"考"用户**（"请你介绍...的三个传统"、"分别从 A、B、C 阐述"、"讨论利弊"）—— 这些是面试官口吻，不是朋友聊天。
+
+## 情景（story）
+- **一句完整自然的中文**，读起来像正常人在说话，约 30-45 字
+- 不要剧本式铺垫（"你想去 X / 刚坐上车 / 一脸理所当然 / 心理活动"）
+- 也不要新闻标题式短句（两段不连贯的事实拼接）
+- **不准在情景里替用户列他要说什么**（"你需要说明 A、B、C" / "你打算挑三个重点"），那是 mission/points 的事
+- 反例 1（太啰嗦）：你想去 2 公里外的夜市，刚坐上车，司机就随口报了个比正常价高三倍的价格，还一脸理所当然地看着你。
+- 反例 2（太短像标题）：司机要价 300 卢比，正常只需 100。
+- 反例 3（混进任务说明）：护士让你填写登记表并口头确认病情，你需要清晰说明哪里不舒服、持续了多久以及过敏情况。
+- 正例：你叫了辆突突车去夜市，司机一开口就要 300 卢比，比正常价贵三倍。
+
+## 任务（mission）
+- **一句简短的中文指令，约 8-15 字**，让用户一眼看懂"我现在要做什么"
+- 反例（太短，禁欲）：砍价 / 礼貌砍价 / 解释春节
+- 反例（太长，IELTS 味）：用轻松的语气跟他解释春节的核心活动，让他明白这不只是放假而是家庭团聚
+- 正例：跟司机砍价，至少让他降一半 / 跟外国同事解释清楚春节是怎么过的 / 投诉房间问题并要求换房 / 跟护士说清楚哪里痛多久了
+
+## 提示（points）
+- **恰好 2 条**——一条主攻角度，一条备用 fallback
+- 每条都是**一句用户可以直接照着说的中文话**，他不用思考、直接翻译成英文就行
+- ❌ 不准写行为指引（"假装离开"/"摇头不接受"/"深呼吸"）—— 我们练的是口语，不是表演
+- ❌ 不准写抽象语气（"语气坚定但礼貌"/"表达诚意"）—— 那些用户做不到
+- ❌ 不准写概念列举（"指出价格不合理"）—— 太抽象，用户还得二次翻译
+- ✅ 应该是直接能用的中文台词，比如：
+  - 反例（砍价场景的烂提示）：[ "假装走开看对方反应", "用坚定语气还价" ]
+  - 正例（砍价场景）：[ "地图上看很近，我直接走过去就行", "我刚才问过别人，正常价就 100" ]
+
+# 其他
+
+- 标题、地点不能用 emoji
+- 真实可发生，中国成年学习者真生活会用得到
+- imagePrompt 仍然要写
 
 只输出 strict JSON，不要 markdown 围栏：
 {{
   "title": "中文短标题，6-12 字",
-  "where": "地点 · 时间，例如：商务酒店前台 · 深夜",
-  "story": "1-2 句中文情境描述，交代冲突 / 处境",
-  "mission": "1 句中文任务指令，动词开头",
-  "points": ["要让学习者用英语说出来的 2-4 个具体要点（中文表述就行）"],
-  "imagePrompt": "English photo description for an image generator: concrete scene, objects, setting, lighting; no faces close-up; no text in image"
+  "where": "地点 · 时间，简短，例如：东南亚夜市路口 · 傍晚",
+  "story": "一句完整自然的中文，30-45 字，只交代冲突核心，不写心理活动",
+  "mission": "8-15 字简短中文指令，看得出'我现在要做什么'",
+  "points": ["一句用户可以直接照着说的中文话", "另一句备用 fallback 中文话"],
+  "imagePrompt": "English photo description for an image generator. Image MUST visually show the actual scene/conflict from the story (e.g. collapse → person on the floor with bystanders gathered; bargaining → driver and passenger gesturing; airport coffee mistake → counter with cup). People are encouraged in scene — just avoid sharp close-up faces by using wide shots, side angles, back views, or hands-only framing. No abstract 'empty space implying an incident'. No text/captions in image."
 }}"""
 
 

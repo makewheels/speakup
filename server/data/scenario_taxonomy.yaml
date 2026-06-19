@@ -45,7 +45,7 @@ domains:
         sub: 描述一次难忘的旅行
         kind: describe
         difficulty: 2
-        note: 地点 + 经历 + 感受，IELTS P2 经典
+        note: 跟朋友聊起的某次旅行，地点 + 发生了什么 + 你的感受
       - id: travel.ask_directions
         sub: 街上问路找地铁站或景点
         kind: task
@@ -182,7 +182,7 @@ domains:
         sub: 被老外问你具体做什么工作的
         kind: describe
         difficulty: 2
-        note: 不是 IELTS 自我介绍套路，是被追问后的具体场景说明
+        note: 不是空洞自我介绍，是被追问后的具体场景说明
       - id: work.discuss_996
         sub: 跟老外聊 996 或加班文化
         kind: opinion

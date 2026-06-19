@@ -96,14 +96,14 @@ def test_target_words_listed_for_custom_scenario():
 def test_retry_round_injects_progress_instructions():
     messages = _build_messages("Could you remake it? I'm in a rush", SCENARIO, PREV_ATTEMPT, round=2)
     system = messages[0].content
-    assert "ROUND 2" in system
+    assert "第 2 轮" in system
     assert PREV_ATTEMPT["transcript"] in system
     assert '"progress"' in system
 
 
 def test_first_round_has_no_progress_instructions():
     messages = _build_messages("Could you remake it?", SCENARIO, None, round=1)
-    assert "RETRY OF THE SAME SCENARIO" not in messages[0].content
+    assert "重说尝试" not in messages[0].content
 
 
 # ── _parse_result（含 progress）────────────────────────────────────────────
