@@ -9,7 +9,7 @@ services:
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
       - DASHSCOPE_BASE_URL=${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com}
       - CHAT_MODEL=${CHAT_MODEL:-qwen3.7-plus}
-      - IMAGE_MODEL=${IMAGE_MODEL:-wan2.7-image}
+      - IMAGE_MODEL=${IMAGE_MODEL:-wanx2.1-t2i-turbo}
       - MONGO_URI=${MONGO_URI}
       - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
       - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
