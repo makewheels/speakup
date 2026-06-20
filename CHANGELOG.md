@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-20 11:35
+
+- **add(chat)**：追问框补到**历史详情页**（SessionDetailPage），针对该次练习最新一轮，和练习反馈页共用同一端点 + 同一份 `attempt.chat`——结果页和历史页现在一致，从历史也能发起/继续对话。旧轮次的追问保持只读回看。
+- **fix(ui)**：追问区 UI 标签从中文改回**英文**（`Ask the coach` / `Thinking…` / 英文 placeholder），与全站英文外壳一致。之前误用中文是因为 `spec.md` 旧约定写成"中文界面"，实际全站早已英文。
+- **chore(docs)**：修正 `spec.md` 界面语言约定——明确「**英文外壳 + 中文讲解**」：UI 标签/按钮/提示英文，AI 讲解内容（summary / gap why / 追问回答）中文，地道表达本身英文。
+
 ### 2026-06-20 11:11
 
 - **add(chat)**：拿到反馈后可**继续追问 AI**（流式对话）。新端点 `POST /api/correct/chat/stream`：以场景+本轮反馈（native 版/gaps/小结）为上下文，把追问历史+新问题喂给 glm-5.2，SSE 纯文本流式回答；问答落进对应 attempt 的 `chat` 数组，刷新/历史页可回看。后端 `corrector.followup_chat_stream`，前端 `client.chatStream` + Practice 反馈页底部追问区（流式追加、Enter 发送）+ 历史详情页回看。提示词约束纯文本无 markdown。本地实测端到端流式+落库正常，新增 4 个集成测试，前后端测试全过（后端 80 / 前端 101）。
