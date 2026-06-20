@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from config import IMAGE_ENABLED
 from db.connection import get_db
 from services.corrector import _get_client
 from services.llm_audit import audited_invoke
@@ -32,6 +33,16 @@ TAXONOMY_PATH = Path(__file__).parent.parent / "data" / "scenario_taxonomy.yaml"
 
 def scenario_image_key(sid: str) -> str:
     return f"scenarios/{sid}/cover.jpg"
+
+
+async def _maybe_gen_image(sid: str, image_prompt: str, link: dict | None = None) -> str:
+    """生成配图存 OSS，返回 imageKey。IMAGE_ENABLED=false 时跳过生成、返回空串（前端按无图渲染）。"""
+    if not IMAGE_ENABLED or not image_prompt:
+        return ""
+    image = await wanx_generate(f"{image_prompt}, {PHOTO_STYLE}", link_to=link)
+    key = scenario_image_key(sid)
+    await upload_bytes_async(key, image, "image/jpeg")
+    return key
 
 
 async def _practiced_scenario_ids(user_id: str) -> set:
@@ -133,11 +144,8 @@ async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
         raise RuntimeError(f"custom scenario gen failed: {result['error']}")
     spec = result["parsed"]
 
-    image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}", link_to=link)
-
     now = datetime.now(timezone.utc)
-    key = scenario_image_key(sid)
-    await upload_bytes_async(key, image, "image/jpeg")
+    key = await _maybe_gen_image(sid, spec["imagePrompt"], link)
 
     doc = {
         "_id": sid,
@@ -379,15 +387,13 @@ async def topup_public_scenario(
     if dry_run:
         return {"_dry_run": True, **base, "subName": coord["subName"]}
 
-    image = await wanx_generate(f"{spec['imagePrompt']}, {PHOTO_STYLE}", link_to=link)
+    image = await _maybe_gen_image(sid, spec.get("imagePrompt", ""), link)
     now = datetime.now(timezone.utc)
-    key = scenario_image_key(sid)
-    await upload_bytes_async(key, image, "image/jpeg")
 
     doc = {
         "_id": sid,
         "slug": f"auto-{coord['subId']}-{int(now.timestamp())}",
-        "imageKey": key,
+        "imageKey": image,
         "ownerUserId": None,
         "status": "active",
         "createdAt": now,

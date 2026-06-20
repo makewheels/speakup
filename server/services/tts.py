@@ -13,7 +13,7 @@ import os
 import dashscope
 from dashscope.audio.tts_v2 import SpeechSynthesizer
 
-from config import DASHSCOPE_API_KEY
+from config import VOICE_API_KEY
 from services.oss_storage import exists, get_url, upload_bytes
 
 TTS_MODEL = os.getenv("TTS_MODEL", "cosyvoice-v2")
@@ -29,7 +29,7 @@ def _cache_key(text: str, practice_id: str | None = None) -> str:
 
 
 def _synthesize(text: str) -> bytes:
-    dashscope.api_key = DASHSCOPE_API_KEY
+    dashscope.api_key = VOICE_API_KEY
     audio = SpeechSynthesizer(model=TTS_MODEL, voice=TTS_VOICE).call(text)
     if not audio:
         raise RuntimeError("TTS 无音频返回")

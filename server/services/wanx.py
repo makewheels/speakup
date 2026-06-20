@@ -9,16 +9,16 @@ import asyncio
 
 import httpx
 
-from config import DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL, IMAGE_MODEL
+from config import IMAGE_API_KEY, IMAGE_BASE_URL, IMAGE_MODEL
 from services.llm_audit import log_image_call
 
 WANX_MODEL = IMAGE_MODEL
 
 # 同步 endpoint：wanx-v1 / wan2.7-image 等老模型
-SYNC_URL = f"{DASHSCOPE_BASE_URL}/api/v1/services/aigc/multimodal-generation/generation"
+SYNC_URL = f"{IMAGE_BASE_URL}/api/v1/services/aigc/multimodal-generation/generation"
 # 异步 endpoint：wanx2.x 系列（turbo / flash / plus）
-ASYNC_CREATE_URL = f"{DASHSCOPE_BASE_URL}/api/v1/services/aigc/text2image/image-synthesis"
-ASYNC_TASK_URL = f"{DASHSCOPE_BASE_URL}/api/v1/tasks"
+ASYNC_CREATE_URL = f"{IMAGE_BASE_URL}/api/v1/services/aigc/text2image/image-synthesis"
+ASYNC_TASK_URL = f"{IMAGE_BASE_URL}/api/v1/tasks"
 
 # 走异步 API 的模型前缀（更便宜的新一代）
 _ASYNC_PREFIXES = ("wanx2.", "wan2.2-", "wanx-2.")
@@ -39,7 +39,7 @@ async def _generate_sync(prompt: str, size: str) -> bytes:
     async with httpx.AsyncClient(timeout=120.0) as c:
         resp = await c.post(
             SYNC_URL,
-            headers={"Authorization": f"Bearer {DASHSCOPE_API_KEY}"},
+            headers={"Authorization": f"Bearer {IMAGE_API_KEY}"},
             json={
                 "model": WANX_MODEL,
                 "input": {"messages": [{"role": "user", "content": [{"text": prompt}]}]},
@@ -64,7 +64,7 @@ async def _generate_async(prompt: str, size: str) -> bytes:
         create = await c.post(
             ASYNC_CREATE_URL,
             headers={
-                "Authorization": f"Bearer {DASHSCOPE_API_KEY}",
+                "Authorization": f"Bearer {IMAGE_API_KEY}",
                 "X-DashScope-Async": "enable",
             },
             json={
@@ -81,7 +81,7 @@ async def _generate_async(prompt: str, size: str) -> bytes:
             await asyncio.sleep(2)
             r = await c.get(
                 f"{ASYNC_TASK_URL}/{task_id}",
-                headers={"Authorization": f"Bearer {DASHSCOPE_API_KEY}"},
+                headers={"Authorization": f"Bearer {IMAGE_API_KEY}"},
             )
             r.raise_for_status()
             data = r.json()

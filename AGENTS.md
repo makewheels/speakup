@@ -11,8 +11,9 @@
 | 前端 | React 19 + Vite 8 | SPA, pnpm 管理 |
 | 后端 | FastAPI + uv | Python 3.14, 异步 |
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
-| 场景配图 | DashScope 通义万相（env `IMAGE_MODEL`）| 题库预生成 + 定制题后台生成，存 OSS |
-| AI 评估 | DashScope Qwen（env `CHAT_MODEL`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式 |
+| 场景配图 | 阿里云通义万相（env `IMAGE_*`）| 题库预生成 + 定制题后台生成，存 OSS。**成本高，`IMAGE_ENABLED=false` 默认关闭**，新题按无图渲染 |
+| 语音 ASR + TTS | 阿里云 DashScope（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
+| AI 评估 | 火山方舟 Coding Plan glm-5.2（env `CHAT_*`，开 thinking）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
 | 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR `b4/speakup`→SSH compose up；caddy 走 docker.io，靠生产机 docker daemon 配置的镜像加速器拉；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
 
 ## 项目结构
@@ -103,7 +104,8 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 | 类型 | 位置 |
 |------|------|
 | 生产 SSH host / user / 内网 IP | GitHub Secrets：`DEPLOY_HOST` `DEPLOY_USER` `MONGO_URI` 等 |
-| DashScope API Key | GitHub Secrets `DASHSCOPE_API_KEY` + 本地 `server/.env` |
+| 文字 LLM Key（火山方舟） | GitHub Secrets `CHAT_API_KEY` + 本地 `server/.env` |
+| 图片/语音 Key（阿里云 DashScope） | GitHub Secrets `DASHSCOPE_API_KEY`（CI 同时写入 prod 的 `IMAGE_API_KEY`/`VOICE_API_KEY`）+ 本地 `server/.env` |
 | MongoDB 连接串 | GitHub Secrets `MONGO_URI` + 线上 `/opt/speakup/server/.env` |
 | SSH 私钥 | 本机 `~/Downloads/qcloud_lighthouse_beijing`（不入库）+ GitHub Secrets `SSH_PRIVATE_KEY` |
 

@@ -6,7 +6,9 @@ from pathlib import Path
 
 TEST_DB_NAME = "speakup-test"
 os.environ["MONGO_URI"] = f"mongodb://localhost:27017/{TEST_DB_NAME}"
-os.environ.setdefault("DASHSCOPE_API_KEY", "test-key-mocked")
+os.environ.setdefault("CHAT_API_KEY", "test-key-mocked")
+os.environ.setdefault("IMAGE_API_KEY", "test-key-mocked")
+os.environ.setdefault("VOICE_API_KEY", "test-key-mocked")
 # 假 OSS 凭据：sign_url 是本地 HMAC（无网络），但需要非空凭据才能构造 Auth
 os.environ.setdefault("OSS_ACCESS_KEY_ID", "test-oss-id")
 os.environ.setdefault("OSS_ACCESS_KEY_SECRET", "test-oss-secret")

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from openai import AsyncOpenAI
 
-from config import ASR_MODEL, DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL
+from config import ASR_MODEL, VOICE_API_KEY, VOICE_BASE_URL
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,8 @@ def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
         _client = AsyncOpenAI(
-            api_key=DASHSCOPE_API_KEY,
-            base_url=f"{DASHSCOPE_BASE_URL}/compatible-mode/v1",
+            api_key=VOICE_API_KEY,
+            base_url=f"{VOICE_BASE_URL}/compatible-mode/v1",
             timeout=60.0,
         )
     return _client

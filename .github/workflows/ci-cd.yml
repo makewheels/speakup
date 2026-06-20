@@ -117,7 +117,10 @@ jobs:
           cat <<__ENVEOF__ | \
             ssh -o ServerAliveInterval=30 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "cat > ${{ env.SERVER_DIR }}/.env"
-          DASHSCOPE_API_KEY=${{ secrets.DASHSCOPE_API_KEY }}
+          CHAT_API_KEY=${{ secrets.CHAT_API_KEY }}
+          IMAGE_API_KEY=${{ secrets.DASHSCOPE_API_KEY }}
+          VOICE_API_KEY=${{ secrets.DASHSCOPE_API_KEY }}
+          IMAGE_ENABLED=false
           MONGO_URI=${{ secrets.MONGO_URI }}
           OSS_BUCKET_PROD=${{ secrets.OSS_BUCKET_PROD }}
           OSS_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}

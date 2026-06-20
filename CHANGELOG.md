@@ -8,6 +8,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-20 10:39
+
+- **change(llm)**：文字/对话评估从阿里云 DashScope Qwen 切到**火山方舟 Coding Plan glm-5.2**（订阅制，成本远低于按量 Qwen——之前一天烧几十块主要是它 + 文生图）。开 thinking 模式（`extra_body.thinking.type=enabled`，实测 JSON 仍干净解析、流式不漏推理内容）。
+- **change(config)**：env 命名按能力解耦、不再绑运营商——`CHAT_*`（文字 LLM）/ `IMAGE_*`（图片）/ `VOICE_*`（ASR+TTS）三组，各带独立 key + base_url，将来换 Deepseek / 别家只改 `.env` 值不动代码。删除旧的 `DASHSCOPE_*` 变量名。`corrector.py`/`scenario_service.py` 走 `CHAT_*`，`wanx.py` 走 `IMAGE_*`，`transcriber.py`/`tts.py` 走 `VOICE_*`。
+- **change(cost)**：新增开关 `IMAGE_ENABLED`，**默认 `false` 关闭文生图**（成本高，暂不生成配图）。关闭时定制题/补题跳过万相调用，`imageKey` 置空，前端按无图渲染；图片接口代码与配置全部保留，设 `true` + 填 key 即恢复。
+- **chore(ci)**：`docker-compose.yml` + CI「Write server .env」同步改用新变量；新增 GitHub Secret `CHAT_API_KEY`（火山 key），图片/语音复用现有 `DASHSCOPE_API_KEY` secret 值写入 prod 的 `IMAGE_API_KEY`/`VOICE_API_KEY`。`llm_audit` 价表加 `glm-5.2`（订阅制记 0）。
+
 ### 2026-06-20 08:46
 
 - **chore(ci)**：CI 用的几个 GitHub Action 升到跑 Node 24 的版本，消除 runner 的「Node.js 20 is deprecated」警告（node20 actions 仍被强制跑在 node24 上，2026 起会移除）。`pnpm/action-setup@v4 → v6`、`docker/login-action@v3 → v4`、`docker/build-push-action@v6 → v7`（三者分别在 v6/v4/v7 起改用 node24）。`shimataro/ssh-key-action@v2` 已是 node24、`actions/checkout@v5` / `setup-node@v5` / `setup-uv@v7` 也都 node24，不动。剩下日志里的 `DEP0040 punycode` / `DEP0169 url.parse` 是 docker action 内部依赖的 node 警告，非本仓库可控。

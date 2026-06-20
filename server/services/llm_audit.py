@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 # ---------- 成本估算 ----------
 # 单位：元/百万 tokens（DashScope 2025 大致价，跟实际账单可能差几分钱，调试用够了）
 TEXT_PRICING = {
+    # glm-5.2 走火山 Coding Plan 订阅制，按量边际成本≈0（额度内不另计费）
+    "glm-5.2":          {"prompt": 0.0,  "completion": 0.0},
     "qwen3.7-plus":     {"prompt": 0.4,  "completion": 1.2},
     "qwen3-max":        {"prompt": 4.0,  "completion": 12.0},
     "qwen-plus":        {"prompt": 0.4,  "completion": 1.2},

@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from config import CHAT_MODEL, DASHSCOPE_API_KEY, DASHSCOPE_BASE_URL
+from config import CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL, CHAT_THINKING
 from services.llm_audit import (
     _safe_insert as audit_safe_insert,
     audited_invoke,
@@ -49,12 +49,12 @@ def _get_client() -> ChatOpenAI:
     global _client
     if _client is None:
         _client = ChatOpenAI(
-            openai_api_base=f"{DASHSCOPE_BASE_URL}/compatible-mode/v1",
-            openai_api_key=DASHSCOPE_API_KEY,
+            openai_api_base=CHAT_BASE_URL,
+            openai_api_key=CHAT_API_KEY,
             model=CHAT_MODEL,
             temperature=0.3,
             max_tokens=2000,
-            model_kwargs={"extra_body": {"enable_thinking": False}},
+            extra_body={"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}},
             timeout=_API_TIMEOUT,
         )
     return _client
