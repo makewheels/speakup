@@ -481,17 +481,17 @@ export default function PracticePage() {
         )}
 
         <div className="fb-chat">
-          <div className="fb-section-label">继续追问 AI</div>
+          <div className="fb-section-label">Ask the coach</div>
           {chat.map((m, i) => (
             <div key={i} className={"fb-chat-msg " + m.role}>
-              {m.content || (chatBusy && i === chat.length - 1 ? <span className="fb-chat-typing">思考中…</span> : "")}
+              {m.content || (chatBusy && i === chat.length - 1 ? <span className="fb-chat-typing">Thinking…</span> : "")}
             </div>
           ))}
           <div className="fb-chat-input">
             <textarea
               rows={1}
               value={chatInput}
-              placeholder="基于上面的反馈追问，比如「为什么这么改」「再给我两个例句」"
+              placeholder="Ask about this feedback — why a change, more examples, how to say it elsewhere…"
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
               disabled={chatBusy}

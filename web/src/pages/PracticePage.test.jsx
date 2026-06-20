@@ -163,9 +163,9 @@ describe("PracticePage", () => {
     });
 
     setup("/practice/sess_abc?result=1");
-    await waitFor(() => expect(screen.getByText("继续追问 AI")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Ask the coach")).toBeInTheDocument());
 
-    const box = screen.getByPlaceholderText(/基于上面的反馈追问/);
+    const box = screen.getByPlaceholderText(/Ask about this feedback/);
     await userEvent.type(box, "为什么这么改？");
     await userEvent.keyboard("{Enter}");
 

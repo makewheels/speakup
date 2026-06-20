@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "../api/client.js";
+import { api, chatStream } from "../api/client.js";
+import { useUser } from "../context/UserContext.jsx";
 import Icon from "../components/Icon.jsx";
 import SpeakBtn from "../components/SpeakBtn.jsx";
 import RecordingPlayer from "../components/RecordingPlayer.jsx";
@@ -25,15 +26,53 @@ function formatDateTime(iso) {
 export default function SessionDetailPage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
+  const { user } = useUser();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [chat, setChat] = useState([]);          // 最新一轮的追问对话
+  const [chatInput, setChatInput] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const chatControllerRef = useRef(null);
 
   useEffect(() => {
     api.getPractice(practiceId)
-      .then(setSession)
+      .then((s) => {
+        setSession(s);
+        const ats = s.attempts || [];
+        setChat(ats.length ? (ats[ats.length - 1].chat || []) : []);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [practiceId]);
+
+  // 追问：基于本次练习最新一轮的反馈继续问 AI（与练习反馈页共用同一端点/同一份 chat）
+  const sendChat = () => {
+    const q = chatInput.trim();
+    if (!q || chatBusy || !user?.userId) return;
+    setChatInput("");
+    setChat((c) => [...c, { role: "user", content: q }, { role: "assistant", content: "" }]);
+    setChatBusy(true);
+    chatControllerRef.current = chatStream(
+      { userId: user.userId, practiceId, question: q },
+      {
+        onChunk: (text) =>
+          setChat((c) => {
+            const next = [...c];
+            next[next.length - 1] = { role: "assistant", content: next[next.length - 1].content + text };
+            return next;
+          }),
+        onDone: () => setChatBusy(false),
+        onError: (err) => {
+          setChatBusy(false);
+          setChat((c) => {
+            const next = [...c];
+            next[next.length - 1] = { role: "assistant", content: `（出错了：${err.message}）` };
+            return next;
+          });
+        },
+      }
+    );
+  };
 
   if (loading) return <div className="page-msg">Loading…</div>;
   if (!session) return <div className="page-msg">Practice not found</div>;
@@ -129,13 +168,37 @@ export default function SessionDetailPage() {
                 </div>
               )}
 
-              {attempt.chat?.length > 0 && (
-                <div className="fb-chat" style={{ borderTop: "none", marginTop: 12 }}>
-                  <div className="fb-section-label">追问记录</div>
-                  {attempt.chat.map((m, k) => (
-                    <div key={k} className={"fb-chat-msg " + m.role}>{m.content}</div>
+              {i === 0 ? (
+                <div className="fb-chat">
+                  <div className="fb-section-label">Ask the coach</div>
+                  {chat.map((m, k) => (
+                    <div key={k} className={"fb-chat-msg " + m.role}>
+                      {m.content || (chatBusy && k === chat.length - 1 ? <span className="fb-chat-typing">Thinking…</span> : "")}
+                    </div>
                   ))}
+                  <div className="fb-chat-input">
+                    <textarea
+                      rows={1}
+                      value={chatInput}
+                      placeholder="Ask about this feedback — why a change, more examples, how to say it elsewhere…"
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                      disabled={chatBusy}
+                    />
+                    <button className="su-btn su-btn-primary" onClick={sendChat} disabled={chatBusy || !chatInput.trim()}>
+                      <Icon name="next" size={16} />
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                attempt.chat?.length > 0 && (
+                  <div className="fb-chat">
+                    <div className="fb-section-label">Ask the coach</div>
+                    {attempt.chat.map((m, k) => (
+                      <div key={k} className={"fb-chat-msg " + m.role}>{m.content}</div>
+                    ))}
+                  </div>
+                )
               )}
 
               {i < attempts.length - 1 && <hr className="hr" />}
