@@ -129,6 +129,15 @@ export default function SessionDetailPage() {
                 </div>
               )}
 
+              {attempt.chat?.length > 0 && (
+                <div className="fb-chat" style={{ borderTop: "none", marginTop: 12 }}>
+                  <div className="fb-section-label">追问记录</div>
+                  {attempt.chat.map((m, k) => (
+                    <div key={k} className={"fb-chat-msg " + m.role}>{m.content}</div>
+                  ))}
+                </div>
+              )}
+
               {i < attempts.length - 1 && <hr className="hr" />}
             </div>
           );

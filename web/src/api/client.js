@@ -81,6 +81,60 @@ export function correctStream(data, { onChunk, onDone, onError } = {}) {
   return controller;
 }
 
+/**
+ * 追问对话流式（基于本次练习反馈继续问 AI）。SSE 纯文本。
+ * data: { userId, practiceId, attemptIndex?, question }
+ * handlers: { onChunk(text), onDone({text}), onError(err) }
+ * 返回 AbortController。
+ */
+export function chatStream(data, { onChunk, onDone, onError } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120_000);
+
+  (async () => {
+    try {
+      const res = await fetch(`${BASE}/correct/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || "请求失败");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(part.slice(6));
+            if (event.type === "chunk") onChunk?.(event.text);
+            else if (event.type === "done") onDone?.({ text: event.text });
+            else if (event.type === "error") onError?.(new Error(event.message));
+          } catch {}
+        }
+      }
+    } catch (e) {
+      if (e.name === "AbortError") onError?.(new Error("请求超时，请重试"));
+      else onError?.(e);
+    } finally {
+      clearTimeout(timer);
+    }
+  })();
+
+  return controller;
+}
+
 export const api = {
   login: (phone) => request("/auth/login", { method: "POST", body: { phone } }),
 

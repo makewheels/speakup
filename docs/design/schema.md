@@ -56,9 +56,12 @@
       "score":         6.5,                // 雅思口语 band，0~9，0.5 进制
       "nativeVersion": "...",
       "gaps": [
-        { "original": "...", "better": "...", "why": "...", "category": "vocabulary", "saveToReview": true }
+        { "original": "...", "better": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
       ],
       "progress":      { "verdict": "passed | improved | stuck", "fixed": [], "remaining": [], "comment": "" },  // 第 2 轮起
+      "chat": [        // 追问对话：用户拿到反馈后基于本次上下文继续问 AI（可空）
+        { "role": "user | assistant", "content": "...", "createdAt": datetime }
+      ],
       "recordingKey":  "practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm",  // 本轮录音（上传成功才有）
       "createdAt": datetime
     }

@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
-from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream
+from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream, followup_chat_stream
 
 router = APIRouter(prefix="/api/correct", tags=["correct"])
 
@@ -129,4 +129,71 @@ async def correct_stream(req: CorrectRequest):
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+class ChatRequest(BaseModel):
+    userId: str
+    practiceId: str
+    attemptIndex: int = -1  # 默认对最后一次 attempt 的反馈追问
+    question: str
+
+
+@router.post("/chat/stream")
+async def correct_chat_stream(req: ChatRequest):
+    """用户拿到反馈后，基于本次练习上下文继续追问 AI（SSE 纯文本流）。
+    把问答历史存进对应 attempt 的 chat 数组，刷新/历史页可回看。
+    """
+    if not req.question or not req.question.strip():
+        raise HTTPException(400, "问题不能为空")
+
+    try:
+        practice = await get_db().practiceSessions.find_one(
+            {"_id": ObjectId(req.practiceId), "userId": req.userId}
+        )
+    except Exception:
+        raise HTTPException(404, "练习不存在")
+    if not practice:
+        raise HTTPException(404, "练习不存在")
+
+    attempts = practice.get("attempts", [])
+    if not attempts:
+        raise HTTPException(400, "还没有反馈可追问")
+    idx = req.attemptIndex if 0 <= req.attemptIndex < len(attempts) else len(attempts) - 1
+    attempt = attempts[idx]
+    scenario = practice.get("scenario")
+    history = attempt.get("chat", [])
+    link = {"sessionId": req.practiceId, "userId": req.userId, "attemptIndex": idx}
+
+    async def generate():
+        full = ""
+        errored = False
+        async for event_type, data in followup_chat_stream(
+            scenario, attempt, history, req.question, link_to=link
+        ):
+            if event_type == "chunk":
+                full += data["text"]
+                yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
+            elif event_type == "error":
+                errored = True
+                yield f"data: {json.dumps({'type': 'error', 'message': data['message']})}\n\n"
+                return
+            elif event_type == "done":
+                full = data["text"]
+
+        if not errored and full:
+            now = datetime.now(timezone.utc)
+            await get_db().practiceSessions.update_one(
+                {"_id": ObjectId(req.practiceId)},
+                {"$push": {f"attempts.{idx}.chat": {"$each": [
+                    {"role": "user", "content": req.question, "createdAt": now},
+                    {"role": "assistant", "content": full, "createdAt": now},
+                ]}}},
+            )
+            yield f"data: {json.dumps({'type': 'done', 'text': full})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

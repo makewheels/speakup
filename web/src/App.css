@@ -1570,6 +1570,64 @@ button { font-family: inherit; }
   color: var(--ink);
   margin-bottom: 12px;
 }
+
+/* 继续追问 AI：基于本次反馈的流式对话 */
+.fb-chat {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+.fb-chat-msg {
+  font-family: var(--ff-cn);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fb-chat-msg.user {
+  background: var(--accent-soft);
+  border-color: transparent;
+  margin-left: 28px;
+}
+.fb-chat-msg.assistant {
+  margin-right: 12px;
+}
+.fb-chat-typing { color: var(--ink-3); }
+.fb-chat-input {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-top: 4px;
+}
+.fb-chat-input textarea {
+  flex: 1;
+  font-family: var(--ff-cn);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 12px 14px;
+  resize: none;
+  max-height: 120px;
+}
+.fb-chat-input textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.fb-chat-input .su-btn {
+  height: 48px;
+  width: 48px;
+  padding: 0;
+  flex: none;
+}
 /* 差距点：编号卡片 + 三行表格（我说的 / 应该说 / 为什么）*/
 .fb-gap-card {
   background: var(--bg-elev);

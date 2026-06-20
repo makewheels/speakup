@@ -18,6 +18,7 @@ vi.mock("../api/client.js", () => ({
     tts: vi.fn(),
   },
   correctStream: vi.fn(),
+  chatStream: vi.fn(),
 }));
 
 // SpeakBtn → tts → Audio.play() jsdom 里不支持，直接 stub
@@ -134,6 +135,47 @@ describe("PracticePage", () => {
     );
     // nativeVersion 被 splitSentences 拆成多个 <p>，匹配其中一句即可
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
+  });
+
+  it("追问：发送问题后流式回答渲染、并以本练习上下文调用 chatStream", async () => {
+    const { api, chatStream } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        {
+          round: 1,
+          transcript: "Can you redo my latte",
+          summary: "整体不错",
+          nativeVersion: "Could you remake my latte?",
+          score: 6.5,
+          gaps: [],
+          progress: null,
+          chat: [],
+        },
+      ],
+    });
+    // mock：把流式回答一段段喂回去，再 done
+    chatStream.mockImplementation((_data, { onChunk, onDone }) => {
+      onChunk("native ");
+      onChunk("更自然。");
+      onDone?.({ text: "native 更自然。" });
+      return { abort: vi.fn() };
+    });
+
+    setup("/practice/sess_abc?result=1");
+    await waitFor(() => expect(screen.getByText("继续追问 AI")).toBeInTheDocument());
+
+    const box = screen.getByPlaceholderText(/基于上面的反馈追问/);
+    await userEvent.type(box, "为什么这么改？");
+    await userEvent.keyboard("{Enter}");
+
+    expect(chatStream).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER.userId, practiceId: "sess_abc", question: "为什么这么改？" }),
+      expect.any(Object),
+    );
+    await waitFor(() => expect(screen.getByText("native 更自然。")).toBeInTheDocument());
+    // 用户问题也渲染出来
+    expect(screen.getByText("为什么这么改？")).toBeInTheDocument();
   });
 
   it("does NOT show feedback (shows ready) when attempts exist but URL lacks ?result=1", async () => {

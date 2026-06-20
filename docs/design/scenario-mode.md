@@ -8,8 +8,8 @@
 flowchart TD
     A[GET /scenarios/next 派题] -->|定制题 > 未练公共题 > 轮换| B[创建 session<br/>存场景快照]
     B --> C[用户看图+情境+任务<br/>开口说 → Web Speech 转文字]
-    C --> D[POST /correct/stream<br/>qwen3.7-plus 评估 SSE 流式]
-    D --> E[反馈：native 版本 + 差距点<br/>错点自动进 vocabulary 复习]
+    C --> D[POST /correct/stream<br/>glm-5.2 评估 SSE 流式]
+    D --> E[反馈：native 版本 + 差距点<br/>错点自动进 vocabulary 复习<br/>可继续追问 AI /correct/chat/stream]
     E -->|verdict != passed 且 < 3 轮| C
     E -->|passed 或 3 轮用完| A
     E -.异步.-> F[录音上传 OSS 关联本轮 attempt]
@@ -37,10 +37,10 @@ flowchart TD
 
 | 用途 | 模型 | 接口 | 说明 |
 |------|------|------|------|
-| 口语评估 / 定制出题 | qwen3.7-plus | compatible-mode (LangChain ChatOpenAI) | 纯文本，评估走 SSE 流式 |
-| 场景配图 | wan2.7-image | multimodal-generation 同步接口 | 10~30s 出图，统一写实照片风格后缀 |
+| 口语评估 / 定制出题 / 追问对话 | glm-5.2（火山方舟 Coding Plan，开 thinking） | OpenAI 协议 (LangChain ChatOpenAI) | 纯文本，评估走 SSE 流式 |
+| 场景配图 | wan2.7-image（阿里云万相，默认关闭 `IMAGE_ENABLED=false`） | multimodal-generation 同步接口 | 10~30s 出图，统一写实照片风格后缀 |
 
-模型名与接口地址不写死，走 env：`CHAT_MODEL` / `IMAGE_MODEL` / `DASHSCOPE_BASE_URL`（默认值见 `config.py`，即当前最新版本）。模型版本定期对照 `GET /compatible-mode/v1/models` 用最新的。
+模型名与接口地址不写死，走 env（按能力解耦、不绑运营商）：文字 `CHAT_API_KEY`/`CHAT_BASE_URL`/`CHAT_MODEL`、图片 `IMAGE_*`、语音 `VOICE_*`（默认值见 `config.py`）。追问对话端点 `POST /api/correct/chat/stream`：拿场景+本轮反馈作上下文，SSE 流式回答，问答存进对应 attempt 的 `chat` 数组。
 
 ## 题库与出图策略
 
