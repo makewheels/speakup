@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-20 08:42
+
+- **chore(docs)**：`SPEC.md`（产品功能文档）归档进 `docs/design/spec.md`，和 schema / ids / storage 等设计文档放一起。同步改两处引用（`design/app.jsx` 画布副标题、本文件历史条目 §330 指针），AGENTS.md 的 `docs/design/` 目录树补一行。文档本身内容不变，只挪位置。
+
 ### 2026-06-20 08:36
 
 - **chore(docs)**：CHANGELOG 时间戳规则从「本地时区」改为「北京时间 UTC+8」，避免 agent 在 UTC 容器里跑出错时区。`CONTRIBUTING.md`「CHANGELOG 格式」段给出取北京时间的命令（`TZ='Asia/Shanghai' git show -s --date=format-local`），`CHANGELOG.md` 顶部说明同步。
@@ -327,7 +331,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 ### Added
 - **阿里云 OSS 集成**：创建 dev/prod bucket（speakup-dev, speakup-prod），RAM 用户 speakup-oss + 仅限 speakup bucket 的 IAM 策略，oss2 SDK 服务模块 `oss_storage.py`
 - **前端 vitest 测试**：`client/src/**/*.test.jsx`，11 个用例覆盖 Icon 渲染 + LoginPage 表单校验 / 提交，807ms 跑完。CI 在 `test-client` job 里跑。
-- **差距框架（gap-exposure）** 取代"纠错"作为产品本质 — see `SPEC.md` §2
+- **差距框架（gap-exposure）** 取代"纠错"作为产品本质 — see `docs/design/spec.md` §2（原 `SPEC.md`，2026-06-20 归档）
 - 新 AI 输出 schema：`{summary, nativeVersion, gaps[{original, better, why, category}]}`
 - 视觉系统从 Claude Design 移植：Newsreader 衬线 + Geist + JetBrains Mono + 暖纸色，全套 design tokens
 - 个人中心页 `/me`（含退出登录）

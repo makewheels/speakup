@@ -190,7 +190,7 @@ function App() {
   return (
     <DesignCanvas>
       {/* Cover / intro */}
-      <DCSection id="overview" title="SpeakUp — 看图说英语" subtitle="按 SPEC.md · v0.1 demo 设计 · 移动端 375 × 812">
+      <DCSection id="overview" title="SpeakUp — 看图说英语" subtitle="按 docs/design/spec.md · v0.1 demo 设计 · 移动端 375 × 812">
         <DCArtboard id="intro" label="设计说明" width={520} height={812}>
           <div style={{
             padding: "56px 44px", height: "100%", boxSizing: "border-box",
