@@ -60,7 +60,7 @@ git checkout master && git pull
 
 ## CHANGELOG 格式
 
-写在 `## [Unreleased]` 段。**一天多次改动按时间倒序分组**，每段标题用 `### YYYY-MM-DD HH:MM`（本地时区，精确到分钟，从 commit 时间取）。段下扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。最新放最上。
+写在 `## [Unreleased]` 段。**一天多次改动按时间倒序分组**，每段标题用 `### YYYY-MM-DD HH:MM`（**北京时间 UTC+8**，精确到分钟，从 commit 时间取，例如 `TZ='Asia/Shanghai' git show -s --format=%cd --date=format-local:'%Y-%m-%d %H:%M'`）。段下扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。最新放最上。
 
 ```markdown
 ## [Unreleased]

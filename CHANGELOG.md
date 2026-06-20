@@ -6,9 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 ## [Unreleased]
 
-> 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，本地时区）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
+> 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
-### 2026-06-20 00:35
+### 2026-06-20 08:36
+
+- **chore(docs)**：CHANGELOG 时间戳规则从「本地时区」改为「北京时间 UTC+8」，避免 agent 在 UTC 容器里跑出错时区。`CONTRIBUTING.md`「CHANGELOG 格式」段给出取北京时间的命令（`TZ='Asia/Shanghai' git show -s --date=format-local`），`CHANGELOG.md` 顶部说明同步。
+
+### 2026-06-20 08:33
 
 - **fix(ui)**：History 列表标题横向显示不全。之前时间（`history-meta`）和标题在同一行抢横向空间，长标题被截断。把时间挪到标题下方（与 attempts / gaps chip 同一 `history-sub` 行），标题独占整行宽度；同时 `history-headline` 允许换到两行（`line-clamp` 1→2），长标题展示更完整。删掉空的 `.history-meta` 样式。
 
