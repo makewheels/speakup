@@ -42,6 +42,7 @@ speakup/
 │       ├── unit/                    # 纯逻辑单元测试，全 mock，毫秒级
 │       └── integration/             # 走 HTTP + 真实 test DB，秒级
 ├── docs/design/             # 设计文档（改动涉及 schema/存储/ID 时同步更新）
+│   ├── spec.md              # 产品功能文档（定位/产品本质/用户旅程/逐页 UI 规格）
 │   ├── ids.md               # ID 规范
 │   ├── schema.md            # MongoDB 集合 schema
 │   ├── scenario-mode.md     # 场景模式总览（流程/模型/存储/后台任务）
