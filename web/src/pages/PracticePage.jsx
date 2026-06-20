@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
-import { api, correctStream } from "../api/client.js";
+import { api, correctStream, chatStream } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import SpeakBtn from "../components/SpeakBtn.jsx";
 import RecordingPlayer from "../components/RecordingPlayer.jsx";
@@ -63,6 +63,11 @@ export default function PracticePage() {
   const [streamingLen, setStreamingLen] = useState(0);
   const [savedMap, setSavedMap] = useState({}); // gap 下标 -> reviewItem id（自动收录的初始就带，手动加/取消同步）
   const [recordingUrl, setRecordingUrl] = useState(""); // 本次录音的本地 object URL，结果页回放用
+  const [chat, setChat] = useState([]);          // 追问对话 [{role, content}]
+  const [chatInput, setChatInput] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+
+  const chatControllerRef = useRef(null);
 
   const timerRef = useRef(null);
   const secondsRef = useRef(0);
@@ -95,6 +100,7 @@ export default function PracticePage() {
           (last.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
           setSavedMap(init);
           setRound(Math.min(attempts.length, MAX_ROUNDS));
+          setChat(last.chat ?? []);
           setPhase("feedback");
         } else {
           setRound(Math.min(attempts.length + 1, MAX_ROUNDS));
@@ -264,6 +270,7 @@ export default function PracticePage() {
           setSavedMap(init);
           setAutoSaved(n);
           if (r) setRound(r);
+          setChat([]);
           setPhase("feedback");
           // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
           setSearchParams({ result: "1" }, { replace: true });
@@ -278,6 +285,36 @@ export default function PracticePage() {
           clearInterval(evalTimerRef.current);
           alert("Feedback request failed: " + err.message);
           setPhase("review");
+        },
+      }
+    );
+  };
+
+  // 追问：基于本次反馈继续问 AI，流式追加到对话里
+  const sendChat = () => {
+    const q = chatInput.trim();
+    if (!q || chatBusy || !session?._id) return;
+    setChatInput("");
+    // 先把用户问题和一个空的 assistant 占位推进去，流式往占位里填
+    setChat((c) => [...c, { role: "user", content: q }, { role: "assistant", content: "" }]);
+    setChatBusy(true);
+    chatControllerRef.current = chatStream(
+      { userId: user.userId, practiceId: session._id, question: q },
+      {
+        onChunk: (text) =>
+          setChat((c) => {
+            const next = [...c];
+            next[next.length - 1] = { role: "assistant", content: next[next.length - 1].content + text };
+            return next;
+          }),
+        onDone: () => setChatBusy(false),
+        onError: (err) => {
+          setChatBusy(false);
+          setChat((c) => {
+            const next = [...c];
+            next[next.length - 1] = { role: "assistant", content: `（出错了：${err.message}）` };
+            return next;
+          });
         },
       }
     );
@@ -442,6 +479,28 @@ export default function PracticePage() {
         {autoSaved > 0 && (
           <p className="fb-autosaved">{autoSaved} added to Review · tap “In Review” on any card to remove</p>
         )}
+
+        <div className="fb-chat">
+          <div className="fb-section-label">继续追问 AI</div>
+          {chat.map((m, i) => (
+            <div key={i} className={"fb-chat-msg " + m.role}>
+              {m.content || (chatBusy && i === chat.length - 1 ? <span className="fb-chat-typing">思考中…</span> : "")}
+            </div>
+          ))}
+          <div className="fb-chat-input">
+            <textarea
+              rows={1}
+              value={chatInput}
+              placeholder="基于上面的反馈追问，比如「为什么这么改」「再给我两个例句」"
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+              disabled={chatBusy}
+            />
+            <button className="su-btn su-btn-primary" onClick={sendChat} disabled={chatBusy || !chatInput.trim()}>
+              <Icon name="next" size={16} />
+            </button>
+          </div>
+        </div>
 
         <div className="actions-row" style={{ marginTop: 8 }}>
           {passed || lastRound ? (

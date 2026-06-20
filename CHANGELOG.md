@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-20 11:11
+
+- **add(chat)**：拿到反馈后可**继续追问 AI**（流式对话）。新端点 `POST /api/correct/chat/stream`：以场景+本轮反馈（native 版/gaps/小结）为上下文，把追问历史+新问题喂给 glm-5.2，SSE 纯文本流式回答；问答落进对应 attempt 的 `chat` 数组，刷新/历史页可回看。后端 `corrector.followup_chat_stream`，前端 `client.chatStream` + Practice 反馈页底部追问区（流式追加、Enter 发送）+ 历史详情页回看。提示词约束纯文本无 markdown。本地实测端到端流式+落库正常，新增 4 个集成测试，前后端测试全过（后端 80 / 前端 101）。
+- **chore(docs)**：`scenario-mode.md` 模型清单/流程图更新为 glm-5.2 + 追问端点；`schema.md` attempt 补 `chat` 字段、category 枚举补 `task`。
+
 ### 2026-06-20 10:57
 
 - **change(corrector)**：纠错提示词全局梳理后补两处缺口。①新增**任务目标判定**为首要维度：模型先拿场景 `mission`/`points` 对照学习者的话，跑题/漏关键诉求/没办成 → 作为第一个 gap（新 `category: "task"`，排最前）并在 summary 点出；②收紧"漏纠真错误"——把"宁缺毋滥/native 不皱眉就放过"改成「错就必纠（语法/时态/语序/重复啰嗦/中式搭配/用错词），只跳过两种说法都对的纯口味替换」，修掉旧 Qwen 漏纠 `help me to take me a photo` 这类真错的问题。③重说轮 `passed` 判定纳入任务完成度——任务没办成绝不判 pass。`GapItem.category` 枚举加 `task`（前端不展示 category，向后兼容）。实测 4 类场景（跑题/真错误/时态复数/本来就对）行为均正确。
