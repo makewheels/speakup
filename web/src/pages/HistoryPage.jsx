@@ -111,12 +111,10 @@ export default function HistoryPage() {
                 <div className="history-body">
                   <p className="history-headline">{g.title}</p>
                   <div className="history-sub">
+                    <span className="history-date">{formatDateTime(latest.createdAt)}</span>
                     {multi && <span className="chip">{g.sessions.length} attempts</span>}
                     {!multi && gapCount > 0 && <span className="chip warn">{gapCount} gaps</span>}
                   </div>
-                </div>
-                <div className="history-meta">
-                  <span className="history-date">{formatDateTime(latest.createdAt)}</span>
                 </div>
                 <div className={"history-arrow" + (multi && open ? " open" : "")}>
                   <Icon name="next" size={16} color="var(--ink-4)" />

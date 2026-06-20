@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，本地时区）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-20 00:35
+
+- **fix(ui)**：History 列表标题横向显示不全。之前时间（`history-meta`）和标题在同一行抢横向空间，长标题被截断。把时间挪到标题下方（与 attempts / gaps chip 同一 `history-sub` 行），标题独占整行宽度；同时 `history-headline` 允许换到两行（`line-clamp` 1→2），长标题展示更完整。删掉空的 `.history-meta` 样式。
+
 ### 2026-06-19 16:22
 
 - **chore(docs)**：抽出 `CONTRIBUTING.md`（82 行）—— AGENTS.md 里通用的开发流程 / 测试分层 / CHANGELOG 格式 / PR 约定 / 工程规则（URL 状态可还原 / 测试是代码 / LLM 调用成本）都挪过去（人 + AI agent 共用）。AGENTS.md 瘦身到 141 行（原 201），只留 agent 专属的硬上下文（敏感信息 / 部署运维 / SSH / 凭据旋转 / agent 卫生约束）。README 加贡献入口链接。
