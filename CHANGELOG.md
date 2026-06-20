@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-20 08:46
+
+- **chore(ci)**：CI 用的几个 GitHub Action 升到跑 Node 24 的版本，消除 runner 的「Node.js 20 is deprecated」警告（node20 actions 仍被强制跑在 node24 上，2026 起会移除）。`pnpm/action-setup@v4 → v6`、`docker/login-action@v3 → v4`、`docker/build-push-action@v6 → v7`（三者分别在 v6/v4/v7 起改用 node24）。`shimataro/ssh-key-action@v2` 已是 node24、`actions/checkout@v5` / `setup-node@v5` / `setup-uv@v7` 也都 node24，不动。剩下日志里的 `DEP0040 punycode` / `DEP0169 url.parse` 是 docker action 内部依赖的 node 警告，非本仓库可控。
+
 ### 2026-06-20 08:42
 
 - **chore(docs)**：`SPEC.md`（产品功能文档）归档进 `docs/design/spec.md`，和 schema / ids / storage 等设计文档放一起。同步改两处引用（`design/app.jsx` 画布副标题、本文件历史条目 §330 指针），AGENTS.md 的 `docs/design/` 目录树补一行。文档本身内容不变，只挪位置。
