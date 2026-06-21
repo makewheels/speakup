@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-21 15:31
+
+- **add(share)**：练习**分享链接**功能。详情页点「Share」生成随机 token（`secrets.token_urlsafe`，不可枚举、可撤销），复制内容含文案+链接（`I practiced "..." on SpeakUp (IELTS x.x) — take a look 👉 <url>`）。任何人无需登录打开 `/s/:token` 即可看完整练习（场景/三轮 transcript/评分/纠错/追问对话/录音，与本人一致，含分享者昵称）。新接口：`POST`/`DELETE /api/practice-sessions/{pid}/share`（开启/撤销，校验归属、幂等）、公开只读 `GET /api/share/{token}`（无鉴权，解析昵称）；list 加 `sharedOnly` 参数。`practiceSessions` 补 `shareToken`/`shared`/`sharedAt` 字段。
+- **add(share)**：分享管理——History 列表对已分享练习加「Shared」角标；Profile 加「My shares」入口 → 新页 `ManageSharesPage` 集中列出已分享练习，可逐条复制/取消分享。撤销即清 token，旧链接立即 404。
+- **change(ui)**：详情页三轮 attempts 从一长条竖向堆叠改为 **Attempt 1/2/3 tab 切换**（默认选最新一轮）。抽出 `SessionView` 公共展示组件供详情页与分享页共用；分享页 `readOnly` 模式隐藏追问输入框（chat 只读）与付费 TTS 朗读按钮（防陌生人刷量），保留免费录音播放。
+- **chore(docs)**：AGENTS.md 注意事项明确「**界面文案统一英文**」（按钮/标签/提示/空状态，代码注释仍中文）；`schema.md` practiceSessions 补分享字段说明。
+- **test**：新增后端 6 个分享集成测试（开启/幂等/撤销失效/非 owner 404/无效 token 404/sharedOnly 过滤）+ 前端 SharePage 渲染/只读/失效测试，详情页测试更新为 tab 切换断言。本地端到端实测（隐身窗口打开分享链接、撤销后 404）通过，后端 86 / 前端 105 全绿，build 通过。
+
 ### 2026-06-20 11:35
 
 - **add(chat)**：追问框补到**历史详情页**（SessionDetailPage），针对该次练习最新一轮，和练习反馈页共用同一端点 + 同一份 `attempt.chat`——结果页和历史页现在一致，从历史也能发起/继续对话。旧轮次的追问保持只读回看。

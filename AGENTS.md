@@ -77,6 +77,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 
 ## 注意事项
 
+- **界面文案统一英文**：按钮、标签、提示（toast）、空状态等所有 UI 文案一律用英文（与 You said / Native version / Gaps / Ask the coach 保持一致）。代码注释仍用中文。
 - 语音识别仅 Chrome (Web Speech API)
 - `.env` 文件不在版本控制中
 - pnpm 全局 store: `~/Library/pnpm/store/v10`

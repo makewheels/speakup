@@ -1,5 +1,6 @@
 import { useUser } from "../context/UserContext.jsx";
 import { useNavigate } from "react-router-dom";
+import Icon from "../components/Icon.jsx";
 
 export default function ProfilePage() {
   const { user, logout } = useUser();
@@ -27,9 +28,16 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      <button className="profile-entry" onClick={() => navigate("/shares")}>
+        <Icon name="share" size={18} color="var(--ink-3)" />
+        <span>My shares</span>
+        <Icon name="next" size={16} color="var(--ink-4)" />
+      </button>
+
       <button className="su-btn su-btn-danger" onClick={handleLogout}>
         Log out
       </button>
     </div>
   );
 }
+

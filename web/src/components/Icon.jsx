@@ -119,6 +119,22 @@ export default function Icon({ name, size = 20, color = "currentColor", stroke =
           <path d="M8 5v14l11-7z" fill={color} stroke="none" />
         </svg>
       );
+    case "share":
+      return (
+        <svg {...p}>
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" />
+        </svg>
+      );
+    case "link":
+      return (
+        <svg {...p}>
+          <path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1" />
+          <path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1" />
+        </svg>
+      );
     case "pause":
       return (
         <svg {...p}>

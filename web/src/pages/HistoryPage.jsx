@@ -114,6 +114,7 @@ export default function HistoryPage() {
                     <span className="history-date">{formatDateTime(latest.createdAt)}</span>
                     {multi && <span className="chip">{g.sessions.length} attempts</span>}
                     {!multi && gapCount > 0 && <span className="chip warn">{gapCount} gaps</span>}
+                    {!multi && latest.shared && <span className="chip share">Shared</span>}
                   </div>
                 </div>
                 <div className={"history-arrow" + (multi && open ? " open" : "")}>
@@ -131,6 +132,7 @@ export default function HistoryPage() {
                         <span className="history-subidx">Attempt {g.sessions.length - k}</span>
                         <span className="history-subtime">{formatDateTime(s.createdAt)}</span>
                         {gc > 0 && <span className="chip warn">{gc} gaps</span>}
+                        {s.shared && <span className="chip share">Shared</span>}
                         <Icon name="next" size={14} color="var(--ink-4)" />
                       </div>
                     );
