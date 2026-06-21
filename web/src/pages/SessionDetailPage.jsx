@@ -102,17 +102,31 @@ export default function SessionDetailPage() {
   if (loading) return <div className="page-msg">Loading…</div>;
   if (!session) return <div className="page-msg">Practice not found</div>;
 
-  const shareAction = (
-    <div className="share-actions">
-      <button className="su-btn su-btn-tertiary share-btn" onClick={doShare} disabled={shareBusy}>
-        <Icon name="share" size={16} />
-        {shareToken ? "Copy link" : "Share"}
-      </button>
-      {shareToken && (
+  const shareBar = shareToken ? (
+    <div className="share-bar shared">
+      <div className="share-bar-status">
+        <span className="share-dot" />
+        <span className="share-bar-title">Shared</span>
+        <span className="share-bar-sub">Anyone with the link can view</span>
+      </div>
+      <div className="share-bar-actions">
+        <button className="su-btn su-btn-primary" onClick={doShare} disabled={shareBusy}>
+          <Icon name="link" size={15} /> Copy link
+        </button>
         <button className="share-cancel" onClick={doUnshare} disabled={shareBusy}>
           Stop sharing
         </button>
-      )}
+      </div>
+    </div>
+  ) : (
+    <div className="share-bar">
+      <div className="share-bar-status">
+        <span className="share-bar-title muted">Not shared</span>
+        <span className="share-bar-sub">Only you can see this practice</span>
+      </div>
+      <button className="su-btn su-btn-tertiary share-btn" onClick={doShare} disabled={shareBusy}>
+        <Icon name="share" size={16} /> Share
+      </button>
     </div>
   );
 
@@ -124,7 +138,7 @@ export default function SessionDetailPage() {
 
       <SessionView
         session={session}
-        headerAction={shareAction}
+        belowHero={shareBar}
         chat={chat}
         chatInput={chatInput}
         setChatInput={setChatInput}

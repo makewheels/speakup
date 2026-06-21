@@ -1,4 +1,5 @@
 import secrets
+import string
 import time
 from datetime import datetime, timezone
 
@@ -12,6 +13,21 @@ from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
 router = APIRouter(prefix="/api/practice-sessions", tags=["practice-sessions"])
 # 公开分享读取（无鉴权），独立前缀
 share_router = APIRouter(prefix="/api/share", tags=["share"])
+
+# 分享 token：纯字母数字（无 - / _ 等特殊字符），12 位 ≈ 62^12 碰撞概率可忽略
+_TOKEN_ALPHABET = string.ascii_letters + string.digits
+
+
+def _gen_token(n: int = 12) -> str:
+    return "".join(secrets.choice(_TOKEN_ALPHABET) for _ in range(n))
+
+
+async def _gen_unique_token() -> str:
+    """生成库内不重复的 token（兜底校验，正常一次命中）。"""
+    while True:
+        token = _gen_token()
+        if not await get_db().practiceSessions.find_one({"shareToken": token}):
+            return token
 
 
 class CreatePracticeRequest(BaseModel):
@@ -112,7 +128,7 @@ async def share_practice(pid: str, req: ShareRequest):
     if not practice:
         raise HTTPException(404, "练习不存在")
 
-    token = practice.get("shareToken") or secrets.token_urlsafe(9)
+    token = practice.get("shareToken") or await _gen_unique_token()
     await get_db().practiceSessions.update_one(
         {"_id": ObjectId(pid)},
         {"$set": {"shareToken": token, "shared": True, "sharedAt": datetime.now(timezone.utc)}},
@@ -122,11 +138,11 @@ async def share_practice(pid: str, req: ShareRequest):
 
 @router.delete("/{pid}/share")
 async def unshare_practice(pid: str, userId: str = Query(...)):
-    """取消分享：清掉 token，旧链接立即失效。"""
+    """取消分享：只置 shared=False，保留 token。再次开启即复用同一链接（旧链接复活）。"""
     try:
         result = await get_db().practiceSessions.update_one(
             {"_id": ObjectId(pid), "userId": userId},
-            {"$set": {"shared": False}, "$unset": {"shareToken": ""}},
+            {"$set": {"shared": False}},
         )
     except Exception:
         raise HTTPException(404, "练习不存在")

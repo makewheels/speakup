@@ -17,6 +17,7 @@ def test_share_creates_token_and_public_read(client, user_id, practice_id):
     assert resp.status_code == 200
     token = resp.json()["shareToken"]
     assert token
+    assert token.isalnum()  # 纯字母数字，无 - / _ 等特殊字符
 
     pub = client.get(f"/api/share/{token}")
     assert pub.status_code == 200
@@ -31,13 +32,18 @@ def test_share_is_idempotent(client, user_id, practice_id):
     assert t1 == t2  # 复用同一 token
 
 
-def test_unshare_revokes_token(client, user_id, practice_id):
+def test_unshare_keeps_token_and_reshare_reuses_link(client, user_id, practice_id):
     token = client.post(f"/api/practice-sessions/{practice_id}/share", json={"userId": user_id}).json()["shareToken"]
     assert client.get(f"/api/share/{token}").status_code == 200
 
-    resp = client.request("DELETE", f"/api/practice-sessions/{practice_id}/share?userId={user_id}")
-    assert resp.status_code == 200
-    assert client.get(f"/api/share/{token}").status_code == 404  # 旧链接立即失效
+    # 取消分享：旧链接立即 404（shared=False），但 token 保留
+    client.request("DELETE", f"/api/practice-sessions/{practice_id}/share?userId={user_id}")
+    assert client.get(f"/api/share/{token}").status_code == 404
+
+    # 再次开启：复用同一 token，旧链接复活
+    token2 = client.post(f"/api/practice-sessions/{practice_id}/share", json={"userId": user_id}).json()["shareToken"]
+    assert token2 == token
+    assert client.get(f"/api/share/{token}").status_code == 200
 
 
 def test_share_wrong_user_404(client, user_id, practice_id):
