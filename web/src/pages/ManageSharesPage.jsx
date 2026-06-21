@@ -4,13 +4,7 @@ import { useUser } from "../context/UserContext.jsx";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import { copyShare } from "../lib/share.js";
-
-function formatDateTime(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
-  const pad = (n) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
+import { formatDateTime } from "../lib/formatDateTime.js";
 
 export default function ManageSharesPage() {
   const { user } = useUser();

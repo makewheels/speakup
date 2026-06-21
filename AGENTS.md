@@ -1,6 +1,6 @@
 # SpeakUp — AI 英语口语练习应用
 
-看图片 → 说英语 → AI (VLM) 看图给反馈。生产域名不入库（属配置，见 DNS 控制台 / 部署配置）。
+看场景题 → 开口说英语 → AI coach 给反馈（gaps 差距 + native version + 追问 coach）→ 沉淀复习项。场景配图可选（`IMAGE_ENABLED=false` 默认关闭）。生产域名不入库（属配置，见 DNS 控制台 / 部署配置）。
 
 > 本文件遵循 [AGENTS.md](https://agents.md) 约定，是面向所有 AI agent（Claude Code / Cursor / 其他）的项目说明。`CLAUDE.md` symlink 到这里。
 

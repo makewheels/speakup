@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "./Icon.jsx";
 import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
+import { formatDateTime } from "../lib/formatDateTime.js";
 
 const splitSentences = (s = "") =>
   s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
@@ -12,13 +13,6 @@ const stripEmoji = (s = "") =>
     .replace(/^[\s·•・]+/, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-
-function formatDateTime(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
-  const pad = (n) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
 
 /**
  * 练习展示组件（详情页 + 分享页共用）。
