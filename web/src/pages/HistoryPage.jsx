@@ -3,13 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
+import { formatDateTime } from "../lib/formatDateTime.js";
 
-function formatDateTime(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
-  const pad = (n) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
+const totalGaps = (session) =>
+  session.attempts?.reduce((sum, a) => sum + (a.gaps?.length ?? 0), 0) ?? 0;
 
 export default function HistoryPage() {
   const { user } = useUser();
@@ -92,8 +89,7 @@ export default function HistoryPage() {
           const latest = g.sessions[0];
           const multi = g.sessions.length > 1;
           const open = expanded.has(g.key);
-          const lastAttempt = latest.attempts?.[latest.attempts.length - 1];
-          const gapCount = lastAttempt?.gaps?.length ?? 0;
+          const gapCount = totalGaps(latest);
 
           return (
             <div key={g.key} className="history-group">
@@ -125,8 +121,7 @@ export default function HistoryPage() {
               {multi && open && (
                 <div className="history-sessions">
                   {g.sessions.map((s, k) => {
-                    const a = s.attempts?.[s.attempts.length - 1];
-                    const gc = a?.gaps?.length ?? 0;
+                    const gc = totalGaps(s);
                     return (
                       <div key={s._id} className="history-subrow" onClick={() => navigate(`/history/${s._id}`)}>
                         <span className="history-subidx">Attempt {g.sessions.length - k}</span>
