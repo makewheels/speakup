@@ -7,7 +7,7 @@ db = None
 
 async def connect_db():
     global client, db
-    client = AsyncIOMotorClient(MONGO_URI)
+    client = AsyncIOMotorClient(MONGO_URI, tz_aware=True)
     db = client.get_default_database()
     await client.admin.command("ping")
     print("MongoDB connected")
