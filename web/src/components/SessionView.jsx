@@ -35,6 +35,7 @@ export default function SessionView({
   readOnly = false,
   subtitle = null,
   headerAction = null,
+  belowHero = null,
   chat = [],
   chatInput = "",
   setChatInput = () => {},
@@ -69,6 +70,8 @@ export default function SessionView({
         </div>
         {headerAction && <div className="detail-hero-action">{headerAction}</div>}
       </div>
+
+      {belowHero}
 
       {rawAttempts.length === 0 ? (
         <div className="page-msg" style={{ paddingTop: 40 }}>No AI feedback for this practice yet</div>

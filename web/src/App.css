@@ -2324,21 +2324,65 @@ button { font-family: inherit; }
   color: var(--ink-3);
 }
 
-.share-actions {
+/* 分享状态栏（hero 下方）：已分享=彩色底，未分享=中性无色 */
+.share-bar {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--rule);
+  background: var(--bg-mute);
+  margin-bottom: 18px;
 }
+.share-bar.shared {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.share-bar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+.share-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+.share-bar-title {
+  font-family: var(--ff-cn);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.share-bar-title.muted { color: var(--ink-2); font-weight: 600; }
+.share-bar-sub {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.share-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.share-bar .su-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; white-space: nowrap; }
 .share-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .share-cancel {
   background: none;
   border: none;
   cursor: pointer;
   font-family: var(--ff-cn);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-3);
   padding: 2px 4px;
+  white-space: nowrap;
 }
 .share-cancel:hover { color: var(--warn); }
 .share-cancel:disabled { opacity: 0.5; cursor: default; }

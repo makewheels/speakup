@@ -8,6 +8,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-21 16:00
+
+- **change(share)**：分享 token 改为**纯字母数字**（`A-Za-z0-9`，12 位 ≈ 62^12，加唯一性校验兜底），去掉原 `token_urlsafe` 带的 `-`/`_` 特殊字符。
+- **change(share)**：取消分享**只置 `shared=False`、保留 token**（原来是 `$unset` 清掉）。再次开启即复用同一链接、旧链接复活，不再出现"取消后链接永久失效"。
+- **change(ui)**：详情页分享区从 hero 角落改为 hero 下方**清晰状态栏**：已分享=彩色底（蓝点 + "Shared · anyone with the link can view" + 复制/取消）；未分享=中性无色（"Not shared · only you can see" + Share 按钮）。
+- **test**：更新分享集成测试——token 纯字母数字断言、取消后旧链接 404 但 token 保留、再开复用同一 token 复活。后端 86 / 前端 114 全绿。
+
 ### 2026-06-21 15:43
 
 - **fix(ui)**：「Ask the coach」追问输入框高度太矮（单行 ~48px），给共用样式 `.fb-chat-input textarea` 加 `min-height: 72px`（约 3 行）、`max-height` 放宽到 160px。详情页与练习反馈页共用同一套样式，一处生效两处。
