@@ -5,8 +5,8 @@ import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 
-const totalGaps = (session) =>
-  session.attempts?.reduce((sum, a) => sum + (a.gaps?.length ?? 0), 0) ?? 0;
+const lastGaps = (session) =>
+  session.attempts?.[session.attempts.length - 1]?.gaps?.length ?? 0;
 
 export default function HistoryPage() {
   const { user } = useUser();
@@ -89,7 +89,7 @@ export default function HistoryPage() {
           const latest = g.sessions[0];
           const multi = g.sessions.length > 1;
           const open = expanded.has(g.key);
-          const gapCount = totalGaps(latest);
+          const gapCount = lastGaps(latest);
 
           return (
             <div key={g.key} className="history-group">
@@ -121,7 +121,7 @@ export default function HistoryPage() {
               {multi && open && (
                 <div className="history-sessions">
                   {g.sessions.map((s, k) => {
-                    const gc = totalGaps(s);
+                    const gc = lastGaps(s);
                     return (
                       <div key={s._id} className="history-subrow" onClick={() => navigate(`/history/${s._id}`)}>
                         <span className="history-subidx">Attempt {g.sessions.length - k}</span>
