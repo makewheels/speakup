@@ -9,7 +9,14 @@ import { UserProvider } from "../context/UserContext.jsx";
 vi.mock("../api/client.js", () => ({
   api: {
     getPractice: vi.fn(),
+    sharePractice: vi.fn(),
+    unsharePractice: vi.fn(),
   },
+  chatStream: vi.fn((data, { onChunk, onDone }) => {
+    onChunk?.("hi");
+    onDone?.({ text: "hi" });
+    return { abort() {} };
+  }),
 }));
 
 vi.mock("../utils/tts.js", () => ({
@@ -195,5 +202,135 @@ describe("SessionDetailPage", () => {
       expect(screen.getByText("First try")).toBeInTheDocument();
       expect(screen.queryByText("Second try")).not.toBeInTheDocument();
     });
+  });
+
+  it("shows 'Not shared' state with a Share button when not shared", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue(SESSION);
+    setup();
+    await waitFor(() =>
+      expect(screen.getByText("Not shared")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Share")).toBeInTheDocument();
+  });
+
+  it("shares: calls api.sharePractice, copies text+link, shows Shared state", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue(SESSION);
+    api.sharePractice.mockResolvedValue({ shareToken: "tok_abc" });
+    setup();
+    await waitFor(() => expect(screen.getByText("Share")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByText("Share"));
+
+    await waitFor(() => {
+      expect(api.sharePractice).toHaveBeenCalledWith("sess_1", "u_1");
+      expect(writeText).toHaveBeenCalled();
+    });
+    // 复制内容含文案 + 链接
+    const copied = writeText.mock.calls[0][0];
+    expect(copied).toContain("Coffee shop");
+    expect(copied).toContain("/s/tok_abc");
+    // 切换到已分享状态
+    await waitFor(() => {
+      expect(screen.getByText("Shared")).toBeInTheDocument();
+      expect(screen.getByText("Stop sharing")).toBeInTheDocument();
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("renders Shared state for an already-shared session and stops sharing", async () => {
+    vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({ ...SESSION, shared: true, shareToken: "tok_existing" });
+    api.unsharePractice.mockResolvedValue({ ok: true });
+    setup();
+    await waitFor(() => expect(screen.getByText("Shared")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByText("Stop sharing"));
+
+    await waitFor(() => {
+      expect(api.unsharePractice).toHaveBeenCalledWith("sess_1", "u_1");
+      expect(screen.getByText("Not shared")).toBeInTheDocument();
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("ask-the-coach: shows input on latest attempt and sends a question via chatStream", async () => {
+    const { api, chatStream } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue(SESSION);
+    setup();
+    await waitFor(() =>
+      expect(screen.getByText("Ask the coach")).toBeInTheDocument(),
+    );
+
+    const input = screen.getByRole("textbox");
+    await userEvent.type(input, "Why this change?");
+    // 输入框旁的发送按钮（只含图标，无文字）
+    const sendBtn = input.parentElement.querySelector("button");
+    await userEvent.click(sendBtn);
+
+    await waitFor(() => {
+      expect(chatStream).toHaveBeenCalled();
+    });
+    expect(chatStream.mock.calls[0][0]).toMatchObject({
+      userId: "u_1",
+      practiceId: "sess_1",
+      question: "Why this change?",
+    });
+    // onChunk("hi") 写入助手回复
+    await waitFor(() =>
+      expect(screen.getByText("hi")).toBeInTheDocument(),
+    );
+  });
+
+  it("sends the question when pressing Enter in the ask-the-coach input", async () => {
+    const { api, chatStream } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue(SESSION);
+    setup();
+    await waitFor(() => expect(screen.getByText("Ask the coach")).toBeInTheDocument());
+
+    const input = screen.getByRole("textbox");
+    await userEvent.type(input, "More examples?{Enter}");
+
+    await waitFor(() => expect(chatStream).toHaveBeenCalled());
+    expect(chatStream.mock.calls[0][0].question).toBe("More examples?");
+  });
+
+  it("older attempt tab shows read-only chat without an input box", async () => {
+    const { api } = await import("../api/client.js");
+    const multiSession = {
+      ...SESSION,
+      attempts: [
+        {
+          ...SESSION.attempts[0],
+          transcript: "First try",
+          chat: [
+            { role: "user", content: "old question" },
+            { role: "assistant", content: "old answer" },
+          ],
+        },
+        { ...SESSION.attempts[0], transcript: "Second try" },
+      ],
+    };
+    api.getPractice.mockResolvedValue(multiSession);
+    setup();
+    await waitFor(() =>
+      expect(screen.getAllByText("Attempt 1").length).toBeGreaterThan(0),
+    );
+
+    // 最新一轮有输入框
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+
+    // 切到旧轮 → 只读 chat，无输入框
+    const tab1 = screen.getAllByText("Attempt 1").find((el) => el.tagName === "BUTTON");
+    await userEvent.click(tab1);
+    await waitFor(() => {
+      expect(screen.getByText("old question")).toBeInTheDocument();
+      expect(screen.getByText("old answer")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 });

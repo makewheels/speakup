@@ -8,6 +8,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-21 16:14
+
+- **chore(ci)**：**后端接入覆盖率统计 + CI 门槛**（原来只有前端有）。加 `pytest-cov`，`pytest` 默认带 `--cov --cov-fail-under=80`；纯外部 IO 适配器（wanx 文生图 / transcriber ASR，测试里整个 mock）从统计 omit，门槛守护真正的业务逻辑。后端整体 **84.67%**。
+- **test(server)**：补 corrector **追问对话**逻辑单测（`_followup_context` / `_build_followup_messages` / `followup_chat_stream` 的上下文拼接、历史角色映射、空问题、流式 chunk/done、异常→error）+ 场景 points 注入。corrector.py 65% → **98%**。
+- **test(web)**：核心用户路径补测，整体 66% → **89%**——
+  - PracticePage（练习主流程：录音/转写/流式评估/三轮/追问/收录）49% → **90%**；
+  - SessionDetailPage（分享开关/复制/取消、追问、tab 切换）40% → **84%**，SessionView 76% → **94%**；
+  - RecordingPlayer（播放/暂停/进度/seek/事件）40% → **97%**；
+  - 新增 `api/client.test.js` 测 fetch 封装 + SSE 流，client.js 移出 coverage 排除，**99% 行覆盖**。
+- **change(ci)**：前端覆盖率门槛从 60/60/50/60 提到 **statements 80 / lines 85 / functions 75 / branches 72**，锁定新基线。
+
 ### 2026-06-21 16:00
 
 - **change(share)**：分享 token 改为**纯字母数字**（`A-Za-z0-9`，12 位 ≈ 62^12，加唯一性校验兜底），去掉原 `token_urlsafe` 带的 `-`/`_` 特殊字符。
