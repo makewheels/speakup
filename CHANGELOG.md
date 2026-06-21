@@ -14,7 +14,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **add(share)**：分享管理——History 列表对已分享练习加「Shared」角标；Profile 加「My shares」入口 → 新页 `ManageSharesPage` 集中列出已分享练习，可逐条复制/取消分享。撤销即清 token，旧链接立即 404。
 - **change(ui)**：详情页三轮 attempts 从一长条竖向堆叠改为 **Attempt 1/2/3 tab 切换**（默认选最新一轮）。抽出 `SessionView` 公共展示组件供详情页与分享页共用；分享页 `readOnly` 模式隐藏追问输入框（chat 只读）与付费 TTS 朗读按钮（防陌生人刷量），保留免费录音播放。
 - **chore(docs)**：AGENTS.md 注意事项明确「**界面文案统一英文**」（按钮/标签/提示/空状态，代码注释仍中文）；`schema.md` practiceSessions 补分享字段说明。
-- **test**：新增后端 6 个分享集成测试（开启/幂等/撤销失效/非 owner 404/无效 token 404/sharedOnly 过滤）+ 前端 SharePage 渲染/只读/失效测试，详情页测试更新为 tab 切换断言。本地端到端实测（隐身窗口打开分享链接、撤销后 404）通过，后端 86 / 前端 105 全绿，build 通过。
+- **test**：新增后端 6 个分享集成测试（开启/幂等/撤销失效/非 owner 404/无效 token 404/sharedOnly 过滤）+ 前端 SharePage / ManageSharesPage / `lib/share` 测试，详情页测试更新为 tab 切换断言。修 `SessionDetailPage` 在 `getPractice` 返回 null 时读取 `s.shared` 报错。本地端到端实测（隐身窗口打开分享链接、撤销后 404）通过，后端 86 / 前端 114 全绿，build 与覆盖率门槛通过。
 
 ### 2026-06-20 11:35
 
