@@ -24,8 +24,8 @@ export default function SessionDetailPage() {
     api.getPractice(practiceId)
       .then((s) => {
         setSession(s);
-        setShareToken(s.shared ? s.shareToken : null);
-        const ats = s.attempts || [];
+        setShareToken(s?.shared ? s.shareToken : null);
+        const ats = s?.attempts || [];
         setChat(ats.length ? (ats[ats.length - 1].chat || []) : []);
       })
       .catch(console.error)
