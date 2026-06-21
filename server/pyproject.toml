@@ -23,11 +23,31 @@ dependencies = [
 dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --tb=short"
+addopts = "-ra --tb=short --cov --cov-report=term-missing --cov-fail-under=80"
 filterwarnings = [
     "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "main.py",
+    # 纯外部服务适配器：测试里整个 mock（见 conftest），无分支业务逻辑，
+    # 测内部 = mock 第三方 SDK/HTTP，价值低。门槛守护业务逻辑而非 IO 胶水。
+    "services/wanx.py",          # 通义万相文生图（httpx 直发）
+    "services/transcriber.py",   # DashScope ASR
+]
+
+[tool.coverage.report]
+# 外部 IO 出口（LLM/OSS/ASR/TTS）在测试里全 mock，低覆盖可接受；
+# 核心业务逻辑（routes/corrector/scenario）才是门槛真正守护的对象。
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
 ]

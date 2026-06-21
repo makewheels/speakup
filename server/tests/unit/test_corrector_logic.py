@@ -9,10 +9,13 @@ from services.corrector import (
     CorrectResult,
     GapItem,
     ProgressInfo,
+    _build_followup_messages,
     _build_messages,
+    _followup_context,
     _parse_result,
     correct_text,
     correct_text_stream,
+    followup_chat_stream,
 )
 
 SCENARIO = {
@@ -94,6 +97,14 @@ def test_target_words_listed_for_custom_scenario():
     sc = {**SCENARIO, "targetWords": ["I'm in a rush", "Could you remake it"]}
     messages = _build_messages("hello there friend", scenario=sc)
     assert "I'm in a rush" in messages[-1].content
+
+
+def test_scenario_points_listed_in_user_message():
+    sc = {**SCENARIO, "points": ["请他重做成热拿铁", "说你赶时间"]}
+    messages = _build_messages("hello there friend", scenario=sc)
+    user = messages[-1].content
+    assert "请他重做成热拿铁" in user
+    assert "说你赶时间" in user
 
 
 def test_retry_round_injects_progress_instructions():
@@ -229,3 +240,80 @@ async def test_stream_exception_yields_error_event_not_crash():
     assert len(events) == 1
     assert events[0][0] == "error"
     assert "error" in events[0][1]["message"].lower()
+
+
+# ── 追问对话（followup chat）─────────────────────────────────────────────────
+
+ATTEMPT = {
+    "transcript": "Please change it fast.",
+    "nativeVersion": "Could you remake this as a hot latte? I'm in a bit of a rush.",
+    "summary": "任务基本完成，用词可更地道",
+    "gaps": [
+        {"category": "naturalness", "original": "change it fast", "better": "remake it", "why": "remake 更贴切"},
+    ],
+}
+
+
+def test_followup_context_includes_scenario_and_feedback():
+    ctx = _followup_context(SCENARIO, ATTEMPT)
+    assert SCENARIO["mission"] in ctx
+    assert ATTEMPT["transcript"] in ctx
+    assert ATTEMPT["nativeVersion"] in ctx
+    assert "remake it" in ctx          # gap better
+    assert ATTEMPT["summary"] in ctx
+
+
+def test_followup_context_empty_when_no_inputs():
+    assert _followup_context(None, None) == ""
+
+
+def test_build_followup_messages_maps_history_roles():
+    history = [
+        {"role": "user", "content": "为什么用 remake?"},
+        {"role": "assistant", "content": "remake 指重新做一份"},
+        {"role": "user", "content": ""},  # 空内容应被跳过
+    ]
+    messages = _build_followup_messages(SCENARIO, ATTEMPT, history, "还能怎么说？")
+    # system + 2 条有效历史 + 当前问题 = 4
+    assert len(messages) == 4
+    assert messages[0].__class__.__name__ == "SystemMessage"
+    assert messages[1].__class__.__name__ == "HumanMessage"
+    assert messages[2].__class__.__name__ == "AIMessage"
+    assert messages[-1].content == "还能怎么说？"
+
+
+async def _collect_followup(question, scenario=SCENARIO, attempt=ATTEMPT, history=None):
+    events = []
+    async for event_type, data in followup_chat_stream(scenario, attempt, history, question):
+        events.append((event_type, data))
+    return events
+
+
+@pytest.mark.asyncio
+async def test_followup_empty_question_yields_error():
+    events = await _collect_followup("   ")
+    assert len(events) == 1
+    assert events[0][0] == "error"
+
+
+@pytest.mark.asyncio
+async def test_followup_streams_chunks_then_done():
+    chunks = [_stream_chunk("re"), _stream_chunk("make"), _empty_content_chunk()]
+    fake = _fake_stream_client(chunks)
+    with patch("services.corrector._get_client", return_value=fake):
+        events = await _collect_followup("为什么用 remake?")
+    chunk_texts = [d["text"] for t, d in events if t == "chunk"]
+    done = [d for t, d in events if t == "done"]
+    assert "".join(chunk_texts) == "remake"
+    assert len(done) == 1
+    assert done[0]["text"] == "remake"
+
+
+@pytest.mark.asyncio
+async def test_followup_exception_yields_error_event():
+    fake = MagicMock()
+    fake.astream = MagicMock(side_effect=Exception("connection refused"))
+    with patch("services.corrector._get_client", return_value=fake):
+        events = await _collect_followup("还能怎么说？")
+    assert events[-1][0] == "error"
+    assert events[-1][1]["message"]
