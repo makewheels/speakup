@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-21 15:43
+
+- **fix(ui)**：「Ask the coach」追问输入框高度太矮（单行 ~48px），给共用样式 `.fb-chat-input textarea` 加 `min-height: 72px`（约 3 行）、`max-height` 放宽到 160px。详情页与练习反馈页共用同一套样式，一处生效两处。
+
 ### 2026-06-21 15:31
 
 - **add(share)**：练习**分享链接**功能。详情页点「Share」生成随机 token（`secrets.token_urlsafe`，不可枚举、可撤销），复制内容含文案+链接（`I practiced "..." on SpeakUp (IELTS x.x) — take a look 👉 <url>`）。任何人无需登录打开 `/s/:token` 即可看完整练习（场景/三轮 transcript/评分/纠错/追问对话/录音，与本人一致，含分享者昵称）。新接口：`POST`/`DELETE /api/practice-sessions/{pid}/share`（开启/撤销，校验归属、幂等）、公开只读 `GET /api/share/{token}`（无鉴权，解析昵称）；list 加 `sharedOnly` 参数。`practiceSessions` 补 `shareToken`/`shared`/`sharedAt` 字段。
