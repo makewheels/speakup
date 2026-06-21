@@ -1,8 +1,10 @@
-// Always display in Asia/Shanghai (UTC+8) regardless of browser timezone.
-// sv-SE locale produces YYYY-MM-DD HH:MM:SS — slice to drop milliseconds.
+// Python/MongoDB often omits the Z suffix on UTC strings; appending it ensures
+// the browser treats the value as UTC and then converts to browser-local time.
 export function formatDateTime(iso) {
   if (!iso) return "";
-  const d = new Date(iso);
+  const s = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + "Z";
+  const d = new Date(s);
   if (isNaN(d)) return "";
-  return d.toLocaleString("sv-SE", { timeZone: "Asia/Shanghai" }).slice(0, 19);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
