@@ -3,25 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { api, chatStream } from "../api/client.js";
 import { useUser } from "../context/UserContext.jsx";
 import Icon from "../components/Icon.jsx";
-import SpeakBtn from "../components/SpeakBtn.jsx";
-import RecordingPlayer from "../components/RecordingPlayer.jsx";
-
-const splitSentences = (s = "") =>
-  s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
-
-const stripEmoji = (s = "") =>
-  s
-    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
-    .replace(/^[\s·•・]+/, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-function formatDateTime(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
-  const pad = (n) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
+import SessionView from "../components/SessionView.jsx";
+import { copyShare } from "../lib/share.js";
 
 export default function SessionDetailPage() {
   const { practiceId } = useParams();
@@ -32,20 +15,29 @@ export default function SessionDetailPage() {
   const [chat, setChat] = useState([]);          // 最新一轮的追问对话
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const [shareToken, setShareToken] = useState(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [toast, setToast] = useState("");
   const chatControllerRef = useRef(null);
 
   useEffect(() => {
     api.getPractice(practiceId)
       .then((s) => {
         setSession(s);
-        const ats = s.attempts || [];
+        setShareToken(s?.shared ? s.shareToken : null);
+        const ats = s?.attempts || [];
         setChat(ats.length ? (ats[ats.length - 1].chat || []) : []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [practiceId]);
 
-  // 追问：基于本次练习最新一轮的反馈继续问 AI（与练习反馈页共用同一端点/同一份 chat）
+  const flash = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2000);
+  };
+
+  // 追问：基于本次练习最新一轮的反馈继续问 AI
   const sendChat = () => {
     const q = chatInput.trim();
     if (!q || chatBusy || !user?.userId) return;
@@ -74,13 +66,55 @@ export default function SessionDetailPage() {
     );
   };
 
+  const doShare = async () => {
+    if (shareBusy) return;
+    setShareBusy(true);
+    try {
+      let token = shareToken;
+      if (!token) {
+        const r = await api.sharePractice(practiceId, user.userId);
+        token = r.shareToken;
+        setShareToken(token);
+      }
+      await copyShare(session, token);
+      flash("Link copied — paste it to a friend");
+    } catch (e) {
+      flash("Failed: " + e.message);
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
+  const doUnshare = async () => {
+    if (shareBusy) return;
+    setShareBusy(true);
+    try {
+      await api.unsharePractice(practiceId, user.userId);
+      setShareToken(null);
+      flash("Sharing stopped");
+    } catch (e) {
+      flash("Failed: " + e.message);
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
   if (loading) return <div className="page-msg">Loading…</div>;
   if (!session) return <div className="page-msg">Practice not found</div>;
 
-  const thumb = session.imageUrl || "";
-  const rawAttempts = session.attempts || [];
-  const recordings = session.recordings || [];
-  const attempts = [...rawAttempts].reverse();
+  const shareAction = (
+    <div className="share-actions">
+      <button className="su-btn su-btn-tertiary share-btn" onClick={doShare} disabled={shareBusy}>
+        <Icon name="share" size={16} />
+        {shareToken ? "Copy link" : "Share"}
+      </button>
+      {shareToken && (
+        <button className="share-cancel" onClick={doUnshare} disabled={shareBusy}>
+          Stop sharing
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="session-detail-page fade-in">
@@ -88,124 +122,17 @@ export default function SessionDetailPage() {
         <Icon name="back" size={20} /> Back
       </button>
 
-      <div className="detail-hero">
-        {thumb ? (
-          <img src={thumb} alt={session.topic} className="detail-hero-img" onError={(e) => { e.target.style.display = "none"; }} />
-        ) : (
-          <div className="detail-hero-placeholder" />
-        )}
-        <div className="detail-hero-info">
-          <div className="detail-topic">{stripEmoji(session.title || session.topic || "Practice")}</div>
-          <div className="detail-when">{formatDateTime(session.createdAt)}</div>
-        </div>
-      </div>
+      <SessionView
+        session={session}
+        headerAction={shareAction}
+        chat={chat}
+        chatInput={chatInput}
+        setChatInput={setChatInput}
+        onSend={sendChat}
+        chatBusy={chatBusy}
+      />
 
-      {attempts.length === 0 ? (
-        <div className="page-msg" style={{ paddingTop: 40 }}>No AI feedback for this practice yet</div>
-      ) : (
-        attempts.map((attempt, i) => {
-          const origIdx = rawAttempts.length - 1 - i;
-          const recording = recordings[origIdx];
-          return (
-            <div key={i} className="attempt-block">
-              <div className="attempt-header">
-                <span className="attempt-idx">Attempt {attempts.length - i}</span>
-                {attempt.createdAt && <span className="attempt-time">{formatDateTime(attempt.createdAt)}</span>}
-              </div>
-              {recording?.url && <RecordingPlayer src={recording.url} />}
-
-              {attempt.score != null && (
-                <div className="fb-score">
-                  <span className="fb-score-num">{Number(attempt.score).toFixed(1)}</span>
-                  <span className="fb-score-unit">/ 9.0</span>
-                  <span className="fb-score-cap">IELTS band</span>
-                </div>
-              )}
-
-              {attempt.transcript && (
-                <div className="fb-transcript-card">
-                  <div className="fb-card-label">You said</div>
-                  <p className="fb-transcript-text">{attempt.transcript}</p>
-                </div>
-              )}
-
-              {attempt.nativeVersion && (
-                <div className="fb-native-card">
-                  <div className="fb-card-label native">Native version<SpeakBtn text={attempt.nativeVersion} practiceId={practiceId} /></div>
-                  {splitSentences(attempt.nativeVersion).map((s, k) => (
-                    <p key={k} className="fb-native-text">{s}</p>
-                  ))}
-                </div>
-              )}
-
-              {attempt.gaps?.length > 0 && (
-                <div className="fb-gaps-section">
-                  <div className="fb-section-label">Gaps · {attempt.gaps.length}</div>
-                  {attempt.gaps.map((g, j) => (
-                    <div key={j} className="fb-gap-card">
-                      <div className="fb-gap-head">
-                        <span className="fb-gap-num">{j + 1}</span>
-                      </div>
-                      <div className="fb-gap-table">
-                        <div className="fb-gap-line is-said">
-                          <span className="fb-gap-tag">You said</span>
-                          <span className="fb-gap-said">{g.original}</span>
-                        </div>
-                        <div className="fb-gap-line is-fix">
-                          <span className="fb-gap-tag">Say this</span>
-                          <span className="fb-gap-fix">{g.better}</span>
-                          <SpeakBtn text={g.better} practiceId={practiceId} />
-                        </div>
-                        {g.why && (
-                          <div className="fb-gap-line">
-                            <span className="fb-gap-tag">Why</span>
-                            <span className="fb-gap-whytext">{g.why}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {i === 0 ? (
-                <div className="fb-chat">
-                  <div className="fb-section-label">Ask the coach</div>
-                  {chat.map((m, k) => (
-                    <div key={k} className={"fb-chat-msg " + m.role}>
-                      {m.content || (chatBusy && k === chat.length - 1 ? <span className="fb-chat-typing">Thinking…</span> : "")}
-                    </div>
-                  ))}
-                  <div className="fb-chat-input">
-                    <textarea
-                      rows={1}
-                      value={chatInput}
-                      placeholder="Ask about this feedback — why a change, more examples, how to say it elsewhere…"
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-                      disabled={chatBusy}
-                    />
-                    <button className="su-btn su-btn-primary" onClick={sendChat} disabled={chatBusy || !chatInput.trim()}>
-                      <Icon name="next" size={16} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                attempt.chat?.length > 0 && (
-                  <div className="fb-chat">
-                    <div className="fb-section-label">Ask the coach</div>
-                    {attempt.chat.map((m, k) => (
-                      <div key={k} className={"fb-chat-msg " + m.role}>{m.content}</div>
-                    ))}
-                  </div>
-                )
-              )}
-
-              {i < attempts.length - 1 && <hr className="hr" />}
-            </div>
-          );
-        })
-      )}
+      {toast && <div className="su-toast">{toast}</div>}
     </div>
   );
 }

@@ -156,6 +156,14 @@ export const api = {
   getPractice: (id) => request(`/practice-sessions/${id}`),
   listPractices: (userId, skip = 0) => request(`/practice-sessions?userId=${userId}&skip=${skip}`),
 
+  // 分享
+  sharePractice: (pid, userId) =>
+    request(`/practice-sessions/${pid}/share`, { method: "POST", body: { userId } }),
+  unsharePractice: (pid, userId) =>
+    request(`/practice-sessions/${pid}/share?userId=${userId}`, { method: "DELETE" }),
+  getSharedSession: (token) => request(`/share/${token}`),
+  listShared: (userId) => request(`/practice-sessions?userId=${userId}&sharedOnly=true`),
+
   correct: (data) => request("/correct", { method: "POST", body: data }),
 
   tts: (text, practiceId) => request("/tts", { method: "POST", body: { text, practiceId } }).then((r) => r.url),

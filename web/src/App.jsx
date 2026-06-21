@@ -7,6 +7,8 @@ import ReviewPage from "./pages/ReviewPage.jsx";
 import HistoryPage from "./pages/HistoryPage.jsx";
 import SessionDetailPage from "./pages/SessionDetailPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
+import ManageSharesPage from "./pages/ManageSharesPage.jsx";
+import SharePage from "./pages/SharePage.jsx";
 import "./App.css";
 
 function ProtectedRoutes() {
@@ -19,6 +21,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/s/:token" element={<SharePage />} />
       <Route element={<ProtectedRoutes />}>
         <Route path="/" element={<Navigate to="/practice" replace />} />
         <Route path="/practice" element={<PracticePage />} />
@@ -26,6 +29,7 @@ function AppRoutes() {
         <Route path="/review" element={<ReviewPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:practiceId" element={<SessionDetailPage />} />
+        <Route path="/shares" element={<ManageSharesPage />} />
         <Route path="/me" element={<ProfilePage />} />
       </Route>
     </Routes>

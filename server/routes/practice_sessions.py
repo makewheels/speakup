@@ -1,3 +1,4 @@
+import secrets
 import time
 from datetime import datetime, timezone
 
@@ -9,6 +10,8 @@ from db.connection import get_db
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
 
 router = APIRouter(prefix="/api/practice-sessions", tags=["practice-sessions"])
+# 公开分享读取（无鉴权），独立前缀
+share_router = APIRouter(prefix="/api/share", tags=["share"])
 
 
 class CreatePracticeRequest(BaseModel):
@@ -74,16 +77,78 @@ async def get_practice(pid: str):
 
 
 @router.get("")
-async def list_practices(userId: str = Query(...), limit: int = 20, skip: int = 0):
+async def list_practices(
+    userId: str = Query(...),
+    limit: int = 20,
+    skip: int = 0,
+    sharedOnly: bool = False,
+):
     # 只返回真正开口评估过的（attempts 非空）；看了图没说的空记录不进历史，
     # 否则前端二次过滤会出现"拉了一页全被滤光、要点很多次 load more"。
     query = {"userId": userId, "attempts.0": {"$exists": True}}
+    if sharedOnly:
+        query["shared"] = True
     cursor = get_db().practiceSessions.find(query).sort("createdAt", -1).skip(skip).limit(limit)
     items = []
     async for p in cursor:
         p["_id"] = str(p["_id"])
         items.append(_sign(p))
     return items
+
+
+class ShareRequest(BaseModel):
+    userId: str
+
+
+@router.post("/{pid}/share")
+async def share_practice(pid: str, req: ShareRequest):
+    """开启分享：生成随机 token（已有则复用）。幂等。"""
+    try:
+        practice = await get_db().practiceSessions.find_one(
+            {"_id": ObjectId(pid), "userId": req.userId}
+        )
+    except Exception:
+        raise HTTPException(404, "练习不存在")
+    if not practice:
+        raise HTTPException(404, "练习不存在")
+
+    token = practice.get("shareToken") or secrets.token_urlsafe(9)
+    await get_db().practiceSessions.update_one(
+        {"_id": ObjectId(pid)},
+        {"$set": {"shareToken": token, "shared": True, "sharedAt": datetime.now(timezone.utc)}},
+    )
+    return {"shareToken": token}
+
+
+@router.delete("/{pid}/share")
+async def unshare_practice(pid: str, userId: str = Query(...)):
+    """取消分享：清掉 token，旧链接立即失效。"""
+    try:
+        result = await get_db().practiceSessions.update_one(
+            {"_id": ObjectId(pid), "userId": userId},
+            {"$set": {"shared": False}, "$unset": {"shareToken": ""}},
+        )
+    except Exception:
+        raise HTTPException(404, "练习不存在")
+    if result.matched_count == 0:
+        raise HTTPException(404, "练习不存在")
+    return {"ok": True}
+
+
+@share_router.get("/{token}")
+async def get_shared_practice(token: str):
+    """公开读取：凭 shareToken 返回完整练习 + 分享者昵称。无鉴权。"""
+    practice = await get_db().practiceSessions.find_one({"shareToken": token, "shared": True})
+    if not practice:
+        raise HTTPException(404, "分享已关闭或不存在")
+    practice["_id"] = str(practice["_id"])
+    owner = None
+    try:
+        owner = await get_db().users.find_one({"_id": ObjectId(practice["userId"])})
+    except Exception:
+        owner = None
+    practice["ownerNickname"] = (owner or {}).get("nickname", "")
+    return _sign(practice)
 
 
 @router.post("/{practice_id}/recording")

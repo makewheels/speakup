@@ -67,9 +67,14 @@
     }
   ],
   "recordings": [ { "key": "...", "attemptIndex": 0, "createdAt": datetime } ],
+  "shareToken":  "Ab3xK9_random",          // 分享链接 token（开启分享才有，取消分享时清除）；URL = /s/{shareToken}
+  "shared":      true,                       // 是否正在分享；取消分享置 false 并 unset shareToken，旧链接立即失效
+  "sharedAt":    datetime,                    // 最近一次开启分享时间
   "createdAt": datetime
 }
 ```
+
+> 分享：`POST /api/practice-sessions/{pid}/share` 生成 token（幂等），`DELETE /api/practice-sessions/{pid}/share?userId=` 撤销。公开读取走 `GET /api/share/{token}`（无鉴权，额外返回 `ownerNickname`）。token 用 `secrets.token_urlsafe`，不可枚举。
 
 > 图片与录音库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。
 

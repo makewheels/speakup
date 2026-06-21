@@ -169,7 +169,7 @@ describe("SessionDetailPage", () => {
     );
   });
 
-  it("renders multiple attempts in reverse order (latest first)", async () => {
+  it("shows attempt tabs and switches between attempts", async () => {
     const { api } = await import("../api/client.js");
     const multiSession = {
       ...SESSION,
@@ -180,12 +180,20 @@ describe("SessionDetailPage", () => {
     };
     api.getPractice.mockResolvedValue(multiSession);
     setup();
+    // 两个 tab 都在；默认选中最新一轮（Attempt 2 → "Second try"）
     await waitFor(() => {
-      expect(screen.getByText("Attempt 2")).toBeInTheDocument();
-      expect(screen.getByText("Attempt 1")).toBeInTheDocument();
+      expect(screen.getAllByText("Attempt 2").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Attempt 1").length).toBeGreaterThan(0);
     });
-    // "Second try" is the latest attempt, so it shows as "Attempt 2" at top
-    const attemptLabels = screen.getAllByText(/Attempt \d/);
-    expect(attemptLabels[0].textContent).toBe("Attempt 2");
+    expect(screen.getByText("Second try")).toBeInTheDocument();
+    expect(screen.queryByText("First try")).not.toBeInTheDocument();
+
+    // 切到 Attempt 1 → 只显示该轮内容
+    const tab1 = screen.getAllByText("Attempt 1").find((el) => el.tagName === "BUTTON");
+    await userEvent.click(tab1);
+    await waitFor(() => {
+      expect(screen.getByText("First try")).toBeInTheDocument();
+      expect(screen.queryByText("Second try")).not.toBeInTheDocument();
+    });
   });
 });
