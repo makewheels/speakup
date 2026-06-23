@@ -125,7 +125,7 @@ jobs:
           IMAGE_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3
           IMAGE_MODEL=doubao-seedream-5.0-lite
           IMAGE_SIZE=2560x1440
-          IMAGE_ENABLED=false
+          IMAGE_ENABLED=true
           VOICE_API_KEY=${{ secrets.CHAT_API_KEY }}
           VOICE_APP_KEY=plan
           VOICE_BASE_URL=https://openspeech.bytedance.com/api/v3/plan
