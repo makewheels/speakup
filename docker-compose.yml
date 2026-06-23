@@ -6,19 +6,33 @@ services:
     environment:
       - APP_ENV=production
       - PORT=3001
-      # 文字/对话 LLM（火山方舟 Coding Plan glm-5.2 + thinking）
+      # 文字/对话 LLM（火山方舟 Agent Plan）
       - CHAT_API_KEY=${CHAT_API_KEY}
-      - CHAT_BASE_URL=${CHAT_BASE_URL:-https://ark.cn-beijing.volces.com/api/coding/v3}
-      - CHAT_MODEL=${CHAT_MODEL:-glm-5.2}
-      - CHAT_THINKING=${CHAT_THINKING:-true}
-      # 图片生成（阿里云万相，默认关闭省钱）
+      - CHAT_BASE_URL=${CHAT_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}
+      - CHAT_MODEL=${CHAT_MODEL:-ark-code-latest}
+      - CHAT_THINKING=${CHAT_THINKING:-false}
+      # 图片生成（火山 Seedream，默认关闭省钱）
       - IMAGE_API_KEY=${IMAGE_API_KEY}
-      - IMAGE_BASE_URL=${IMAGE_BASE_URL:-https://dashscope.aliyuncs.com}
-      - IMAGE_MODEL=${IMAGE_MODEL:-wanx2.1-t2i-turbo}
+      - IMAGE_BASE_URL=${IMAGE_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}
+      - IMAGE_MODEL=${IMAGE_MODEL:-doubao-seedream-5.0-lite}
+      - IMAGE_SIZE=${IMAGE_SIZE:-2560x1440}
       - IMAGE_ENABLED=${IMAGE_ENABLED:-false}
-      # 语音 ASR + TTS（阿里云 DashScope）
+      # 语音 ASR + TTS（火山 openspeech Agent Plan）
       - VOICE_API_KEY=${VOICE_API_KEY}
-      - VOICE_BASE_URL=${VOICE_BASE_URL:-https://dashscope.aliyuncs.com}
+      - VOICE_APP_KEY=${VOICE_APP_KEY:-plan}
+      - VOICE_BASE_URL=${VOICE_BASE_URL:-https://openspeech.bytedance.com/api/v3/plan}
+      - VOICE_WS_BASE_URL=${VOICE_WS_BASE_URL:-wss://openspeech.bytedance.com/api/v3/plan}
+      - VOICE_TTS_URL=${VOICE_TTS_URL:-https://openspeech.bytedance.com/api/v3/plan/tts/unidirectional}
+      - VOICE_ASR_URL=${VOICE_ASR_URL:-wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_nostream}
+      - TTS_RESOURCE_ID=${TTS_RESOURCE_ID:-seed-tts-2.0}
+      - TTS_MODEL=${TTS_MODEL:-seed-tts-2.0}
+      - TTS_VOICE=${TTS_VOICE:-zh_female_vv_uranus_bigtts}
+      - ASR_RESOURCE_ID=${ASR_RESOURCE_ID:-volc.seedasr.sauc.duration}
+      - ASR_MODEL=${ASR_MODEL:-bigmodel}
+      # 视频生成 helper（未接 UI）
+      - VIDEO_API_KEY=${VIDEO_API_KEY}
+      - VIDEO_BASE_URL=${VIDEO_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}
+      - VIDEO_MODEL=${VIDEO_MODEL:-doubao-seedance-1.5-pro}
       - MONGO_URI=${MONGO_URI}
       - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
       - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}

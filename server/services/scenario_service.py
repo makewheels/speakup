@@ -120,7 +120,7 @@ GEN_PROMPT = """你是英语口语教练的出题人。学习者有几个总是�
 
 
 async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
-    """specs: [{"expression": str, "original": str}]。调 LLM 反向出题 + 万相配图，落库，返回 doc。"""
+    """specs: [{"expression": str, "original": str}]。调 LLM 反向出题 + Seedream 配图，落库，返回 doc。"""
     word_lines = "\n".join(
         f"- {s['expression']}（他原来说成：{s.get('original') or '?'}）" for s in specs
     )
@@ -168,7 +168,7 @@ async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
 
 
 async def generate_custom_scenario(user_id: str) -> dict | None:
-    """因材施教：取错题本里最该复习的弱点表达，反向生成一道定制题（含万相配图）。
+    """因材施教：取错题本里最该复习的弱点表达，反向生成一道定制题（含 Seedream 配图）。
     设计为后台任务调用，失败返回 None 不抛出。攒够 pending 就跳过。
     """
     db = get_db()
@@ -360,9 +360,9 @@ async def topup_public_scenario(
     skip_ids: set[str] | None = None,
     dry_run: bool = False,
 ) -> dict | None:
-    """生成 1 道公共题：选 gap 最大的 sub → LLM 编故事 → 万相生图 → 入库。
+    """生成 1 道公共题：选 gap 最大的 sub → LLM 编故事 → Seedream 生图 → 入库。
 
-    dry_run=True 只跑 LLM 拿文案，不调万相、不入库；用来验证 prompt 质量。
+    dry_run=True 只跑 LLM 拿文案，不调生图、不入库；用来验证 prompt 质量。
     全部 sub 达 target 时返回 None（系统短路停止花钱）。
     """
     candidates = await undercovered_subs(skip_ids=skip_ids)

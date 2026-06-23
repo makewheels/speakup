@@ -1,34 +1,130 @@
-"""音频转写服务
+"""音频转写服务：火山 openspeech Agent Plan Seed-ASR。
 
-调用 DashScope qwen3-asr-flash（OpenAI 兼容 audio 接口）。
 前端浏览器录音格式不一致：iOS 录 m4a/mp4、Android 录 webm/ogg。
-qwen3-asr 直接支持 wav/mp3/m4a/flac/aac，不支持 webm，
-所以服务器先用 ffmpeg 统一转成 mp3 再送出去。
+服务器先用 ffmpeg 统一转成 16k mono mp3，再送 ASR WebSocket 接口。
 """
+
 import asyncio
-import base64
+import gzip
+import json
 import logging
 import tempfile
+import uuid
 from pathlib import Path
 
-from openai import AsyncOpenAI
+import websockets
 
-from config import ASR_MODEL, VOICE_API_KEY, VOICE_BASE_URL
+from config import ASR_MODEL, ASR_RESOURCE_ID, VOICE_API_KEY, VOICE_APP_KEY, VOICE_ASR_URL
 
 logger = logging.getLogger(__name__)
 
-_client: AsyncOpenAI | None = None
+_PROTOCOL_VERSION = 0x1
+_HEADER_SIZE = 0x1
+_MSG_FULL_CLIENT = 0x1
+_MSG_AUDIO_ONLY = 0x2
+_MSG_FULL_SERVER = 0x9
+_MSG_ERROR = 0xF
+_FLAG_NONE = 0x0
+_FLAG_LAST_NO_SEQUENCE = 0x2
+_SER_JSON = 0x1
+_SER_NONE = 0x0
+_COMP_NONE = 0x0
+_COMP_GZIP = 0x1
 
 
-def _get_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        _client = AsyncOpenAI(
-            api_key=VOICE_API_KEY,
-            base_url=f"{VOICE_BASE_URL}/compatible-mode/v1",
-            timeout=60.0,
-        )
-    return _client
+def _header(message_type: int, flags: int, serialization: int, compression: int) -> bytes:
+    return bytes([
+        (_PROTOCOL_VERSION << 4) | _HEADER_SIZE,
+        (message_type << 4) | flags,
+        (serialization << 4) | compression,
+        0x00,
+    ])
+
+
+def _frame(message_type: int, flags: int, serialization: int, payload: bytes) -> bytes:
+    compressed = gzip.compress(payload)
+    return (
+        _header(message_type, flags, serialization, _COMP_GZIP)
+        + len(compressed).to_bytes(4, "big", signed=False)
+        + compressed
+    )
+
+
+def _full_client_request() -> bytes:
+    payload = {
+        "user": {"uid": "speakup"},
+        "audio": {
+            "format": "mp3",
+            "codec": "raw",
+            "rate": 16000,
+            "bits": 16,
+            "channel": 1,
+            "language": "en-US",
+        },
+        "request": {
+            "model_name": ASR_MODEL,
+            "enable_itn": True,
+            "enable_punc": True,
+            "enable_lid": False,
+            "result_type": "full",
+        },
+    }
+    return _frame(_MSG_FULL_CLIENT, _FLAG_NONE, _SER_JSON, json.dumps(payload).encode())
+
+
+def _audio_request(audio: bytes, *, last: bool) -> bytes:
+    return _frame(
+        _MSG_AUDIO_ONLY,
+        _FLAG_LAST_NO_SEQUENCE if last else _FLAG_NONE,
+        _SER_NONE,
+        audio,
+    )
+
+
+def _parse_response(message: bytes | str) -> tuple[dict | None, bool]:
+    if isinstance(message, str):
+        return json.loads(message), False
+    if len(message) < 8:
+        raise RuntimeError(f"ASR invalid frame length: {len(message)}")
+
+    header_size = (message[0] & 0x0F) * 4
+    message_type = (message[1] & 0xF0) >> 4
+    flags = message[1] & 0x0F
+    compression = message[2] & 0x0F
+    offset = header_size
+
+    if message_type == _MSG_ERROR:
+        code = int.from_bytes(message[offset:offset + 4], "big", signed=False)
+        offset += 4
+        size = int.from_bytes(message[offset:offset + 4], "big", signed=False)
+        offset += 4
+        detail = message[offset:offset + size].decode("utf-8", errors="replace")
+        raise RuntimeError(f"ASR error {code}: {detail}")
+
+    if message_type != _MSG_FULL_SERVER:
+        return None, False
+
+    if flags in (0x1, 0x3):
+        offset += 4  # sequence
+    size = int.from_bytes(message[offset:offset + 4], "big", signed=False)
+    offset += 4
+    payload = message[offset:offset + size]
+    if compression == _COMP_GZIP:
+        payload = gzip.decompress(payload)
+    elif compression != _COMP_NONE:
+        raise RuntimeError(f"ASR unsupported compression: {compression}")
+
+    return json.loads(payload.decode("utf-8")), flags == 0x3
+
+
+def _text_from_response(data: dict) -> str:
+    result = data.get("result") or {}
+    if isinstance(result, dict):
+        return (result.get("text") or "").strip()
+    if isinstance(result, list):
+        texts = [str(item.get("text", "")).strip() for item in result if isinstance(item, dict)]
+        return " ".join(t for t in texts if t).strip()
+    return ""
 
 
 async def _to_mp3(audio_bytes: bytes, suffix: str) -> bytes:
@@ -64,28 +160,37 @@ async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
         suffix = ".wav"
 
     mp3 = await _to_mp3(audio_bytes, suffix)
-    b64 = base64.b64encode(mp3).decode()
+    headers = {
+        "Authorization": f"Bearer {VOICE_API_KEY}",
+        "X-Api-Key": VOICE_API_KEY,
+        "X-Api-App-Key": VOICE_APP_KEY,
+        "X-Api-Access-Key": VOICE_API_KEY,
+        "X-Api-Resource-Id": ASR_RESOURCE_ID,
+        "X-Api-Connect-Id": str(uuid.uuid4()),
+    }
 
-    client = _get_client()
-    resp = await client.chat.completions.create(
-        model=ASR_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": [{"type": "text", "text": ""}],
-            },
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_audio",
-                        "input_audio": {"data": f"data:;base64,{b64}", "format": "mp3"},
-                    }
-                ],
-            },
-        ],
-        extra_body={"asr_options": {"language": "en", "enable_lid": False, "enable_itn": True}},
-    )
-    text = (resp.choices[0].message.content or "").strip()
+    text = ""
+    async with websockets.connect(
+        VOICE_ASR_URL,
+        additional_headers=headers,
+        compression=None,
+        proxy=None,
+        open_timeout=15,
+        ping_interval=None,
+        max_size=8 * 1024 * 1024,
+    ) as ws:
+        await ws.send(_full_client_request())
+        data, _ = _parse_response(await asyncio.wait_for(ws.recv(), timeout=20))
+        if data:
+            text = _text_from_response(data) or text
+
+        await ws.send(_audio_request(mp3, last=True))
+        while True:
+            data, final = _parse_response(await asyncio.wait_for(ws.recv(), timeout=60))
+            if data:
+                text = _text_from_response(data) or text
+            if final:
+                break
+
     logger.info("ASR transcribed %d bytes -> %d chars", len(audio_bytes), len(text))
     return text

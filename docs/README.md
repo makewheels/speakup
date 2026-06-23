@@ -26,8 +26,8 @@ graph TB
         R --> DB[db/connection.py]
     end
 
-    Corrector --> Qwen[DashScope · env CHAT_MODEL]
-    Wanx --> Wan[DashScope · env IMAGE_MODEL]
+    Corrector --> Ark[Volcengine Agent Plan · env CHAT_MODEL]
+    Wanx --> Seedream[Volcengine Agent Plan · env IMAGE_MODEL]
     OSS --> Aliyun[阿里云 OSS 私有桶<br/>签名 URL 1h]
     DB --> Mongo[(MongoDB speakup-dev)]
 ```
@@ -40,7 +40,7 @@ graph TB
 | `/api/scenarios/next` | GET | 派题：定制题 > 未练公共题 > 轮换 | MongoDB + OSS 签名 |
 | `/api/sessions` | GET/POST | 创建会话（存场景快照）/ 历史列表 | MongoDB |
 | `/api/sessions/{id}/recording` | POST | 上传录音，关联本轮 attempt | OSS |
-| `/api/correct` `/api/correct/stream` | POST | AI 评估（流式 SSE），错点自动进复习 | DashScope + MongoDB |
+| `/api/correct` `/api/correct/stream` | POST | AI 评估（流式 SSE），错点自动进复习 | Agent Plan + MongoDB |
 | `/api/vocabulary` | GET/POST/PUT/DELETE | 错题本 + SM-2 间隔重复 | MongoDB |
 
 ## 数据流（一次练习）

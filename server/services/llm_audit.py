@@ -1,4 +1,4 @@
-"""LLM 调用审计：把每次调 LLM / 万相的 prompt + response + tokens + 估算成本写进
+"""LLM 调用审计：把每次调 LLM / 生图的 prompt + response + tokens + 估算成本写进
 `llmCalls` 集合，用 linkedTo 字段挂到 scenarioId / sessionId / attemptIndex / userId，
 方便事后调试题目质量、反馈漏抓等问题。
 
@@ -14,9 +14,9 @@
     raw = result["raw"]
     parsed = result["parsed"]      # 如果 parser 给了，自动入库
 
-    # 万相生图（不是 LangChain 客户端）
+    # 生图（不是 LangChain 客户端）
     await log_image_call(
-        model="wanx2.1-t2i-turbo",
+        model="doubao-seedream-5.0-lite",
         prompt=prompt,
         size_bytes=len(image),
         link_to={"scenarioId": sid},
@@ -35,9 +35,9 @@ from db.connection import get_db
 logger = logging.getLogger(__name__)
 
 # ---------- 成本估算 ----------
-# 单位：元/百万 tokens（DashScope 2025 大致价，跟实际账单可能差几分钱，调试用够了）
+# 单位：元/百万 tokens（调试用估算；Agent Plan 额度内边际成本按 0 记）
 TEXT_PRICING = {
-    # glm-5.2 走火山 Coding Plan 订阅制，按量边际成本≈0（额度内不另计费）
+    "ark-code-latest":  {"prompt": 0.0,  "completion": 0.0},
     "glm-5.2":          {"prompt": 0.0,  "completion": 0.0},
     "qwen3.7-plus":     {"prompt": 0.4,  "completion": 1.2},
     "qwen3-max":        {"prompt": 4.0,  "completion": 12.0},
@@ -49,6 +49,7 @@ TEXT_PRICING_FALLBACK = {"prompt": 1.0, "completion": 3.0}
 
 # 单位：元/张（按张计费）
 IMAGE_PRICING = {
+    "doubao-seedream-5.0-lite": 0.0,
     "wanx2.1-t2i-turbo": 0.14,
     "wan2.2-t2i-flash":  0.05,
     "wanx-v1":           0.30,
@@ -166,7 +167,7 @@ async def log_image_call(
     link_to: dict | None = None,
     error: str | None = None,
 ) -> None:
-    """图片生成（万相）的审计——不走 LLM 链路所以单独 API。"""
+    """图片生成审计——不走 LLM 链路所以单独 API。"""
     cost = 0.0 if error else estimate_image_cost(model)
     doc = {
         "kind": "image",
