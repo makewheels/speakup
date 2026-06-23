@@ -11,9 +11,9 @@
 | 前端 | React 19 + Vite 8 | SPA, pnpm 管理 |
 | 后端 | FastAPI + uv | Python 3.14, 异步 |
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
-| 场景配图 | 阿里云通义万相（env `IMAGE_*`）| 题库预生成 + 定制题后台生成，存 OSS。**成本高，`IMAGE_ENABLED=false` 默认关闭**，新题按无图渲染 |
-| 语音 ASR + TTS | 阿里云 DashScope（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
-| AI 评估 | 火山方舟 Coding Plan glm-5.2（env `CHAT_*`，开 thinking）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
+| 场景配图 | 火山方舟 Agent Plan Seedream（env `IMAGE_*`）| 题库预生成 + 定制题后台生成，存 OSS。**成本高，`IMAGE_ENABLED=false` 默认关闭**，新题按无图渲染 |
+| 语音 ASR + TTS | 火山 openspeech Agent Plan（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
+| AI 评估 | 火山方舟 Agent Plan（env `CHAT_*`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
 | 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR `b4/speakup`→SSH compose up；caddy 走 docker.io，靠生产机 docker daemon 配置的镜像加速器拉；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
 
 ## 项目结构
@@ -33,7 +33,7 @@ speakup/
 │   ├── services/
 │   │   ├── corrector.py             # Qwen 按场景评估口语（三轮 progress 对比）
 │   │   ├── scenario_service.py      # 派题 + 因材施教定制题后台生成
-│   │   ├── wanx.py                  # 通义万相文生图
+│   │   ├── wanx.py                  # 场景文生图（默认 Seedream；文件名沿用历史）
 │   │   └── oss_storage.py           # 阿里云 OSS 底层封装（私有桶，只存 key 读时现签）
 │   ├── routes/                      # auth, scenarios, correct, practice_sessions, review_items
 │   ├── utils/
@@ -106,7 +106,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 |------|------|
 | 生产 SSH host / user / 内网 IP | GitHub Secrets：`DEPLOY_HOST` `DEPLOY_USER` `MONGO_URI` 等 |
 | 文字 LLM Key（火山方舟） | GitHub Secrets `CHAT_API_KEY` + 本地 `server/.env` |
-| 图片/语音 Key（阿里云 DashScope） | GitHub Secrets `DASHSCOPE_API_KEY`（CI 同时写入 prod 的 `IMAGE_API_KEY`/`VOICE_API_KEY`）+ 本地 `server/.env` |
+| Agent Plan Key（文字/图片/语音/视频） | GitHub Secrets `CHAT_API_KEY`（CI 同时写入 prod 的 `CHAT_API_KEY`/`IMAGE_API_KEY`/`VOICE_API_KEY`/`VIDEO_API_KEY`）+ 本地 `server/.env` |
 | MongoDB 连接串 | GitHub Secrets `MONGO_URI` + 线上 `/opt/speakup/server/.env` |
 | SSH 私钥 | 本机 `~/Downloads/qcloud_lighthouse_beijing`（不入库）+ GitHub Secrets `SSH_PRIVATE_KEY` |
 
@@ -141,5 +141,5 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 旋转步骤：
 
 - MongoDB 密码：连进 mongo `db.changeUserPassword(...)` → 同步改 `server/.env` 和 GitHub Secret `MONGO_URI`
-- DashScope key：阿里云 RAM 控制台生成新 key → 同步两处
+- Agent Plan key：火山方舟控制台轮换个人版 API Key → 同步 `server/.env` 和 GitHub Secret `CHAT_API_KEY`
 - SSH key：本地 `ssh-keygen` → 腾讯 Lighthouse 上传 → 删除旧 key → 更新 GitHub Secret `SSH_PRIVATE_KEY`

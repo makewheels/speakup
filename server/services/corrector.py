@@ -48,13 +48,14 @@ class CorrectResult(BaseModel):
 def _get_client() -> ChatOpenAI:
     global _client
     if _client is None:
+        extra_body = {"thinking": {"type": "enabled"}} if CHAT_THINKING else None
         _client = ChatOpenAI(
             openai_api_base=CHAT_BASE_URL,
             openai_api_key=CHAT_API_KEY,
             model=CHAT_MODEL,
             temperature=0.3,
             max_tokens=2000,
-            extra_body={"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}},
+            extra_body=extra_body,
             timeout=_API_TIMEOUT,
         )
     return _client

@@ -8,12 +8,12 @@
 flowchart TD
     A[GET /scenarios/next 派题] -->|定制题 > 未练公共题 > 轮换| B[创建 session<br/>存场景快照]
     B --> C[用户看图+情境+任务<br/>开口说 → Web Speech 转文字]
-    C --> D[POST /correct/stream<br/>glm-5.2 评估 SSE 流式]
+    C --> D[POST /correct/stream<br/>ark-code-latest 评估 SSE 流式]
     D --> E[反馈：native 版本 + 差距点<br/>错点自动进 vocabulary 复习<br/>可继续追问 AI /correct/chat/stream]
     E -->|verdict != passed 且 < 3 轮| C
     E -->|passed 或 3 轮用完| A
     E -.异步.-> F[录音上传 OSS 关联本轮 attempt]
-    E -.后台.-> G[因材施教：取最弱 3 个表达<br/>Qwen 反向出题 + 万相配图 → 定制题入库]
+    E -.后台.-> G[因材施教：取最弱 3 个表达<br/>Agent Plan 反向出题 + Seedream 配图 → 定制题入库]
 ```
 
 - 三轮重说：第 2 轮起评估请求自动带上一轮 attempt，模型返回 `progress {verdict: passed/improved/stuck, fixed[], remaining[]}`。
@@ -31,20 +31,21 @@ flowchart TD
 | opinion 观点表达 | 雅思 P3 / 采访 | 远程办公、个人环保 |
 | explain 讲解科普 | TED / 科普 | 讲讲春节为什么回家 |
 
-题库离线生成：`server/scripts/generate_scenarios.py`（手写文案 + 万相配图）。评估对所有 kind 通用（给地道说法 + 差距），后续可按 kind 调整反馈侧重。
+题库离线生成：`server/scripts/generate_scenarios.py`（手写文案 + Seedream 配图）。评估对所有 kind 通用（给地道说法 + 差距），后续可按 kind 调整反馈侧重。
 
 ## 模型清单
 
 | 用途 | 模型 | 接口 | 说明 |
 |------|------|------|------|
-| 口语评估 / 定制出题 / 追问对话 | glm-5.2（火山方舟 Coding Plan，开 thinking） | OpenAI 协议 (LangChain ChatOpenAI) | 纯文本，评估走 SSE 流式 |
-| 场景配图 | wan2.7-image（阿里云万相，默认关闭 `IMAGE_ENABLED=false`） | multimodal-generation 同步接口 | 10~30s 出图，统一写实照片风格后缀 |
+| 口语评估 / 定制出题 / 追问对话 | ark-code-latest（火山方舟 Agent Plan） | OpenAI 协议 (LangChain ChatOpenAI) | 纯文本，评估走 SSE 流式 |
+| 场景配图 | doubao-seedream-5.0-lite（默认关闭 `IMAGE_ENABLED=false`） | Agent Plan images/generations | 统一写实照片风格后缀，默认 `2560x1440` |
+| 语音识别 / 朗读 | doubao-seed-asr-2.0 / doubao-seed-tts-2.0 | openspeech Agent Plan 专属 URL | ASR WebSocket；TTS HTTP POST |
 
 模型名与接口地址不写死，走 env（按能力解耦、不绑运营商）：文字 `CHAT_API_KEY`/`CHAT_BASE_URL`/`CHAT_MODEL`、图片 `IMAGE_*`、语音 `VOICE_*`（默认值见 `config.py`）。追问对话端点 `POST /api/correct/chat/stream`：拿场景+本轮反馈作上下文，SSE 流式回答，问答存进对应 attempt 的 `chat` 数组。
 
 ## 题库与出图策略
 
-- **公共题**：`server/scripts/generate_scenarios.py` 离线生成——手写场景文案 + imagePrompt → 万相生图 → OSS + `files`/`scenarios` 入库。一题一图一次性成本，全用户复用，按 slug 幂等可重跑。
+- **公共题**：`server/scripts/generate_scenarios.py` 离线生成——手写场景文案 + imagePrompt → Seedream 生图 → OSS + `files`/`scenarios` 入库。一题一图一次性成本，全用户复用，按 slug 幂等可重跑。
 - **定制题**：评估产生新错点后 `asyncio.create_task` 后台触发，出题+生图全部完成才入库派发，用户永远不等图；失败只记日志。
 
 ## 对象存储（阿里云 OSS，私有桶；库里只存 key，读取时现签）

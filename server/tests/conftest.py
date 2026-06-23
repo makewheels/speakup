@@ -32,27 +32,27 @@ def _drop_test_db():
 
 @pytest.fixture(autouse=True)
 def _no_real_llm(monkeypatch):
-    """Cost guard：测试默认全部出口 mock，绝不调真 DashScope / 真 OSS。
+    """Cost guard：测试默认全部出口 mock，绝不调真外部 AI / 真 OSS。
 
     要真测某条路径的少数测试，可在测试体内 monkeypatch.undo() 或自己 patch 回去。
     """
     # 1) LLM 文本（qwen）：scenario_service / corrector 各持一份引用
     def _block_llm(*args, **kwargs):
         raise RuntimeError(
-            "Real DashScope LLM call attempted in test. "
+            "Real LLM call attempted in test. "
             "Patch services.corrector._get_client or services.scenario_service._get_client."
         )
     monkeypatch.setattr("services.corrector._get_client", _block_llm)
     monkeypatch.setattr("services.scenario_service._get_client", _block_llm)
 
-    # 2) 文生图（万相）：httpx 直发，需要 stub 整个 wanx_generate；
+    # 2) 文生图：httpx 直发，需要 stub 整个 wanx_generate；
     #    注意要 patch 调用方的引用（scenario_service.wanx_generate）才生效
     async def _fake_wanx(prompt, size="1024*576", link_to=None):
         return b"FAKE_PNG_BYTES"
     monkeypatch.setattr("services.wanx.wanx_generate", _fake_wanx)
     monkeypatch.setattr("services.scenario_service.wanx_generate", _fake_wanx)
 
-    # 3) TTS（CosyVoice）：service 层直接 stub，不走 dashscope SDK
+    # 3) TTS：service 层直接 stub，不走外部接口
     async def _fake_speak(text, practice_id=None):
         return f"https://oss.example/fake-tts/{(practice_id or 'global')}.mp3?sig=x"
     monkeypatch.setattr("services.tts.speak_url", _fake_speak)

@@ -11,7 +11,7 @@ GitHub Actions → 构建 Docker 镜像 → 推 ACR (b4/speakup)
 <生产域名> → /opt/caddy 网关 (Caddy, 80/443) → speakup:3001 (docker network: edge)
 speakup:3001  → MongoDB (内网, MONGO_URI)
                                  → 阿里云 OSS speakup-prod 桶
-                                 → DashScope (Qwen 评估 + 万相配图)
+                                 → 火山方舟 Agent Plan / openspeech
 ```
 
 **多服务部署的核心约定**（这台机以后会跑多个服务）：
