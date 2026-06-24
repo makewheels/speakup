@@ -142,6 +142,13 @@ export default function Icon({ name, size = 20, color = "currentColor", stroke =
           <rect x="13.5" y="5" width="3.5" height="14" rx="1" fill={color} stroke="none" />
         </svg>
       );
+    case "globe":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+        </svg>
+      );
     default:
       return null;
   }

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { UserProvider, useUser } from "./context/UserContext.jsx";
+import { LanguageProvider } from "./i18n/index.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import PracticePage from "./pages/PracticePage.jsx";
@@ -39,9 +40,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <UserProvider>
-        <AppRoutes />
-      </UserProvider>
+      <LanguageProvider>
+        <UserProvider>
+          <AppRoutes />
+        </UserProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

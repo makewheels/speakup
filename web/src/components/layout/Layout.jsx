@@ -1,18 +1,20 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useUser } from "../../context/UserContext.jsx";
+import { useT } from "../../i18n/index.jsx";
 import { api } from "../../api/client.js";
 import Icon from "../Icon.jsx";
 
 const TABS = [
-  { to: "/practice",   label: "Practice", icon: "home" },
-  { to: "/review",     label: "Review", icon: "book", showDue: true },
-  { to: "/history",    label: "History", icon: "clock" },
-  { to: "/me",         label: "Me", icon: "user" },
+  { to: "/practice",   key: "practice", icon: "home" },
+  { to: "/review",     key: "review",   icon: "book", showDue: true },
+  { to: "/history",    key: "history",  icon: "clock" },
+  { to: "/me",         key: "me",       icon: "user" },
 ];
 
 export default function Layout() {
   const { user } = useUser();
+  const t = useT();
   const [dueCount, setDueCount] = useState(0);
 
   useEffect(() => {
@@ -28,18 +30,18 @@ export default function Layout() {
         <Outlet />
       </main>
       <nav className="su-tabbar">
-        {TABS.map((t) => (
+        {TABS.map((tab) => (
           <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.to === "/practice"}
+            key={tab.to}
+            to={tab.to}
+            end={tab.to === "/practice"}
             className={({ isActive }) => `su-tab${isActive ? " active" : ""}`}
           >
             {({ isActive }) => (
               <>
-                <Icon name={t.icon} size={22} stroke={isActive ? 1.9 : 1.5} />
-                <span>{t.label}</span>
-                {t.showDue && dueCount > 0 && <span className="badge">{dueCount}</span>}
+                <Icon name={tab.icon} size={22} stroke={isActive ? 1.9 : 1.5} />
+                <span>{t(`nav.${tab.key}`)}</span>
+                {tab.showDue && dueCount > 0 && <span className="badge">{dueCount}</span>}
               </>
             )}
           </NavLink>
