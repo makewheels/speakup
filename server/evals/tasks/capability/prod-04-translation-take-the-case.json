@@ -1,0 +1,18 @@
+{
+  "id": "prod-translation-take-the-case",
+  "desc": "prod 真实：'tell the police to take this case' 中式直译（应 file a report）。来源 2026-06-21 大使馆挂失",
+  "input": {
+    "text": "Hello, sir. Yesterday evening, I was at the train station and my package has been stolen. And my passport is in my package, so I tell the police to take this case and this is the case paper. I need to go back home next month, next Monday.",
+    "scenario": {
+      "where": "🛂 中国驻外使馆领事窗口 · 上午",
+      "story": "你的护照在火车站被偷了",
+      "mission": "跟工作人员说清楚护照怎么丢的并求助",
+      "points": ["说清楚护照怎么丢的", "请求补办或临时证件"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["vocabulary", "naturalness", "grammar"]},
+    {"type": "gap_keyword_match", "value": ["report"]},
+    {"type": "no_task_gap"}
+  ]
+}

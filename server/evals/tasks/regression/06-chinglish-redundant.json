@@ -1,0 +1,18 @@
+{
+  "id": "chinglish-redundant-me",
+  "desc": "Chinglish：help me to take me a photo 重复 me。期望挑出冗余",
+  "input": {
+    "text": "Excuse me, could you help me to take me a photo with the mountain in the background?",
+    "scenario": {
+      "where": "🏔️ 景点观景台",
+      "story": "你想找路人帮忙拍照",
+      "mission": "礼貌请陌生人帮你拍一张带风景的照片"
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": "naturalness"},
+    {"type": "gap_keyword_match", "value": ["take"]},
+    {"type": "no_task_gap"},
+    {"type": "gaps_count_at_most", "value": 3}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "prod-noun-technician",
+  "desc": "prod 真实：'send a technical' 把形容词 technical 当名词 technician 用。来源 2026-06-19 报修",
+  "input": {
+    "text": "My Wi-Fi is not working, and my router is keep blinking in red lights, and I cannot connect my network. Can you send a technical to my home to help me fix it out? I will be available in tomorrow from 09:00 a.m. to 11:00 a.m.",
+    "scenario": {
+      "where": "🏠 家中客厅 · 晚上",
+      "story": "你的家庭宽带挂了，要打电话报修",
+      "mission": "描述故障并预约上门时间",
+      "points": ["说清楚故障现象", "约一个具体时间"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": "vocabulary"},
+    {"type": "gap_keyword_match", "value": ["technician"]},
+    {"type": "no_task_gap"}
+  ]
+}

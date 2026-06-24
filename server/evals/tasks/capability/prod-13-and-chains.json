@@ -1,0 +1,19 @@
+{
+  "id": "prod-and-chains",
+  "desc": "prod 真实：用 'And ... And ... And' 串问，口语不自然。任务办成所以分别太低。来源 2026-06-19 改签",
+  "input": {
+    "text": "I missed the last train. How much does it take to change to the next one? And when will the bus arrive And oh, when will the train arrive And is there enough time for me to transfer to Shanghai by high speed railway?",
+    "scenario": {
+      "where": "🚄 国内高铁站票务窗口 · 上午",
+      "story": "你错过了原定的高铁，需要改签",
+      "mission": "询问改签费用及换乘时间是否充裕",
+      "points": ["问改签费用", "问换乘时间是否够"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["naturalness", "grammar"]},
+    {"type": "no_task_gap"},
+    {"type": "score_at_least", "value": 5.0},
+    {"type": "score_at_most", "value": 6.5}
+  ]
+}

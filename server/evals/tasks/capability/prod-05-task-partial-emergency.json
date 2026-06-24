@@ -1,0 +1,18 @@
+{
+  "id": "prod-task-partial-emergency",
+  "desc": "prod 真实：紧急场景说了求助但漏拨电话/漏制止围观。模型应识别任务'部分完成'：有 task gap 但分数不至于太低。来源 2026-06-21 健身房急救",
+  "input": {
+    "text": "Someone come here! I need help. Here's a man, uh, collapsed and unconscious.",
+    "scenario": {
+      "where": "💪 健身房 · 力量训练区",
+      "story": "你在健身房锻炼时，旁边一位学员突然昏倒，几个围观的人开始七嘴八舌猜原因。",
+      "mission": "立即大声制止围观者的错误猜测，并清晰准确地描述学员目前的生理状态（昏倒且无意识），以便旁人协助拨打急救电话。",
+      "points": ["大声叫人来帮忙拨急救", "描述：昏倒、无意识"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": "task"},
+    {"type": "score_at_least", "value": 4.5},
+    {"type": "score_at_most", "value": 6.5}
+  ]
+}

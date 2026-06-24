@@ -1,0 +1,18 @@
+{
+  "id": "task-off-topic-coffee",
+  "desc": "任务跑题：让店员重做拿铁却在聊天气。期望首个 gap 是 category=task",
+  "input": {
+    "text": "Oh wow, the weather today is really nice. It's been raining all week but finally the sun is out.",
+    "scenario": {
+      "where": "☕️ 咖啡店 · 西雅图",
+      "story": "你点的热拿铁被做成了冰美式",
+      "mission": "让店员重做并表明你赶时间",
+      "points": ["请他重做成热拿铁", "说你赶时间"]
+    }
+  },
+  "expectations": [
+    {"type": "first_gap_category_in", "value": ["task"]},
+    {"type": "must_have_category", "value": "task"},
+    {"type": "score_at_most", "value": 5.5}
+  ]
+}

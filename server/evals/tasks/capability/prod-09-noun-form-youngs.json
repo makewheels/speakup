@@ -1,0 +1,18 @@
+{
+  "id": "prod-noun-form-youngs",
+  "desc": "prod 真实：'the youngs / the traditionals' 形容词当复数名词用，语法混乱。来源 2026-06-19 文化讨论",
+  "input": {
+    "text": "Well, they are very important to look at the traditionals, just their way is has been changed. Hmm. For example, there are many um close activities and and many products that the youngs are doing.",
+    "scenario": {
+      "where": "☕️ 城市咖啡馆露台 · 周末下午",
+      "story": "朋友聊到年轻人不再重视传统文化，你想表达不同看法。",
+      "mission": "表达不同看法并解释原因",
+      "points": ["说出你的看法", "举例支持"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["grammar", "vocabulary"]},
+    {"type": "no_task_gap"},
+    {"type": "score_at_most", "value": 5.5}
+  ]
+}

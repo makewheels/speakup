@@ -1,0 +1,18 @@
+{
+  "id": "prod-task-coffee-airport",
+  "desc": "prod 真实：任务办成、语言基本可用但偏直白。模型应给中等分（5.5-6.5），不该挑 task gap。来源 2026-06-20 机场咖啡店",
+  "input": {
+    "text": "Uh, you made a wrong coffee for me. Can you remake one? My plane is about to take off and I'm in a hurry.",
+    "scenario": {
+      "where": "✈️ 机场星巴克 · 登机口附近",
+      "story": "你下单的拿铁被做成了别的",
+      "mission": "向店员指出订单错误，礼貌要求重做，并说明你赶时间",
+      "points": ["指出做错了", "请求重做", "说赶时间"]
+    }
+  },
+  "expectations": [
+    {"type": "no_task_gap"},
+    {"type": "score_at_least", "value": 5.0},
+    {"type": "score_at_most", "value": 7.0}
+  ]
+}

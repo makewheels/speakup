@@ -1,0 +1,22 @@
+{
+  "id": "retry-stuck-same-error",
+  "desc": "重说轮但**几乎一字不差**重复原话 → progress.verdict 应当是 stuck（最次也是 improved，绝不能 passed）",
+  "input": {
+    "text": "Please change it fast.",
+    "round": 2,
+    "prev_attempt": {
+      "transcript": "Please change it fast.",
+      "gaps": [
+        {"original": "change it fast", "better": "remake it", "category": "naturalness"}
+      ]
+    },
+    "scenario": {
+      "where": "☕️ 咖啡店",
+      "story": "你点的热拿铁被做成了冰美式",
+      "mission": "让店员重做并表明你赶时间"
+    }
+  },
+  "expectations": [
+    {"type": "progress_verdict_in", "value": ["stuck"]}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "prod-pronoun-his-her",
+  "desc": "prod 真实：'the old woman lost his mind' 代词性别错 + 'lost his mind' 习语误用。来源 2026-06-19 商场急救",
+  "input": {
+    "text": "Please send an ambulance immediately. Here's the old woman lost his mind. We're at the central in the supermarket at the 1st floor. The lady is in grey clothes.",
+    "scenario": {
+      "where": "🏬 大型购物中心中庭 · 周末下午",
+      "story": "你在商场逛街时，前方一位老人突然失去意识倒地。",
+      "mission": "拨打急救电话并清晰描述现场",
+      "points": ["请马上派救护车", "在商场一楼中庭，老人穿灰衣"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["grammar", "vocabulary"]},
+    {"type": "gap_keyword_match", "value": ["her"]},
+    {"type": "no_task_gap"}
+  ]
+}

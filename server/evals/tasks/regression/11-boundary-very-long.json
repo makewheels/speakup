@@ -1,0 +1,18 @@
+{
+  "id": "boundary-very-long",
+  "desc": "边界：80+ 词长输入 + 自我修正 + 任务办成。模型不应爆 gap（≤5），不应冒 task gap，必须正常返回 JSON。",
+  "input": {
+    "text": "Hi, uh, so I ordered a hot latte like five minutes ago, and, well, I just realized this one you handed me is actually iced — I can feel the cup is cold, you know. I mean, I'm not trying to make a big deal out of it, but my flight is boarding in like fifteen minutes and I really need something hot before I get on the plane. Could you, uh, remake it as a hot one? I'd really appreciate it. Thanks.",
+    "scenario": {
+      "where": "✈️ 机场星巴克 · 登机口附近",
+      "story": "你点的热拿铁被做成了冰的，登机马上开始",
+      "mission": "礼貌指出做错并要求重做，说明你赶时间",
+      "points": ["指出做错了", "请求重做成热的", "说赶时间"]
+    }
+  },
+  "expectations": [
+    {"type": "no_task_gap"},
+    {"type": "gaps_count_at_most", "value": 5},
+    {"type": "score_at_least", "value": 6.0}
+  ]
+}

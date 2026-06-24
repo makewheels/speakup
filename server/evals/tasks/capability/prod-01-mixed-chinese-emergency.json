@@ -1,0 +1,21 @@
+{
+  "id": "prod-mixed-chinese-emergency",
+  "desc": "prod 真实：中英夹杂 + 完全跑题。模型应给极低分（≤3）并把任务 gap 排首位。来源 2026-06-21 商场急救",
+  "input": {
+    "text": "Please sign. Go go go什么这是?",
+    "scenario": {
+      "where": "🏬 大型购物中心中庭 · 周末下午",
+      "story": "你在商场逛街时，前方一位老人突然失去意识倒地，周围人群惊慌失措，你需要立刻采取行动。",
+      "mission": "拨打急救电话并清晰描述现场",
+      "points": [
+        "请马上派救护车来，这里有人晕倒失去意识了",
+        "我们在商场一楼中庭，患者是位穿灰衣的老人"
+      ]
+    }
+  },
+  "expectations": [
+    {"type": "first_gap_category_in", "value": ["task"]},
+    {"type": "must_have_category", "value": "task"},
+    {"type": "score_at_most", "value": 3.0}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "prod-collocation-very-thank-you",
+  "desc": "prod 真实：'very thank you' 是初学者最常见搭配错。模型应挑出（thanks a lot / thank you very much）。来源 2026-06-20 客服取消订阅",
+  "input": {
+    "text": "Uh, very thank you for your good idea, but I decide not to use anymore, so can help me to cancel it, and I don't need to, uh, keep my account.",
+    "scenario": {
+      "where": "📞 家中客厅 · 晚上",
+      "story": "客服打来挽留你的会员订阅",
+      "mission": "礼貌但坚定地拒绝优惠并取消",
+      "points": ["谢谢但不需要", "明确要求取消"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["naturalness", "grammar"]},
+    {"type": "gap_keyword_match", "value": ["thank"]},
+    {"type": "no_task_gap"}
+  ]
+}

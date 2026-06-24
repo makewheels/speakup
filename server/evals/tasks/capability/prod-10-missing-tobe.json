@@ -1,0 +1,18 @@
+{
+  "id": "prod-missing-tobe",
+  "desc": "prod 真实：'I tired', 'I hope my child glad' 缺 to-be。初学者高频错。来源 2026-06-19 育儿话题",
+  "input": {
+    "text": "Yes, very good. But I tired. I hope my child glad.",
+    "scenario": {
+      "where": "☕️ 街角咖啡馆 · 周末午后",
+      "story": "朋友聊到鸡娃，问你怎么想",
+      "mission": "分享你对鸡娃现象的看法",
+      "points": ["说出你的态度（支持/反对/纠结）", "说明原因"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": "grammar"},
+    {"type": "gap_keyword_match", "value": ["am"]},
+    {"type": "score_at_most", "value": 5.0}
+  ]
+}

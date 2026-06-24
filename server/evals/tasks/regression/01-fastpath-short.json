@@ -1,0 +1,12 @@
+{
+  "id": "fastpath-too-short",
+  "desc": "短输入（<3 words）→ fast-path，不调 LLM，summary 给英文提示，无 gap",
+  "input": {
+    "text": "hi"
+  },
+  "expectations": [
+    {"type": "gaps_count_eq", "value": 0},
+    {"type": "native_version_empty"},
+    {"type": "summary_contains_any", "value": ["Try saying more", "say more", "full sentences"]}
+  ]
+}

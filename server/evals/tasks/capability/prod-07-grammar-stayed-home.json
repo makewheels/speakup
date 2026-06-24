@@ -1,0 +1,18 @@
+{
+  "id": "prod-grammar-stayed-home",
+  "desc": "prod 真实：'just stay in my home' 时态错 + in 多余。模型应挑出过去时。来源 2026-06-20 电梯闲聊",
+  "input": {
+    "text": "I just stay in my home and just caught up on sleep. How about you?",
+    "scenario": {
+      "where": "🛗 公司电梯间 · 周一早晨",
+      "story": "同事问你周末过得怎么样",
+      "mission": "用英语礼貌回答周末很放松，并反问对方一句以维持基本社交礼仪",
+      "points": ["说周末做了什么", "反问对方"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["grammar", "naturalness"]},
+    {"type": "gap_keyword_match", "value": ["stayed"]},
+    {"type": "no_task_gap"}
+  ]
+}

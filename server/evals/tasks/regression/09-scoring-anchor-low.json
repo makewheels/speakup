@@ -1,0 +1,21 @@
+{
+  "id": "scoring-anchor-low",
+  "desc": "打分锚点：任务严重没完成 + 多处明显错。模型应给低分（≤4.0），且首个 gap 是 task。",
+  "input": {
+    "text": "Help! The man lost his mind. We at shopping. He fall on floor.",
+    "scenario": {
+      "where": "🏬 大型购物中心中庭 · 周末下午",
+      "story": "前方一位老人突然失去意识倒地",
+      "mission": "拨打急救电话并清晰描述现场",
+      "points": [
+        "请马上派救护车来",
+        "我们在商场一楼中庭，患者是位穿灰衣的老人"
+      ]
+    }
+  },
+  "expectations": [
+    {"type": "first_gap_category_in", "value": ["task", "grammar", "vocabulary"]},
+    {"type": "score_at_most", "value": 4.0},
+    {"type": "must_have_category", "value": "task"}
+  ]
+}
