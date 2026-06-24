@@ -1,0 +1,18 @@
+{
+  "id": "prod-translation-passcode",
+  "desc": "prod 真实：'car passcode' 是 'door/lock passcode' 的中式直译；任务漏 wifi 名。模型应挑出用词错误。来源 2026-06-21 巴厘岛民宿",
+  "input": {
+    "text": "Hello, I'm at the front door of the house and don't know the passcode, so I cannot get in. So can you get me the car passcode? By the way, I don't know the Wi-Fi password. Can you tell me that either?",
+    "scenario": {
+      "where": "🏝️ 巴厘岛民宿门口 · 傍晚",
+      "story": "你刚到民宿，发现门是密码锁，但你没有密码",
+      "mission": "发消息向房东要门锁密码",
+      "points": ["说明你在门口进不去", "要门锁密码"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["vocabulary", "naturalness"]},
+    {"type": "gap_keyword_match", "value": ["door"]},
+    {"type": "no_task_gap"}
+  ]
+}

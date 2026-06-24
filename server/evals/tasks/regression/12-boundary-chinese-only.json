@@ -1,0 +1,17 @@
+{
+  "id": "boundary-chinese-only",
+  "desc": "边界：用户全程说中文，没有用英语。模型不能假装在评英语口语，必须明确指出（task gap 或极低分）。",
+  "input": {
+    "text": "麻烦帮我重做一杯热的，谢谢。我赶时间。",
+    "scenario": {
+      "where": "✈️ 机场星巴克 · 登机口附近",
+      "story": "你点的热拿铁被做成了冰的",
+      "mission": "向店员指出订单错误，礼貌要求重做，并说明你赶时间",
+      "points": ["指出做错了", "请求重做", "说赶时间"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": "task"},
+    {"type": "score_at_most", "value": 3.0}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "prod-redundant-for-me",
+  "desc": "prod 真实：'help me take a photo for me' 重复 me + 'shoot me another one' 用词错。来源 2026-06-20 景点拍照",
+  "input": {
+    "text": "Could you do me a favor? I want you to help me take a photo for me. I want a landscape one. And you can click here to take the photo. Oh, this picture is kind of blur. Can you shoot me another one?",
+    "scenario": {
+      "where": "🏔️ 热门旅游景点 · 白天",
+      "story": "你想找路人帮你拍一张带风景的照片",
+      "mission": "礼貌请求陌生人帮忙拍照",
+      "points": ["请求帮拍", "可以再说怎么按快门"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["naturalness", "vocabulary"]},
+    {"type": "no_task_gap"}
+  ]
+}

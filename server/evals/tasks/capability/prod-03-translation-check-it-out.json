@@ -1,0 +1,18 @@
+{
+  "id": "prod-translation-check-it-out",
+  "desc": "prod 真实：'check it out' 在客诉场景用错（口语是'瞧瞧/试试'，不是核对账单）。来源 2026-06-21 西餐厅",
+  "input": {
+    "text": "What do you mean you can't solve it? We didn't order this dish. Can you check it out? If you can't solve it, please call your manager to come to solve it.",
+    "scenario": {
+      "where": "🍽️ 市中心西餐厅 · 晚餐时段",
+      "story": "服务员上错菜，你要求换或退",
+      "mission": "指出错误并要求叫经理",
+      "points": ["指出菜上错了", "要求处理或叫经理"]
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["vocabulary", "naturalness"]},
+    {"type": "no_task_gap"},
+    {"type": "score_at_most", "value": 6.5}
+  ]
+}

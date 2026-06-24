@@ -1,0 +1,18 @@
+{
+  "id": "vocab-borrow-vs-lend",
+  "desc": "用词错：借/借给方向反了。期望 vocabulary gap、better 含 lend",
+  "input": {
+    "text": "Could you borrow me your pen for a minute? I want to write down the address.",
+    "scenario": {
+      "where": "🏢 办公室",
+      "story": "你忘带笔，向同事借",
+      "mission": "礼貌地问同事借支笔写下地址"
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": ["vocabulary", "grammar"]},
+    {"type": "gap_keyword_match", "value": ["lend"]},
+    {"type": "no_task_gap"},
+    {"type": "gaps_count_at_most", "value": 3}
+  ]
+}

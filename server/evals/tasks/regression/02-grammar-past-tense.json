@@ -1,0 +1,18 @@
+{
+  "id": "grammar-past-tense-go",
+  "desc": "语法错：go 该用 went。期望至少一条 gap 提到 went、category=grammar",
+  "input": {
+    "text": "Yesterday I go to school and meet my friend Tom in the playground.",
+    "scenario": {
+      "where": "🏫 学校",
+      "story": "你跟朋友讲昨天的事",
+      "mission": "用过去时聊昨天发生的事"
+    }
+  },
+  "expectations": [
+    {"type": "must_have_category", "value": "grammar"},
+    {"type": "gap_keyword_match", "value": ["went"]},
+    {"type": "gaps_count_at_most", "value": 4},
+    {"type": "no_task_gap"}
+  ]
+}

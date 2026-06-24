@@ -1,0 +1,23 @@
+{
+  "id": "retry-improved-pass",
+  "desc": "重说轮真正改对：把 'change it fast' 升级成 'could you remake it' + 加了 'in a rush'。verdict 应当 passed 或 improved",
+  "input": {
+    "text": "Excuse me, could you remake it as a hot latte? I'm in a bit of a rush.",
+    "round": 2,
+    "prev_attempt": {
+      "transcript": "Please change it fast.",
+      "gaps": [
+        {"original": "change it fast", "better": "remake it", "category": "naturalness"}
+      ]
+    },
+    "scenario": {
+      "where": "☕️ 咖啡店",
+      "story": "你点的热拿铁被做成了冰美式",
+      "mission": "让店员重做并表明你赶时间"
+    }
+  },
+  "expectations": [
+    {"type": "no_task_gap"},
+    {"type": "score_at_least", "value": 6.5}
+  ]
+}

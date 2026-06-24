@@ -1,0 +1,19 @@
+{
+  "id": "scoring-anchor-mid",
+  "desc": "打分锚点：任务办成 + 语言有 2-3 个明显错。模型应稳定落在 5.0-6.5 灰区（不能高于 6.5 也不能低于 5.0）。",
+  "input": {
+    "text": "Excuse me, you make a wrong coffee. Please can you remake it again? My plane will fly soon.",
+    "scenario": {
+      "where": "✈️ 机场星巴克 · 登机口附近",
+      "story": "你下单的拿铁被做成了别的",
+      "mission": "向店员指出订单错误，礼貌要求重做，并说明你赶时间",
+      "points": ["指出做错了", "请求重做", "说赶时间"]
+    }
+  },
+  "expectations": [
+    {"type": "no_task_gap"},
+    {"type": "score_at_least", "value": 5.0},
+    {"type": "score_at_most", "value": 6.5},
+    {"type": "must_have_category", "value": ["grammar", "naturalness"]}
+  ]
+}
