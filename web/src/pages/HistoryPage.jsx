@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
+import { useT } from "../i18n/index.jsx";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
@@ -11,6 +12,7 @@ const lastGaps = (session) =>
 export default function HistoryPage() {
   const { user } = useUser();
   const navigate = useNavigate();
+  const t = useT();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
@@ -44,7 +46,7 @@ export default function HistoryPage() {
       return n;
     });
 
-  if (loading) return <div className="page-msg">Loading…</div>;
+  if (loading) return <div className="page-msg">{t("common.loading")}</div>;
 
   // 后端已只返回开口评估过的（attempts 非空），这里直接用
   const shown = sessions;
@@ -55,10 +57,10 @@ export default function HistoryPage() {
         <div className="icon-box">
           <Icon name="clock" size={28} color="var(--ink-3)" stroke={1.4} />
         </div>
-        <p className="title">No practice history yet</p>
-        <p className="sub">Go speak a round in Practice</p>
+        <p className="title">{t("history.emptyTitle")}</p>
+        <p className="sub">{t("history.emptySub")}</p>
         <button className="su-btn su-btn-primary" style={{ maxWidth: 200 }} onClick={() => navigate("/practice")}>
-          Start practicing
+          {t("history.startPracticing")}
         </button>
       </div>
     );
@@ -69,7 +71,7 @@ export default function HistoryPage() {
   for (const s of shown) {
     const key = s.scenarioId || s._id;
     if (!map.has(key)) {
-      map.set(key, { key, title: s.title || s.topic || "Practice", thumb: s.imageUrl || "", sessions: [] });
+      map.set(key, { key, title: s.title || s.topic || t("history.defaultTitle"), thumb: s.imageUrl || "", sessions: [] });
     }
     map.get(key).sessions.push(s);
   }
@@ -80,8 +82,8 @@ export default function HistoryPage() {
   return (
     <div className="history-page">
       <div className="page-head">
-        <h2>History</h2>
-        <span className="count-label">{groups.length} scenarios</span>
+        <h2>{t("history.title")}</h2>
+        <span className="count-label">{t("history.scenariosCount", { n: groups.length })}</span>
       </div>
 
       <div className="history-list">
@@ -108,9 +110,9 @@ export default function HistoryPage() {
                   <p className="history-headline">{g.title}</p>
                   <div className="history-sub">
                     <span className="history-date">{formatDateTime(latest.createdAt)}</span>
-                    {multi && <span className="chip">{g.sessions.length} attempts</span>}
-                    {!multi && gapCount > 0 && <span className="chip warn">{gapCount} gaps</span>}
-                    {!multi && latest.shared && <span className="chip share">Shared</span>}
+                    {multi && <span className="chip">{t("history.attemptsCount", { n: g.sessions.length })}</span>}
+                    {!multi && gapCount > 0 && <span className="chip warn">{t("history.gapsCount", { n: gapCount })}</span>}
+                    {!multi && latest.shared && <span className="chip share">{t("history.shared")}</span>}
                   </div>
                 </div>
                 <div className={"history-arrow" + (multi && open ? " open" : "")}>
@@ -124,10 +126,10 @@ export default function HistoryPage() {
                     const gc = lastGaps(s);
                     return (
                       <div key={s._id} className="history-subrow" onClick={() => navigate(`/history/${s._id}`)}>
-                        <span className="history-subidx">Attempt {g.sessions.length - k}</span>
+                        <span className="history-subidx">{t("history.attempt", { n: g.sessions.length - k })}</span>
                         <span className="history-subtime">{formatDateTime(s.createdAt)}</span>
-                        {gc > 0 && <span className="chip warn">{gc} gaps</span>}
-                        {s.shared && <span className="chip share">Shared</span>}
+                        {gc > 0 && <span className="chip warn">{t("history.gapsCount", { n: gc })}</span>}
+                        {s.shared && <span className="chip share">{t("history.shared")}</span>}
                         <Icon name="next" size={14} color="var(--ink-4)" />
                       </div>
                     );
@@ -141,11 +143,11 @@ export default function HistoryPage() {
 
       {hasMore && (
         <button className="su-btn su-btn-tertiary" style={{ width: "100%", marginTop: 12 }} onClick={loadMore}>
-          Load more
+          {t("common.loadMore")}
         </button>
       )}
 
-      <p className="list-end">· end of list ·</p>
+      <p className="list-end">{t("common.endOfList")}</p>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Icon from "./Icon.jsx";
 import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
+import { useT } from "../i18n/index.jsx";
 
 const splitSentences = (s = "") =>
   s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
@@ -36,6 +37,7 @@ export default function SessionView({
   onSend = () => {},
   chatBusy = false,
 }) {
+  const t = useT();
   const practiceId = session?._id;
   const rawAttempts = session?.attempts || [];
   const recordings = session?.recordings || [];
@@ -58,7 +60,7 @@ export default function SessionView({
           <div className="detail-hero-placeholder" />
         )}
         <div className="detail-hero-info">
-          <div className="detail-topic">{stripEmoji(session.title || session.topic || "Practice")}</div>
+          <div className="detail-topic">{stripEmoji(session.title || session.topic || t("history.defaultTitle"))}</div>
           <div className="detail-when">{formatDateTime(session.createdAt)}</div>
           {subtitle && <div className="detail-subtitle">{subtitle}</div>}
         </div>
@@ -68,7 +70,7 @@ export default function SessionView({
       {belowHero}
 
       {rawAttempts.length === 0 ? (
-        <div className="page-msg" style={{ paddingTop: 40 }}>No AI feedback for this practice yet</div>
+        <div className="page-msg" style={{ paddingTop: 40 }}>{t("session.noFeedback")}</div>
       ) : (
         <>
           {rawAttempts.length > 1 && (
@@ -79,7 +81,7 @@ export default function SessionView({
                   className={"attempt-tab" + (i === idx ? " active" : "")}
                   onClick={() => setSel(i)}
                 >
-                  Attempt {i + 1}
+                  {t("session.attempt", { n: i + 1 })}
                 </button>
               ))}
             </div>
@@ -87,7 +89,7 @@ export default function SessionView({
 
           <div className="attempt-block">
             <div className="attempt-header">
-              <span className="attempt-idx">Attempt {idx + 1}</span>
+              <span className="attempt-idx">{t("session.attempt", { n: idx + 1 })}</span>
               {attempt.createdAt && <span className="attempt-time">{formatDateTime(attempt.createdAt)}</span>}
             </div>
             {recording?.url && <RecordingPlayer src={recording.url} />}
@@ -96,20 +98,20 @@ export default function SessionView({
               <div className="fb-score">
                 <span className="fb-score-num">{Number(attempt.score).toFixed(1)}</span>
                 <span className="fb-score-unit">/ 9.0</span>
-                <span className="fb-score-cap">IELTS band</span>
+                <span className="fb-score-cap">{t("practice.ieltsBand")}</span>
               </div>
             )}
 
             {attempt.transcript && (
               <div className="fb-transcript-card">
-                <div className="fb-card-label">You said</div>
+                <div className="fb-card-label">{t("practice.youSaid")}</div>
                 <p className="fb-transcript-text">{attempt.transcript}</p>
               </div>
             )}
 
             {attempt.nativeVersion && (
               <div className="fb-native-card">
-                <div className="fb-card-label native">Native version{canSpeak && <SpeakBtn text={attempt.nativeVersion} practiceId={practiceId} />}</div>
+                <div className="fb-card-label native">{t("practice.nativeVersion")}{canSpeak && <SpeakBtn text={attempt.nativeVersion} practiceId={practiceId} />}</div>
                 {splitSentences(attempt.nativeVersion).map((s, k) => (
                   <p key={k} className="fb-native-text">{s}</p>
                 ))}
@@ -118,7 +120,7 @@ export default function SessionView({
 
             {attempt.gaps?.length > 0 && (
               <div className="fb-gaps-section">
-                <div className="fb-section-label">Gaps · {attempt.gaps.length}</div>
+                <div className="fb-section-label">{t("practice.gapsTitle", { n: attempt.gaps.length })}</div>
                 {attempt.gaps.map((g, j) => (
                   <div key={j} className="fb-gap-card">
                     <div className="fb-gap-head">
@@ -126,17 +128,17 @@ export default function SessionView({
                     </div>
                     <div className="fb-gap-table">
                       <div className="fb-gap-line is-said">
-                        <span className="fb-gap-tag">You said</span>
+                        <span className="fb-gap-tag">{t("practice.gapYouSaid")}</span>
                         <span className="fb-gap-said">{g.original}</span>
                       </div>
                       <div className="fb-gap-line is-fix">
-                        <span className="fb-gap-tag">Say this</span>
+                        <span className="fb-gap-tag">{t("practice.gapSayThis")}</span>
                         <span className="fb-gap-fix">{g.better}</span>
                         {canSpeak && <SpeakBtn text={g.better} practiceId={practiceId} />}
                       </div>
                       {g.why && (
                         <div className="fb-gap-line">
-                          <span className="fb-gap-tag">Why</span>
+                          <span className="fb-gap-tag">{t("practice.gapWhy")}</span>
                           <span className="fb-gap-whytext">{g.why}</span>
                         </div>
                       )}
@@ -148,17 +150,17 @@ export default function SessionView({
 
             {!readOnly && isLatest ? (
               <div className="fb-chat">
-                <div className="fb-section-label">Ask the coach</div>
+                <div className="fb-section-label">{t("practice.askTheCoach")}</div>
                 {chat.map((m, k) => (
                   <div key={k} className={"fb-chat-msg " + m.role}>
-                    {m.content || (chatBusy && k === chat.length - 1 ? <span className="fb-chat-typing">Thinking…</span> : "")}
+                    {m.content || (chatBusy && k === chat.length - 1 ? <span className="fb-chat-typing">{t("practice.thinking")}</span> : "")}
                   </div>
                 ))}
                 <div className="fb-chat-input">
                   <textarea
                     rows={1}
                     value={chatInput}
-                    placeholder="Ask about this feedback — why a change, more examples, how to say it elsewhere…"
+                    placeholder={t("practice.chatPlaceholder")}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
                     disabled={chatBusy}
@@ -171,7 +173,7 @@ export default function SessionView({
             ) : (
               attempt.chat?.length > 0 && (
                 <div className="fb-chat">
-                  <div className="fb-section-label">Ask the coach</div>
+                  <div className="fb-section-label">{t("practice.askTheCoach")}</div>
                   {attempt.chat.map((m, k) => (
                     <div key={k} className={"fb-chat-msg " + m.role}>{m.content}</div>
                   ))}

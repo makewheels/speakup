@@ -653,6 +653,6 @@ describe("PracticePage", () => {
     await userEvent.type(box, "为什么？");
     await userEvent.keyboard("{Enter}");
 
-    await waitFor(() => expect(screen.getByText(/出错了：net fail/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Error: net fail/)).toBeInTheDocument());
   });
 });

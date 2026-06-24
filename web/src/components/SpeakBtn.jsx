@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import Icon from "./Icon.jsx";
+import { useT } from "../i18n/index.jsx";
 import { speak, stop, isCached } from "../utils/tts.js";
 
 // 点击 → 没缓存就先合成（显示「生成中」动画文字），合成完播放；缓存命中直接播放。
@@ -7,6 +8,7 @@ import { speak, stop, isCached } from "../utils/tts.js";
 // practiceId：传进来则朗读音频按 (practiceId, 文本) 挂在该 session 下；不传走全局兜底。
 // stopPropagation 让按钮可以嵌进可点击行里不连带触发。
 export default function SpeakBtn({ text, practiceId, size = 22, className = "spk-btn" }) {
+  const t = useT();
   const [state, setState] = useState("idle"); // idle | loading | playing
   const audioRef = useRef(null);
   if (!text) return null;
@@ -39,8 +41,8 @@ export default function SpeakBtn({ text, practiceId, size = 22, className = "spk
         (state === "playing" ? " playing" : "") +
         (state === "loading" ? " loading" : "")
       }
-      title={state === "playing" ? "Stop" : "Play"}
-      aria-label={state === "loading" ? "Synthesizing" : state === "playing" ? "Stop" : "Play"}
+      title={state === "playing" ? t("player.stop") : t("player.play")}
+      aria-label={state === "loading" ? t("player.synthesizing") : state === "playing" ? t("player.stop") : t("player.play")}
       onClick={onClick}
       disabled={state === "loading"}
     >

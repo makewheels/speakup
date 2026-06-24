@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, chatStream } from "../api/client.js";
 import { useUser } from "../context/UserContext.jsx";
+import { useT } from "../i18n/index.jsx";
 import Icon from "../components/Icon.jsx";
 import SessionView from "../components/SessionView.jsx";
 import { copyShare } from "../lib/share.js";
@@ -10,6 +11,7 @@ export default function SessionDetailPage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
   const { user } = useUser();
+  const t = useT();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chat, setChat] = useState([]);          // 最新一轮的追问对话
@@ -58,7 +60,7 @@ export default function SessionDetailPage() {
           setChatBusy(false);
           setChat((c) => {
             const next = [...c];
-            next[next.length - 1] = { role: "assistant", content: `（出错了：${err.message}）` };
+            next[next.length - 1] = { role: "assistant", content: t("practice.chatError", { msg: err.message }) };
             return next;
           });
         },
@@ -77,9 +79,9 @@ export default function SessionDetailPage() {
         setShareToken(token);
       }
       await copyShare(session, token);
-      flash("Link copied — paste it to a friend");
+      flash(t("session.linkCopied"));
     } catch (e) {
-      flash("Failed: " + e.message);
+      flash(t("session.failed", { msg: e.message }));
     } finally {
       setShareBusy(false);
     }
@@ -91,41 +93,41 @@ export default function SessionDetailPage() {
     try {
       await api.unsharePractice(practiceId, user.userId);
       setShareToken(null);
-      flash("Sharing stopped");
+      flash(t("session.sharingStopped"));
     } catch (e) {
-      flash("Failed: " + e.message);
+      flash(t("session.failed", { msg: e.message }));
     } finally {
       setShareBusy(false);
     }
   };
 
-  if (loading) return <div className="page-msg">Loading…</div>;
-  if (!session) return <div className="page-msg">Practice not found</div>;
+  if (loading) return <div className="page-msg">{t("common.loading")}</div>;
+  if (!session) return <div className="page-msg">{t("session.notFound")}</div>;
 
   const shareBar = shareToken ? (
     <div className="share-bar shared">
       <div className="share-bar-status">
         <span className="share-dot" />
-        <span className="share-bar-title">Shared</span>
-        <span className="share-bar-sub">Anyone with the link can view</span>
+        <span className="share-bar-title">{t("session.shared")}</span>
+        <span className="share-bar-sub">{t("session.sharedSub")}</span>
       </div>
       <div className="share-bar-actions">
         <button className="su-btn su-btn-primary" onClick={doShare} disabled={shareBusy}>
-          <Icon name="link" size={15} /> Copy link
+          <Icon name="link" size={15} /> {t("session.copyLink")}
         </button>
         <button className="share-cancel" onClick={doUnshare} disabled={shareBusy}>
-          Stop sharing
+          {t("session.stopSharing")}
         </button>
       </div>
     </div>
   ) : (
     <div className="share-bar">
       <div className="share-bar-status">
-        <span className="share-bar-title muted">Not shared</span>
-        <span className="share-bar-sub">Only you can see this practice</span>
+        <span className="share-bar-title muted">{t("session.notShared")}</span>
+        <span className="share-bar-sub">{t("session.notSharedSub")}</span>
       </div>
       <button className="su-btn su-btn-tertiary share-btn" onClick={doShare} disabled={shareBusy}>
-        <Icon name="share" size={16} /> Share
+        <Icon name="share" size={16} /> {t("session.share")}
       </button>
     </div>
   );
@@ -133,7 +135,7 @@ export default function SessionDetailPage() {
   return (
     <div className="session-detail-page fade-in">
       <button className="detail-back" onClick={() => navigate(-1)}>
-        <Icon name="back" size={20} /> Back
+        <Icon name="back" size={20} /> {t("session.back")}
       </button>
 
       <SessionView
