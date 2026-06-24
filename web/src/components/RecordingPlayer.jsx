@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import Icon from "./Icon.jsx";
+import { useT } from "../i18n/index.jsx";
 
 // 自定义录音回放：蓝色播放/暂停键 + 进度条 + 时间，结果页和 history 共用，
 // 替换浏览器原生 <audio controls>（各浏览器样式不一、跟朗读按钮风格也对不上）。
@@ -11,6 +12,7 @@ const fmt = (s) => {
 };
 
 export default function RecordingPlayer({ src }) {
+  const t = useT();
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
@@ -33,7 +35,7 @@ export default function RecordingPlayer({ src }) {
 
   return (
     <div className="rec-player">
-      <button className="rec-player-btn" onClick={toggle} aria-label={playing ? "Pause" : "Play"}>
+      <button className="rec-player-btn" onClick={toggle} aria-label={playing ? t("player.pause") : t("player.play")}>
         <Icon name={playing ? "pause" : "play"} size={16} color="#fff" />
       </button>
       <div className="rec-player-bar" onClick={seek}>

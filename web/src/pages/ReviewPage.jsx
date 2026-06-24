@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
+import { useT } from "../i18n/index.jsx";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import SpeakBtn from "../components/SpeakBtn.jsx";
@@ -8,6 +9,7 @@ import SpeakBtn from "../components/SpeakBtn.jsx";
 export default function ReviewPage() {
   const { user } = useUser();
   const navigate = useNavigate();
+  const t = useT();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("cards");     // cards 逐词复习（默认首屏）| list 全部列表
@@ -51,7 +53,7 @@ export default function ReviewPage() {
       const sess = await api.createPractice({ userId: user.userId, scenarioId });
       navigate(`/practice/${sess._id}`);
     } catch (e) {
-      alert("Failed to create scenario: " + e.message);
+      alert(t("review.createScenarioFailed", { msg: e.message }));
       setGenWord(null);
     }
   };
@@ -74,7 +76,7 @@ export default function ReviewPage() {
     }
   };
 
-  if (loading) return <div className="page-msg">Loading…</div>;
+  if (loading) return <div className="page-msg">{t("common.loading")}</div>;
 
   if (items.length === 0) {
     return (
@@ -82,8 +84,8 @@ export default function ReviewPage() {
         <div className="icon-box">
           <Icon name="book" size={28} color="var(--ink-3)" stroke={1.4} />
         </div>
-        <p className="title">No review items yet</p>
-        <p className="sub">Go speak a round in Practice</p>
+        <p className="title">{t("review.emptyTitle")}</p>
+        <p className="sub">{t("review.emptySub")}</p>
       </div>
     );
   }
@@ -97,38 +99,38 @@ export default function ReviewPage() {
     return (
       <div className="review-cards-page fade-in">
         <div className="rv-head">
-          <h2>Review</h2>
+          <h2>{t("review.title")}</h2>
           <button className="rv-list-toggle" onClick={() => setView("list")}>
-            All {items.length} <Icon name="next" size={14} />
+            {t("review.allCount", { n: items.length })} <Icon name="next" size={14} />
           </button>
         </div>
 
         {done ? (
           <div className="rv-done">
             <div className="rv-done-check"><Icon name="check" size={30} color="var(--ok)" /></div>
-            <p className="rv-done-title">Done for now</p>
-            <p className="rv-done-sub">{dueCount} due</p>
+            <p className="rv-done-title">{t("review.doneTitle")}</p>
+            <p className="rv-done-sub">{t("review.doneSub", { n: dueCount })}</p>
             <button
               className="su-btn su-btn-secondary"
               style={{ maxWidth: 220 }}
               onClick={() => { setIdx(0); setShowAnswer(false); fetchItems(); }}
             >
-              <Icon name="refresh" size={15} />&nbsp;Go again
+              <Icon name="refresh" size={15} />&nbsp;{t("review.goAgain")}
             </button>
           </div>
         ) : (
           <>
-            <div className="rv-progress">{idx + 1} / {queue.length}</div>
+            <div className="rv-progress">{t("review.progress", { cur: idx + 1, total: queue.length })}</div>
             <div className="rv-card" onClick={() => setShowAnswer(true)}>
               {!showAnswer ? (
                 <>
-                  <div className="rv-card-label">What you said</div>
+                  <div className="rv-card-label">{t("review.whatYouSaid")}</div>
                   <p className="rv-card-q">{w.original || w.contextSentence || w.expression}</p>
-                  <span className="rv-tap-hint">Tap to see the native version</span>
+                  <span className="rv-tap-hint">{t("review.tapToSeeNative")}</span>
                 </>
               ) : (
                 <>
-                  <div className="rv-card-label answer">Native version</div>
+                  <div className="rv-card-label answer">{t("review.nativeVersion")}</div>
                   <p className="rv-card-a">{w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} /></p>
                   {w.note && <p className="rv-card-note">{w.note}</p>}
                   {w.contextSentence && (
@@ -140,8 +142,8 @@ export default function ReviewPage() {
                     disabled={!!genWord}
                   >
                     {genWord === w._id
-                      ? <><span className="spin" />&nbsp;Creating…</>
-                      : <><Icon name="spark" size={15} />&nbsp;Practice this word</>}
+                      ? <><span className="spin" />&nbsp;{t("review.creating")}</>
+                      : <><Icon name="spark" size={15} />&nbsp;{t("review.practiceThisWord")}</>}
                   </button>
                   <div className="rv-verdict-row">
                     <button
@@ -149,14 +151,14 @@ export default function ReviewPage() {
                       style={{ flex: 1, height: 46 }}
                       onClick={(e) => { e.stopPropagation(); handleReview(false); }}
                     >
-                      Forgot
+                      {t("review.forgot")}
                     </button>
                     <button
                       className="su-btn su-btn-primary"
                       style={{ flex: 1, height: 46 }}
                       onClick={(e) => { e.stopPropagation(); handleReview(true); }}
                     >
-                      Got it
+                      {t("review.gotIt")}
                     </button>
                   </div>
                 </>
@@ -172,9 +174,9 @@ export default function ReviewPage() {
   return (
     <div className="review-page">
       <div className="rv-head">
-        <h2>All review items</h2>
+        <h2>{t("review.allItemsTitle")}</h2>
         <button className="rv-list-toggle" onClick={() => setView("cards")}>
-          <Icon name="back" size={14} /> Flashcards
+          <Icon name="back" size={14} /> {t("review.flashcards")}
         </button>
       </div>
       {queue.map((w) => {
@@ -192,25 +194,25 @@ export default function ReviewPage() {
               <div className="review-foot">
                 <button className="review-cta-btn" onClick={() => practiceThisWord(w)} disabled={!!genWord}>
                   {genWord === w._id
-                    ? <><span className="spin" />&nbsp;Creating…</>
-                    : <><Icon name="spark" size={12} /> Practice this</>}
+                    ? <><span className="spin" />&nbsp;{t("review.creating")}</>
+                    : <><Icon name="spark" size={12} /> {t("review.practiceThis")}</>}
                 </button>
                 <span className={`review-status${due ? " due" : mastered ? " mastered" : ""}`}>
-                  {mastered ? "Mastered" : due ? "Due" : "Learning"}
+                  {mastered ? t("review.mastered") : due ? t("review.due") : t("review.learning")}
                 </span>
               </div>
             </div>
             <button
               className={`review-del${confirmingDelete ? " confirming" : ""}`}
               onClick={(e) => requestDelete(e, w._id)}
-              aria-label="Delete"
+              aria-label={t("common.delete")}
             >
-              {confirmingDelete ? "Confirm" : <Icon name="trash" size={15} />}
+              {confirmingDelete ? t("common.confirm") : <Icon name="trash" size={15} />}
             </button>
           </div>
         );
       })}
-      <p className="list-end">· end of list ·</p>
+      <p className="list-end">{t("common.endOfList")}</p>
     </div>
   );
 }

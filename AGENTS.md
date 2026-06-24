@@ -77,7 +77,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 
 ## 注意事项
 
-- **界面文案统一英文**：按钮、标签、提示（toast）、空状态等所有 UI 文案一律用英文（与 You said / Native version / Gaps / Ask the coach 保持一致）。代码注释仍用中文。
+- **UI 文案走 i18n（zh-CN / en）**：新增/修改 UI 文案必须走 `web/src/i18n/` 字典；默认跟随浏览器语言，用户可在 Profile → 设置切换；选择存 localStorage，不入库（属个人偏好）。代码注释仍用中文。AI 输出（gaps/nativeVersion/summary）保持中文不动——这是另一坨工作，跟 corrector prompt 和场景库捆绑，需要另起 PR。
 - 语音识别仅 Chrome (Web Speech API)
 - `.env` 文件不在版本控制中
 - pnpm 全局 store: `~/Library/pnpm/store/v10`

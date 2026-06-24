@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext.jsx";
+import { useT } from "../i18n/index.jsx";
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
@@ -8,13 +9,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useUser();
   const navigate = useNavigate();
+  const t = useT();
 
   const valid = /^1\d{10}$/.test(phone);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!valid) {
-      setError("Invalid phone number, please check");
+      setError(t("login.errorInvalidPhone"));
       return;
     }
     setLoading(true);
@@ -23,7 +25,7 @@ export default function LoginPage() {
       await login(phone);
       navigate("/");
     } catch {
-      setError("Login failed, please try again");
+      setError(t("login.errorLoginFailed"));
     } finally {
       setLoading(false);
     }
@@ -32,22 +34,22 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="brand">
-        <div className="eyebrow brand-eyebrow">v0.1 · DEMO</div>
-        <h1>SpeakUp</h1>
-        <p className="subtitle">
-          See a scene, speak to get it done.<br />
-          AI shows you how a native would say it.
-        </p>
+        <div className="eyebrow brand-eyebrow">{t("login.demoTag")}</div>
+        <h1>{t("login.appName")}</h1>
+        <p
+          className="subtitle"
+          dangerouslySetInnerHTML={{ __html: t("login.subtitle") }}
+        />
       </div>
 
       <form onSubmit={handleSubmit} className="login-field">
-        <div className="eyebrow" style={{ marginBottom: 10 }}>Phone</div>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>{t("login.phoneLabel")}</div>
         <div className={`login-field-row${error ? " error" : ""}`}>
           <span className="cc">+86</span>
           <input
             type="tel"
             inputMode="numeric"
-            placeholder="138 0000 0000"
+            placeholder={t("login.phonePlaceholder")}
             value={phone}
             onChange={(e) => {
               setPhone(e.target.value.replace(/\D/g, "").slice(0, 11));
@@ -57,7 +59,7 @@ export default function LoginPage() {
           />
         </div>
         {error && <div className="error-text">{error}</div>}
-        <p className="hint">Enter your phone to sign up — no code needed.</p>
+        <p className="hint">{t("login.hint")}</p>
 
         <div className="spacer" />
 
@@ -66,11 +68,11 @@ export default function LoginPage() {
           className={`su-btn su-btn-primary submit${!valid && !loading ? " disabled" : ""}`}
           disabled={!valid || loading}
         >
-          {loading ? (<><span className="spin" />&nbsp;Enter</>) : "Enter"}
+          {loading ? (<><span className="spin" />&nbsp;{t("login.enter")}</>) : t("login.enter")}
         </button>
       </form>
 
-      <p className="footer-note">Works on PC / Android / iOS (Chrome & Safari)</p>
+      <p className="footer-note">{t("login.footerNote")}</p>
     </div>
   );
 }
