@@ -38,6 +38,9 @@ source = ["."]
 omit = [
     "tests/*",
     "main.py",
+    # 评测脚手架（不是被测对象，是测试基础设施本身——给 corrector 当底线，不归覆盖率门槛管）
+    "evals/*",
+    "scripts/*",
     # 纯外部服务适配器：测试里整个 mock（见 conftest），无分支业务逻辑，
     # 测内部 = mock 第三方 SDK/HTTP，价值低。门槛守护业务逻辑而非 IO 胶水。
     "services/wanx.py",          # Seedream 文生图（httpx 直发）
