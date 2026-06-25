@@ -1,9 +1,10 @@
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from bson import ObjectId
 from db.connection import get_db
 from services.oss_storage import get_url as oss_signed_url
+from utils.id_generator import review_item_id
+from utils.mongo_ids import id_filter, id_values
 
 router = APIRouter(prefix="/api/review-items", tags=["review-items"])
 
@@ -29,7 +30,9 @@ async def add_items(req: AddItemsRequest):
         if existing:
             ids.append(str(existing["_id"]))
             continue
-        res = await get_db().reviewItems.insert_one({
+        rid = review_item_id()
+        await get_db().reviewItems.insert_one({
+            "_id": rid,
             "userId": req.userId,
             "expression": it["expression"],
             "original": it.get("original", ""),
@@ -42,7 +45,7 @@ async def add_items(req: AddItemsRequest):
             "interval": 1,
             "easiness": 2.5,
         })
-        ids.append(str(res.inserted_id))
+        ids.append(rid)
         added += 1
     return {"added": added, "ids": ids}
 
@@ -59,20 +62,18 @@ async def list_items(userId: str = Query(...), due: bool = False):
         items.append(item)
 
     # 关联练习补场景图（imageKey 现签）+ topic，供复习卡展示与原题重练
-    oid_map = {}
+    practice_ids = {}
     for pid in {i.get("practiceId") for i in items if i.get("practiceId")}:
-        try:
-            oid_map[ObjectId(pid)] = pid
-        except Exception:
-            pass
+        for value in id_values(pid):
+            practice_ids[value] = pid
     scenes = {}
-    if oid_map:
+    if practice_ids:
         async for p in get_db().practiceSessions.find(
-            {"_id": {"$in": list(oid_map)}},
+            {"_id": {"$in": list(practice_ids)}},
             {"imageKey": 1, "topic": 1},
         ):
             key = p.get("imageKey", "")
-            scenes[oid_map[p["_id"]]] = {
+            scenes[practice_ids[p["_id"]]] = {
                 "image": oss_signed_url(key) if key else "",
                 "topic": p.get("topic", ""),
             }
@@ -85,10 +86,7 @@ async def list_items(userId: str = Query(...), due: bool = False):
 
 @router.post("/{rid}/review")
 async def review_item(rid: str, req: ReviewRequest, userId: str = Query(...)):
-    try:
-        item = await get_db().reviewItems.find_one({"_id": ObjectId(rid), "userId": userId})
-    except Exception:
-        raise HTTPException(404, "复习项不存在")
+    item = await get_db().reviewItems.find_one({**id_filter(rid), "userId": userId})
     if not item:
         raise HTTPException(404, "复习项不存在")
 
@@ -102,7 +100,7 @@ async def review_item(rid: str, req: ReviewRequest, userId: str = Query(...)):
 
     item["nextReviewAt"] = datetime.now(timezone.utc) + timedelta(days=item["interval"])
     await get_db().reviewItems.update_one(
-        {"_id": ObjectId(rid)},
+        id_filter(rid),
         {"$set": {
             "reviewCount": item["reviewCount"],
             "easiness": item["easiness"],
@@ -116,10 +114,7 @@ async def review_item(rid: str, req: ReviewRequest, userId: str = Query(...)):
 
 @router.delete("/{rid}")
 async def delete_item(rid: str, userId: str = Query(...)):
-    try:
-        result = await get_db().reviewItems.delete_one({"_id": ObjectId(rid), "userId": userId})
-    except Exception:
-        raise HTTPException(404, "复习项不存在")
+    result = await get_db().reviewItems.delete_one({**id_filter(rid), "userId": userId})
     if result.deleted_count == 0:
         raise HTTPException(404, "复习项不存在")
     return {"ok": True}

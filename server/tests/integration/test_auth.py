@@ -4,7 +4,8 @@ def test_login_creates_user(client):
     data = resp.json()
     assert data["phone"] == "13800001234"
     assert data["nickname"] == "User1234"
-    assert "userId" in data and len(data["userId"]) == 24
+    assert data["userId"].startswith("u_")
+    assert len(data["userId"]) == 21
 
 
 def test_login_rejects_invalid_phone(client):

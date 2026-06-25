@@ -1,4 +1,3 @@
-from bson import ObjectId
 from pymongo import MongoClient
 
 from tests.conftest import TEST_DB_NAME
@@ -7,7 +6,7 @@ from tests.conftest import TEST_DB_NAME
 def _add_attempt(pid, score=7.5):
     db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
     db.practiceSessions.update_one(
-        {"_id": ObjectId(pid)},
+        {"_id": pid},
         {"$set": {"attempts": [{"transcript": "hi", "round": 1, "score": score}]}},
     )
 

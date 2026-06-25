@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 from db.connection import get_db
+from utils.id_generator import llm_call_id
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ async def audited_invoke(
     Returns:
         {"raw": str | None, "parsed": dict | None, "tokens": dict, "model": str,
          "cost": float, "durationMs": int, "error": str | None,
-         "metadata": dict | None, "_id": ObjectId | None}
+         "metadata": dict | None}
     """
     started = time.monotonic()
     raw: str | None = None
@@ -128,6 +129,7 @@ async def audited_invoke(
     cost = estimate_text_cost(model, prompt_tok, completion_tok)
 
     doc = {
+        "_id": llm_call_id(),
         "kind": kind,
         "model": model,
         "request": {
@@ -170,6 +172,7 @@ async def log_image_call(
     """图片生成审计——不走 LLM 链路所以单独 API。"""
     cost = 0.0 if error else estimate_image_cost(model)
     doc = {
+        "_id": llm_call_id(),
         "kind": "image",
         "model": model,
         "request": {"prompt": (prompt or "")[:2000]},

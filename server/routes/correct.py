@@ -1,13 +1,14 @@
 import json
 from datetime import datetime, timezone
 
-from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
 from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream, followup_chat_stream
+from utils.id_generator import review_item_id
+from utils.mongo_ids import id_filter
 
 router = APIRouter(prefix="/api/correct", tags=["correct"])
 
@@ -19,12 +20,9 @@ class CorrectRequest(BaseModel):
 
 
 async def _load_practice(req: CorrectRequest) -> dict:
-    try:
-        practice = await get_db().practiceSessions.find_one(
-            {"_id": ObjectId(req.practiceId), "userId": req.userId}
-        )
-    except Exception:
-        raise HTTPException(404, "练习不存在")
+    practice = await get_db().practiceSessions.find_one(
+        {**id_filter(req.practiceId), "userId": req.userId}
+    )
     if not practice:
         raise HTTPException(404, "练习不存在")
     return practice
@@ -57,7 +55,9 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
         if existing:
             gap["reviewItemId"] = str(existing["_id"])
             continue
-        res = await get_db().reviewItems.insert_one({
+        rid = review_item_id()
+        await get_db().reviewItems.insert_one({
+            "_id": rid,
             "userId": req.userId,
             "title": gap.get("title", ""),
             "expression": expression,
@@ -71,7 +71,7 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
             "interval": 1,
             "easiness": 2.5,
         })
-        gap["reviewItemId"] = str(res.inserted_id)
+        gap["reviewItemId"] = rid
         auto_saved += 1
 
     attempt = {
@@ -85,7 +85,7 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
         "createdAt": now,
     }
     await get_db().practiceSessions.update_one(
-        {"_id": ObjectId(req.practiceId)},
+        id_filter(req.practiceId),
         {"$push": {"attempts": attempt}},
     )
     return auto_saved
@@ -147,12 +147,9 @@ async def correct_chat_stream(req: ChatRequest):
     if not req.question or not req.question.strip():
         raise HTTPException(400, "问题不能为空")
 
-    try:
-        practice = await get_db().practiceSessions.find_one(
-            {"_id": ObjectId(req.practiceId), "userId": req.userId}
-        )
-    except Exception:
-        raise HTTPException(404, "练习不存在")
+    practice = await get_db().practiceSessions.find_one(
+        {**id_filter(req.practiceId), "userId": req.userId}
+    )
     if not practice:
         raise HTTPException(404, "练习不存在")
 
@@ -184,7 +181,7 @@ async def correct_chat_stream(req: ChatRequest):
         if not errored and full:
             now = datetime.now(timezone.utc)
             await get_db().practiceSessions.update_one(
-                {"_id": ObjectId(req.practiceId)},
+                id_filter(req.practiceId),
                 {"$push": {f"attempts.{idx}.chat": {"$each": [
                     {"role": "user", "content": req.question, "createdAt": now},
                     {"role": "assistant", "content": full, "createdAt": now},

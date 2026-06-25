@@ -3,12 +3,13 @@ import string
 import time
 from datetime import datetime, timezone
 
-from bson import ObjectId
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from db.connection import get_db
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
+from utils.id_generator import practice_session_id
+from utils.mongo_ids import id_filter
 
 router = APIRouter(prefix="/api/practice-sessions", tags=["practice-sessions"])
 # 公开分享读取（无鉴权），独立前缀
@@ -42,6 +43,7 @@ async def create_practice(req: CreatePracticeRequest):
         raise HTTPException(404, "场景不存在")
 
     doc = {
+        "_id": practice_session_id(),
         "userId": req.userId,
         "scenarioId": req.scenarioId,
         "kind": scenario.get("kind", "task"),
@@ -62,8 +64,7 @@ async def create_practice(req: CreatePracticeRequest):
         "attempts": [],
         "createdAt": datetime.now(timezone.utc),
     }
-    result = await get_db().practiceSessions.insert_one(doc)
-    doc["_id"] = str(result.inserted_id)
+    await get_db().practiceSessions.insert_one(doc)
     return _sign(doc)
 
 
@@ -82,10 +83,7 @@ def _sign(practice: dict) -> dict:
 
 @router.get("/{pid}")
 async def get_practice(pid: str):
-    try:
-        practice = await get_db().practiceSessions.find_one({"_id": ObjectId(pid)})
-    except Exception:
-        raise HTTPException(404, "练习不存在")
+    practice = await get_db().practiceSessions.find_one(id_filter(pid))
     if not practice:
         raise HTTPException(404, "练习不存在")
     practice["_id"] = str(practice["_id"])
@@ -119,18 +117,13 @@ class ShareRequest(BaseModel):
 @router.post("/{pid}/share")
 async def share_practice(pid: str, req: ShareRequest):
     """开启分享：生成随机 token（已有则复用）。幂等。"""
-    try:
-        practice = await get_db().practiceSessions.find_one(
-            {"_id": ObjectId(pid), "userId": req.userId}
-        )
-    except Exception:
-        raise HTTPException(404, "练习不存在")
+    practice = await get_db().practiceSessions.find_one({**id_filter(pid), "userId": req.userId})
     if not practice:
         raise HTTPException(404, "练习不存在")
 
     token = practice.get("shareToken") or await _gen_unique_token()
     await get_db().practiceSessions.update_one(
-        {"_id": ObjectId(pid)},
+        id_filter(pid),
         {"$set": {"shareToken": token, "shared": True, "sharedAt": datetime.now(timezone.utc)}},
     )
     return {"shareToken": token}
@@ -139,13 +132,10 @@ async def share_practice(pid: str, req: ShareRequest):
 @router.delete("/{pid}/share")
 async def unshare_practice(pid: str, userId: str = Query(...)):
     """取消分享：只置 shared=False，保留 token。再次开启即复用同一链接（旧链接复活）。"""
-    try:
-        result = await get_db().practiceSessions.update_one(
-            {"_id": ObjectId(pid), "userId": userId},
-            {"$set": {"shared": False}},
-        )
-    except Exception:
-        raise HTTPException(404, "练习不存在")
+    result = await get_db().practiceSessions.update_one(
+        {**id_filter(pid), "userId": userId},
+        {"$set": {"shared": False}},
+    )
     if result.matched_count == 0:
         raise HTTPException(404, "练习不存在")
     return {"ok": True}
@@ -158,11 +148,7 @@ async def get_shared_practice(token: str):
     if not practice:
         raise HTTPException(404, "分享已关闭或不存在")
     practice["_id"] = str(practice["_id"])
-    owner = None
-    try:
-        owner = await get_db().users.find_one({"_id": ObjectId(practice["userId"])})
-    except Exception:
-        owner = None
+    owner = await get_db().users.find_one(id_filter(practice["userId"]))
     practice["ownerNickname"] = (owner or {}).get("nickname", "")
     return _sign(practice)
 
@@ -174,12 +160,9 @@ async def upload_recording(
     audio: UploadFile = File(...),
     attemptIndex: int = Form(-1),
 ):
-    try:
-        practice = await get_db().practiceSessions.find_one(
-            {"_id": ObjectId(practice_id), "userId": userId}
-        )
-    except Exception:
-        raise HTTPException(404, "练习不存在")
+    practice = await get_db().practiceSessions.find_one(
+        {**id_filter(practice_id), "userId": userId}
+    )
     if not practice:
         raise HTTPException(404, "练习不存在")
 
@@ -195,5 +178,5 @@ async def upload_recording(
     update: dict = {"$push": {"recordings": {"key": key, "attemptIndex": attemptIndex, "createdAt": now}}}
     if 0 <= attemptIndex < len(practice.get("attempts", [])):
         update["$set"] = {f"attempts.{attemptIndex}.recordingKey": key}
-    await get_db().practiceSessions.update_one({"_id": ObjectId(practice_id)}, update)
+    await get_db().practiceSessions.update_one(id_filter(practice_id), update)
     return {"url": oss_signed_url(key)}
