@@ -37,7 +37,7 @@ speakup/
 │   │   └── oss_storage.py           # 阿里云 OSS 底层封装（私有桶，只存 key 读时现签）
 │   ├── routes/                      # auth, scenarios, correct, practice_sessions, review_items
 │   ├── utils/
-│   │   └── id_generator.py          # scenario_id() → sc_ 前缀（其余集合用 ObjectId）
+│   │   └── id_generator.py          # 业务 _id 前缀：u_ / ps_ / rv_ / sc_ / llm_
 │   └── tests/
 │       ├── conftest.py              # 测试 DB 初始化 + cost guard fixture
 │       ├── unit/                    # 纯逻辑单元测试，全 mock，毫秒级

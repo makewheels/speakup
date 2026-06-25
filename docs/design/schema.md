@@ -4,7 +4,7 @@
 
 ```json
 {
-  "_id":       ObjectId,
+  "_id":       "u_1781276...",
   "phone":     "13800001234",
   "nickname":  "用户名",
   "createdAt": datetime
@@ -36,12 +36,12 @@
 
 ## practiceSessions（一次场景练习）
 
-> 命名：用 `practiceSessions` 而非 `sessions`，把 `sessions` 留给将来的登录会话。`_id` 用 Mongo ObjectId。
+> 命名：用 `practiceSessions` 而非 `sessions`，把 `sessions` 留给将来的登录会话。新 `_id` 用 `ps_` 前缀字符串；历史 Mongo ObjectId 仅兼容读取。
 
 ```json
 {
-  "_id":         ObjectId,
-  "userId":      "ObjectId string",
+  "_id":         "ps_1781276...",
+  "userId":      "u_1781276...",
   "scenarioId":  "sc_...",
   "kind":        "task",
   "title":       "咖啡店给错咖啡",          // 历史列表标题
@@ -86,13 +86,13 @@
 
 ```json
 {
-  "_id":           ObjectId,
-  "userId":        "ObjectId string",
+  "_id":           "rv_1781276...",
+  "userId":        "u_1781276...",
   "expression":    "Could you take a look?",   // 地道说法（来自 gap.better），词/短语/句式皆可
   "original":      "you see this",             // 用户原来的说法
   "note":          "更礼貌的请求",
   "contextSentence": "Could you take a look at this for me?",
-  "practiceId":    "ObjectId string",          // 来源练习，供复习卡展示场景图 + 原题重练
+  "practiceId":    "ps_1781276...",            // 来源练习，供复习卡展示场景图 + 原题重练
   "createdAt":     datetime,
   "nextReviewAt":  datetime,
   "reviewCount":   0,
@@ -113,7 +113,7 @@
 
 ```json
 {
-  "_id":         ObjectId,
+  "_id":         "llm_1781276...",
   "kind":        "scenario_gen_public",  // scenario_gen_public / scenario_gen_custom / correct / correct_retry / correct_stream / image
   "model":       "qwen3.7-plus",          // 真实用的模型名（来自 response_metadata，不是配置里写的）
   "request": {
@@ -130,7 +130,7 @@
   "error":       null,                    // 失败时填错误描述
   "linkedTo": {                           // 反查用：业务实体 → 这次调用
     "scenarioId":   "sc_xxx",             // 出题 / 图片生成时
-    "sessionId":    "ObjectId string",    // 评估时
+    "sessionId":    "ps_xxx",             // 评估时
     "round":        1,                    // 评估第几轮
     "userId":       "u_xxx",              // 评估 / 定制题
     "subId":        "tech.ai_at_work"     // 公共题坐标系

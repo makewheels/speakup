@@ -1,6 +1,5 @@
 """场景题库取题逻辑：定制题优先、未练优先。"""
 
-from bson import ObjectId
 from pymongo import MongoClient
 
 from tests.conftest import TEST_DB_NAME
@@ -68,7 +67,7 @@ def test_practiced_scenario_deprioritized(client, user_id, scenario_id):
     sess = client.post("/api/practice-sessions", json={"userId": user_id, "scenarioId": scenario_id}).json()
     db = _db()
     db.practiceSessions.update_one(
-        {"_id": ObjectId(sess["_id"])},
+        {"_id": sess["_id"]},
         {"$set": {"attempts": [{"transcript": "hi", "round": 1}]}},
     )
     db.scenarios.insert_one({

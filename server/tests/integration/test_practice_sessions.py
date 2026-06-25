@@ -5,6 +5,7 @@ def test_create_practice_snapshots_scenario(client, user_id, scenario_id):
     )
     assert resp.status_code == 200
     p = resp.json()
+    assert p["_id"].startswith("ps_")
     assert p["scenarioId"] == scenario_id
     assert p["topic"] == "☕️ 测试咖啡店"
     assert p["scenario"]["mission"]
@@ -23,9 +24,8 @@ def test_create_practice_unknown_scenario_404(client, user_id):
 
 
 def _add_attempt(db, pid):
-    from bson import ObjectId
     db.practiceSessions.update_one(
-        {"_id": ObjectId(pid)},
+        {"_id": pid},
         {"$set": {"attempts": [{"transcript": "hi", "round": 1}]}},
     )
 
@@ -73,6 +73,29 @@ def test_get_practice_by_id(client, practice_id):
 def test_get_practice_missing_returns_404(client):
     resp = client.get("/api/practice-sessions/000000000000000000000000")
     assert resp.status_code == 404
+
+
+def test_get_legacy_objectid_practice_by_id(client, user_id, scenario_id):
+    from bson import ObjectId
+    from pymongo import MongoClient
+    from tests.conftest import TEST_DB_NAME
+
+    oid = ObjectId()
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+    db.practiceSessions.insert_one({
+        "_id": oid,
+        "userId": user_id,
+        "scenarioId": scenario_id,
+        "title": "legacy",
+        "topic": "legacy topic",
+        "scenario": {},
+        "imageKey": "",
+        "attempts": [],
+    })
+
+    resp = client.get(f"/api/practice-sessions/{oid}")
+    assert resp.status_code == 200
+    assert resp.json()["_id"] == str(oid)
 
 
 def test_upload_recording_stores_key_and_returns_signed_url(client, user_id, practice_id, monkeypatch):

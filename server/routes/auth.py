@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from db.connection import get_db
+from utils.id_generator import user_id
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -20,13 +21,15 @@ async def login(req: LoginRequest):
     user = await get_db().users.find_one({"phone": req.phone})
     if not user:
         nickname = f"User{req.phone[-4:]}"
-        result = await get_db().users.insert_one({
+        uid = user_id()
+        await get_db().users.insert_one({
+            "_id": uid,
             "phone": req.phone,
             "nickname": nickname,
             "createdAt": now,
             "lastLoginAt": now,
         })
-        user = {"_id": result.inserted_id, "phone": req.phone, "nickname": nickname}
+        user = {"_id": uid, "phone": req.phone, "nickname": nickname}
     else:
         await get_db().users.update_one({"_id": user["_id"]}, {"$set": {"lastLoginAt": now}})
 
