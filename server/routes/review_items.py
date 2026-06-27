@@ -1,7 +1,8 @@
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from db.connection import get_db
+from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import get_url as oss_signed_url
 from utils.id_generator import review_item_id
 from utils.mongo_ids import id_filter, id_values
@@ -19,7 +20,8 @@ class ReviewRequest(BaseModel):
 
 
 @router.post("")
-async def add_items(req: AddItemsRequest):
+async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_user_id)):
+    assert_same_user(req.userId, token_user_id)
     now = datetime.now(timezone.utc)
     added = 0
     ids = []  # 与 req.items 顺序对应：每条返回新建或已存在的 reviewItem id，方便前端「取消收录」
@@ -51,7 +53,12 @@ async def add_items(req: AddItemsRequest):
 
 
 @router.get("")
-async def list_items(userId: str = Query(...), due: bool = False):
+async def list_items(
+    userId: str = Query(...),
+    due: bool = False,
+    token_user_id: str = Depends(current_user_id),
+):
+    assert_same_user(userId, token_user_id)
     filter = {"userId": userId}
     if due:
         filter["nextReviewAt"] = {"$lte": datetime.now(timezone.utc)}
@@ -85,8 +92,14 @@ async def list_items(userId: str = Query(...), due: bool = False):
 
 
 @router.post("/{rid}/review")
-async def review_item(rid: str, req: ReviewRequest, userId: str = Query(...)):
-    item = await get_db().reviewItems.find_one({**id_filter(rid), "userId": userId})
+async def review_item(
+    rid: str,
+    req: ReviewRequest,
+    userId: str = Query(...),
+    token_user_id: str = Depends(current_user_id),
+):
+    assert_same_user(userId, token_user_id)
+    item = await get_db().reviewItems.find_one({**id_filter(rid), "userId": token_user_id})
     if not item:
         raise HTTPException(404, "复习项不存在")
 
@@ -113,8 +126,13 @@ async def review_item(rid: str, req: ReviewRequest, userId: str = Query(...)):
 
 
 @router.delete("/{rid}")
-async def delete_item(rid: str, userId: str = Query(...)):
-    result = await get_db().reviewItems.delete_one({**id_filter(rid), "userId": userId})
+async def delete_item(
+    rid: str,
+    userId: str = Query(...),
+    token_user_id: str = Depends(current_user_id),
+):
+    assert_same_user(userId, token_user_id)
+    result = await get_db().reviewItems.delete_one({**id_filter(rid), "userId": token_user_id})
     if result.deleted_count == 0:
         raise HTTPException(404, "复习项不存在")
     return {"ok": True}

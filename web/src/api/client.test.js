@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { api, correctStream, chatStream } from "./client.js";
 
+const USER_KEY = "english-speak-user";
+
+function storeToken(token = "tok_test") {
+  localStorage.setItem(USER_KEY, JSON.stringify({ userId: "u1", token }));
+}
+
 // 把若干 SSE 文本帧封成一个最小可读流：每帧一次 read()
 function sseStream(frames) {
   const encoder = new TextEncoder();
@@ -24,11 +30,13 @@ describe("api/client request 封装", () => {
   let fetchMock;
 
   beforeEach(() => {
+    localStorage.clear();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
+    localStorage.clear();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -57,12 +65,14 @@ describe("api/client request 封装", () => {
   });
 
   it("GET 请求不带 body（getPractice 拼 URL）", async () => {
+    storeToken();
     fetchMock.mockResolvedValue(okJson({ id: "p1" }));
     await api.getPractice("p1");
     const [url, opts] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/practice-sessions/p1");
     expect(opts.method).toBeUndefined();
     expect(opts.body).toBeUndefined();
+    expect(opts.headers.Authorization).toBe("Bearer tok_test");
   });
 
   it("响应非 ok 且 body 带 error → 抛出该 error 文案", async () => {
@@ -71,6 +81,21 @@ describe("api/client request 封装", () => {
       json: () => Promise.resolve({ error: "手机号格式错误" }),
     });
     await expect(api.login("bad")).rejects.toThrow("手机号格式错误");
+  });
+
+  it("响应 401 时清掉本地登录态", async () => {
+    storeToken();
+    const onUnauthorized = vi.fn();
+    window.addEventListener("speakup:unauthorized", onUnauthorized);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ detail: "请先登录" }),
+    });
+    await expect(api.getPractice("p1")).rejects.toThrow("请先登录");
+    expect(localStorage.getItem(USER_KEY)).toBeNull();
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    window.removeEventListener("speakup:unauthorized", onUnauthorized);
   });
 
   it("响应非 ok 且 body 解析失败 → 抛出默认 Request failed", async () => {
@@ -100,6 +125,8 @@ describe("api/client 各方法 URL/method/body", () => {
   let fetchMock;
 
   beforeEach(() => {
+    localStorage.clear();
+    storeToken();
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({}),
@@ -108,6 +135,7 @@ describe("api/client 各方法 URL/method/body", () => {
   });
 
   afterEach(() => {
+    localStorage.clear();
     vi.unstubAllGlobals();
   });
 
@@ -146,6 +174,7 @@ describe("api/client 各方法 URL/method/body", () => {
     const [url, opts] = callArgs();
     expect(url).toBe("/api/practice-sessions");
     expect(opts.method).toBe("POST");
+    expect(opts.headers.Authorization).toBe("Bearer tok_test");
     expect(opts.body).toBe(JSON.stringify({ userId: "u1", scenarioId: "sc_1" }));
   });
 
@@ -238,11 +267,14 @@ describe("api/client FormData 上传方法", () => {
   let fetchMock;
 
   beforeEach(() => {
+    localStorage.clear();
+    storeToken();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
+    localStorage.clear();
     vi.unstubAllGlobals();
   });
 
@@ -253,6 +285,7 @@ describe("api/client FormData 上传方法", () => {
     const [url, opts] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/practice-sessions/p1/recording");
     expect(opts.method).toBe("POST");
+    expect(opts.headers.Authorization).toBe("Bearer tok_test");
     expect(opts.body).toBeInstanceOf(FormData);
     expect(opts.body.get("userId")).toBe("u1");
     expect(opts.body.get("attemptIndex")).toBe("2");
@@ -272,6 +305,7 @@ describe("api/client FormData 上传方法", () => {
     const [url, opts] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/transcribe");
     expect(opts.method).toBe("POST");
+    expect(opts.headers.Authorization).toBe("Bearer tok_test");
     expect(opts.body.get("userId")).toBe("u1");
     expect(res).toEqual({ text: "hi" });
   });
@@ -307,11 +341,14 @@ describe("api/client SSE 流（correctStream / chatStream）", () => {
   let fetchMock;
 
   beforeEach(() => {
+    localStorage.clear();
+    storeToken();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
 
   afterEach(() => {
+    localStorage.clear();
     vi.unstubAllGlobals();
   });
 
@@ -342,6 +379,7 @@ describe("api/client SSE 流（correctStream / chatStream）", () => {
     const [url, opts] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/correct/stream");
     expect(opts.method).toBe("POST");
+    expect(opts.headers.Authorization).toBe("Bearer tok_test");
     expect(opts.body).toBe(JSON.stringify({ text: "hi" }));
   });
 

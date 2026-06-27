@@ -3,10 +3,11 @@ import string
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from db.connection import get_db
+from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
 from utils.id_generator import practice_session_id
 from utils.mongo_ids import id_filter
@@ -37,7 +38,8 @@ class CreatePracticeRequest(BaseModel):
 
 
 @router.post("")
-async def create_practice(req: CreatePracticeRequest):
+async def create_practice(req: CreatePracticeRequest, token_user_id: str = Depends(current_user_id)):
+    assert_same_user(req.userId, token_user_id)
     scenario = await get_db().scenarios.find_one({"_id": req.scenarioId})
     if not scenario:
         raise HTTPException(404, "场景不存在")
@@ -82,8 +84,8 @@ def _sign(practice: dict) -> dict:
 
 
 @router.get("/{pid}")
-async def get_practice(pid: str):
-    practice = await get_db().practiceSessions.find_one(id_filter(pid))
+async def get_practice(pid: str, token_user_id: str = Depends(current_user_id)):
+    practice = await get_db().practiceSessions.find_one({**id_filter(pid), "userId": token_user_id})
     if not practice:
         raise HTTPException(404, "练习不存在")
     practice["_id"] = str(practice["_id"])
@@ -96,7 +98,9 @@ async def list_practices(
     limit: int = 20,
     skip: int = 0,
     sharedOnly: bool = False,
+    token_user_id: str = Depends(current_user_id),
 ):
+    assert_same_user(userId, token_user_id)
     # 只返回真正开口评估过的（attempts 非空）；看了图没说的空记录不进历史，
     # 否则前端二次过滤会出现"拉了一页全被滤光、要点很多次 load more"。
     query = {"userId": userId, "attempts.0": {"$exists": True}}
@@ -115,9 +119,10 @@ class ShareRequest(BaseModel):
 
 
 @router.post("/{pid}/share")
-async def share_practice(pid: str, req: ShareRequest):
+async def share_practice(pid: str, req: ShareRequest, token_user_id: str = Depends(current_user_id)):
     """开启分享：生成随机 token（已有则复用）。幂等。"""
-    practice = await get_db().practiceSessions.find_one({**id_filter(pid), "userId": req.userId})
+    assert_same_user(req.userId, token_user_id)
+    practice = await get_db().practiceSessions.find_one({**id_filter(pid), "userId": token_user_id})
     if not practice:
         raise HTTPException(404, "练习不存在")
 
@@ -130,10 +135,15 @@ async def share_practice(pid: str, req: ShareRequest):
 
 
 @router.delete("/{pid}/share")
-async def unshare_practice(pid: str, userId: str = Query(...)):
+async def unshare_practice(
+    pid: str,
+    userId: str = Query(...),
+    token_user_id: str = Depends(current_user_id),
+):
     """取消分享：只置 shared=False，保留 token。再次开启即复用同一链接（旧链接复活）。"""
+    assert_same_user(userId, token_user_id)
     result = await get_db().practiceSessions.update_one(
-        {**id_filter(pid), "userId": userId},
+        {**id_filter(pid), "userId": token_user_id},
         {"$set": {"shared": False}},
     )
     if result.matched_count == 0:
@@ -159,9 +169,11 @@ async def upload_recording(
     userId: str = Form(...),
     audio: UploadFile = File(...),
     attemptIndex: int = Form(-1),
+    token_user_id: str = Depends(current_user_id),
 ):
+    assert_same_user(userId, token_user_id)
     practice = await get_db().practiceSessions.find_one(
-        {**id_filter(practice_id), "userId": userId}
+        {**id_filter(practice_id), "userId": token_user_id}
     )
     if not practice:
         raise HTTPException(404, "练习不存在")
@@ -172,7 +184,7 @@ async def upload_recording(
     now = datetime.now(timezone.utc)
     ts = int(time.time() * 1000)
     # 路径规范参考 video-2022：资源为根、类型做子目录
-    key = f"practiceSessions/{userId}/{now.strftime('%Y%m')}/{practice_id}/recording/{ts}.{ext}"
+    key = f"practiceSessions/{token_user_id}/{now.strftime('%Y%m')}/{practice_id}/recording/{ts}.{ext}"
 
     await upload_bytes_async(key, data, content_type)
     update: dict = {"$push": {"recordings": {"key": key, "attemptIndex": attemptIndex, "createdAt": now}}}

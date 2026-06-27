@@ -11,6 +11,19 @@
 }
 ```
 
+## authSessions（登录会话）
+
+登录后生成 Bearer Token，接口只信任 Token 解析出的用户身份，不再把请求里的 `userId` 当身份凭证。数据库只保存 Token 的 SHA-256 摘要，不保存明文 Token。
+
+```json
+{
+  "_id":        "sha256(token)",
+  "userId":     "u_1781276...",
+  "createdAt":  datetime,
+  "lastUsedAt": datetime
+}
+```
+
 ## scenarios（场景题库）
 
 ```json
