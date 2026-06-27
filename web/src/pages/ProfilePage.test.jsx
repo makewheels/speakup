@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 import ProfilePage from "./ProfilePage.jsx";
+import PracticePreferencePage from "./PracticePreferencePage.jsx";
 import { UserProvider } from "../context/UserContext.jsx";
 import { getPracticePreferences } from "../lib/practicePreferences.js";
 
@@ -16,6 +17,7 @@ function setup() {
       <UserProvider>
         <Routes>
           <Route path="/me" element={<ProfilePage />} />
+          <Route path="/me/practice-preferences" element={<PracticePreferencePage />} />
           <Route path="/login" element={<div>Login page</div>} />
         </Routes>
       </UserProvider>
@@ -48,15 +50,19 @@ describe("ProfilePage", () => {
     expect(screen.getByText("Log out")).toBeInTheDocument();
   });
 
-  it("saves practice preference changes", async () => {
+  it("opens practice preference page and saves changes immediately", async () => {
     setup();
+    expect(screen.getByText("Daily · Travel")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("Practice preference"));
     await userEvent.click(screen.getByText("Challenge"));
-    await userEvent.click(screen.getByText("Travel"));
+    await userEvent.click(screen.getByText("Work"));
 
     expect(getPracticePreferences(USER.userId)).toEqual({
       level: "challenge",
-      purpose: "travel",
+      purpose: "work",
     });
+    expect(screen.getByText("Set to Challenge · Work")).toBeInTheDocument();
   });
 
   it("navigates to /login after logout", async () => {

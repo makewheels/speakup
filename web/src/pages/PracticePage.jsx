@@ -120,6 +120,8 @@ export default function PracticePage() {
   const chatControllerRef = useRef(null);
 
   const timerRef = useRef(null);
+  const recordPressTimerRef = useRef(null);
+  const recordPressHandledRef = useRef(false);
   const secondsRef = useRef(0);
   const evalTimerRef = useRef(null);
   const evalAnchorRef = useRef(null);
@@ -222,12 +224,13 @@ export default function PracticePage() {
   useEffect(() => () => {
     sseControllerRef.current?.abort();
     mediaRecorderRef.current?.stop();
+    clearTimeout(recordPressTimerRef.current);
   }, []);
 
   // 评估开始时自动滚到进度处：流式 token 回显在按钮下方，移动端常在视口外
   useEffect(() => {
     if (phase === "evaluating") {
-      evalAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      evalAnchorRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
     }
   }, [phase]);
 
@@ -250,6 +253,51 @@ export default function PracticePage() {
     setSearchParams({}, { replace: true });   // 离开结果态，清掉 URL 标记
     window.scrollTo(0, 0);
   };
+
+  function evaluate(textOverride = null) {
+    const text = (textOverride ?? transcript).trim();
+    if (!text || !session) return;
+    setPhase("evaluating");
+    setEvalElapsed(0);
+    setStreamingLen(0);
+    evalTimerRef.current = setInterval(() => setEvalElapsed((s) => s + 1), 1000);
+
+    sseControllerRef.current = correctStream(
+      {
+        userId: user.userId,
+        practiceId: session._id,
+        text,
+      },
+      {
+        onChunk: (chunk) => setStreamingLen((n) => n + chunk.length),
+        onDone: ({ result: res, autoSaved: n, round: r }) => {
+          clearInterval(evalTimerRef.current);
+          setResult(res);
+          // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
+          const init = {};
+          (res.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
+          setSavedMap(init);
+          setAutoSaved(n);
+          if (r) setRound(r);
+          setChat([]);
+          setPhase("feedback");
+          // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
+          setSearchParams({ result: "1" }, { replace: true });
+          // 评估完成后异步上传录音，关联到本轮 attempt（失败静默忽略）
+          if (audioChunksRef.current && session?._id) {
+            api.uploadRecording(session._id, user.userId, audioChunksRef.current, (r ?? round) - 1)
+              .catch(console.warn);
+            audioChunksRef.current = null;
+          }
+        },
+        onError: (err) => {
+          clearInterval(evalTimerRef.current);
+          alert(t("practice.feedbackFailed", { msg: err.message }));
+          setPhase("review");
+        },
+      }
+    );
+  }
 
   const startRecording = useCallback(async () => {
     if (location.protocol === "http:" && location.hostname !== "localhost") {
@@ -288,7 +336,11 @@ export default function PracticePage() {
         try {
           const { text: txt } = await api.transcribeAudio(user.userId, blob);
           setTranscript(txt || "");
-          setPhase("review");
+          if ((txt || "").trim()) {
+            evaluate(txt);
+          } else {
+            setPhase("review");
+          }
         } catch (err) {
           alert(t("practice.transcriptionFailed", { msg: err.message }));
           setPhase("review");
@@ -309,7 +361,8 @@ export default function PracticePage() {
       const ss = (secondsRef.current % 60).toString().padStart(2, "0");
       setElapsed(`${mm}:${ss}`);
     }, 1000);
-  }, [user, t]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, t, session]);
 
   const stopRecording = () => {
     mediaRecorderRef.current?.stop();
@@ -317,48 +370,25 @@ export default function PracticePage() {
     // setPhase 由 MediaRecorder.onstop 控制：transcribing → review
   };
 
-  const evaluate = () => {
-    if (!transcript.trim() || !session) return;
-    setPhase("evaluating");
-    setEvalElapsed(0);
-    setStreamingLen(0);
-    evalTimerRef.current = setInterval(() => setEvalElapsed((s) => s + 1), 1000);
+  const handleRecordPressStart = (action) => {
+    recordPressHandledRef.current = false;
+    clearTimeout(recordPressTimerRef.current);
+    recordPressTimerRef.current = setTimeout(() => {
+      recordPressHandledRef.current = true;
+      action();
+    }, 320);
+  };
 
-    sseControllerRef.current = correctStream(
-      {
-        userId: user.userId,
-        practiceId: session._id,
-        text: transcript.trim(),
-      },
-      {
-        onChunk: (text) => setStreamingLen((n) => n + text.length),
-        onDone: ({ result: res, autoSaved: n, round: r }) => {
-          clearInterval(evalTimerRef.current);
-          setResult(res);
-          // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
-          const init = {};
-          (res.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
-          setSavedMap(init);
-          setAutoSaved(n);
-          if (r) setRound(r);
-          setChat([]);
-          setPhase("feedback");
-          // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
-          setSearchParams({ result: "1" }, { replace: true });
-          // 评估完成后异步上传录音，关联到本轮 attempt（失败静默忽略）
-          if (audioChunksRef.current && session?._id) {
-            api.uploadRecording(session._id, user.userId, audioChunksRef.current, (r ?? round) - 1)
-              .catch(console.warn);
-            audioChunksRef.current = null;
-          }
-        },
-        onError: (err) => {
-          clearInterval(evalTimerRef.current);
-          alert(t("practice.feedbackFailed", { msg: err.message }));
-          setPhase("review");
-        },
-      }
-    );
+  const handleRecordPressEnd = () => {
+    clearTimeout(recordPressTimerRef.current);
+  };
+
+  const handleRecordClick = (action) => {
+    if (recordPressHandledRef.current) {
+      recordPressHandledRef.current = false;
+      return;
+    }
+    action();
   };
 
   // 追问：基于本次反馈继续问 AI，流式追加到对话里
@@ -425,9 +455,19 @@ export default function PracticePage() {
     return (
       <div className="practice-page pref-welcome fade-in">
         <div className="pref-hero">
-          <div className="eyebrow">{t("practicePrefs.eyebrow")}</div>
-          <h1>{t("practicePrefs.welcomeTitle")}</h1>
-          <p>{t("practicePrefs.welcomeSub")}</p>
+          <div className="pref-rhythm" aria-hidden="true">
+            {Array.from({ length: 8 }).map((_, i) => <span key={i} />)}
+          </div>
+          <div className="pref-hero-main">
+            <div className="eyebrow">{t("practicePrefs.eyebrow")}</div>
+            <h1>{t("practicePrefs.welcomeTitle")}</h1>
+            <p>{t("practicePrefs.welcomeSub")}</p>
+          </div>
+          <div className="pref-steps">
+            <div className="pref-step"><span className="pref-step-num">1</span>{t("practicePrefs.welcomeStep1")}</div>
+            <div className="pref-step"><span className="pref-step-num">2</span>{t("practicePrefs.welcomeStep2")}</div>
+            <div className="pref-step"><span className="pref-step-num">3</span>{t("practicePrefs.welcomeStep3")}</div>
+          </div>
         </div>
 
         <PracticePreferencePicker
@@ -642,12 +682,17 @@ export default function PracticePage() {
         <div className="su-rec-wrap">
           <button
             className="su-rec"
-            onClick={startRecording}
+            onPointerDown={() => handleRecordPressStart(startRecording)}
+            onPointerUp={handleRecordPressEnd}
+            onPointerLeave={handleRecordPressEnd}
+            onContextMenu={(e) => e.preventDefault()}
+            onClick={() => handleRecordClick(startRecording)}
             disabled={phase === "loading"}
           >
             <Icon name="mic" size={32} color="#fff" />
           </button>
           <div className="su-rec-label">{t("practice.tapToStart")}</div>
+          <div className="su-rec-hint">{t("practice.tapHint")}</div>
           {phase === "ready" && session?.scenarioId && (
             <button
               className="su-skip"
@@ -663,10 +708,18 @@ export default function PracticePage() {
 
       {phase === "recording" && (
         <div className="su-rec-wrap">
-          <button className="su-rec recording" onClick={stopRecording}>
+          <button
+            className="su-rec recording"
+            onPointerDown={() => handleRecordPressStart(stopRecording)}
+            onPointerUp={handleRecordPressEnd}
+            onPointerLeave={handleRecordPressEnd}
+            onContextMenu={(e) => e.preventDefault()}
+            onClick={() => handleRecordClick(stopRecording)}
+          >
             <Icon name="stop" size={28} color="#fff" />
           </button>
           <div className="su-rec-label">{t("practice.tapToStop")}</div>
+          <div className="su-rec-hint">{t("practice.stopHint")}</div>
         </div>
       )}
 
@@ -684,7 +737,7 @@ export default function PracticePage() {
           <button className="su-btn su-btn-secondary" style={{ flex: 1 }} onClick={startRecording}>
             <Icon name="refresh" size={16} />&nbsp;{t("practice.redo")}
           </button>
-          <button className="su-btn su-btn-primary" style={{ flex: 2 }} onClick={evaluate} disabled={!transcript.trim()}>
+          <button className="su-btn su-btn-primary" style={{ flex: 2 }} onClick={() => evaluate()} disabled={!transcript.trim()}>
             {t("practice.getFeedback")}
           </button>
         </div>

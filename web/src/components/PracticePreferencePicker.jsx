@@ -3,7 +3,7 @@ import {
   PURPOSE_OPTIONS,
 } from "../lib/practicePreferences.js";
 
-function OptionGrid({ label, value, options, name, onChange, labelFor }) {
+function OptionGrid({ label, value, options, name, onChange, labelFor, descFor }) {
   return (
     <div className="pref-group">
       <div className="pref-label">{label}</div>
@@ -17,7 +17,8 @@ function OptionGrid({ label, value, options, name, onChange, labelFor }) {
             className={"pref-option" + (value === option ? " active" : "")}
             onClick={() => onChange(option)}
           >
-            {labelFor(name, option)}
+            <span className="pref-option-title">{labelFor(name, option)}</span>
+            <span className="pref-option-desc">{descFor(name, option)}</span>
           </button>
         ))}
       </div>
@@ -28,6 +29,7 @@ function OptionGrid({ label, value, options, name, onChange, labelFor }) {
 export default function PracticePreferencePicker({ value, onChange, t }) {
   const prefs = value;
   const labelFor = (name, option) => t(`practicePrefs.${name}.${option}`);
+  const descFor = (name, option) => t(`practicePrefs.${name}Desc.${option}`);
 
   return (
     <div className="pref-picker">
@@ -37,6 +39,7 @@ export default function PracticePreferencePicker({ value, onChange, t }) {
         options={LEVEL_OPTIONS}
         name="level"
         labelFor={labelFor}
+        descFor={descFor}
         onChange={(level) => onChange({ ...prefs, level })}
       />
       <OptionGrid
@@ -45,6 +48,7 @@ export default function PracticePreferencePicker({ value, onChange, t }) {
         options={PURPOSE_OPTIONS}
         name="purpose"
         labelFor={labelFor}
+        descFor={descFor}
         onChange={(purpose) => onChange({ ...prefs, purpose })}
       />
     </div>

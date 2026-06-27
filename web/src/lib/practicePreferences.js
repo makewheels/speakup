@@ -1,20 +1,33 @@
 export const DEFAULT_PRACTICE_PREFERENCES = {
   level: "daily",
-  purpose: "openup",
+  purpose: "travel",
 };
 
 export const LEVEL_OPTIONS = ["beginner", "daily", "advanced", "challenge"];
-export const PURPOSE_OPTIONS = ["openup", "travel", "work", "expression", "review"];
+export const PURPOSE_OPTIONS = ["travel", "work", "exam", "dailyLife", "review"];
+
+const LEGACY_PURPOSE_MAP = {
+  openup: "dailyLife",
+  expression: "exam",
+};
 
 const PREFIX = "speakup-practice-preferences";
 
 const keyFor = (userId) => `${PREFIX}:${userId || "default"}`;
 
+export function normalizePracticePreferences(value, fallback = DEFAULT_PRACTICE_PREFERENCES) {
+  if (!value) return fallback;
+  const purpose = LEGACY_PURPOSE_MAP[value.purpose] || value.purpose;
+  const next = { level: value.level, purpose };
+  return (
+    LEVEL_OPTIONS.includes(next.level) &&
+    PURPOSE_OPTIONS.includes(next.purpose)
+  ) ? next : fallback;
+}
+
 export function isValidPracticePreferences(value) {
   return (
-    value &&
-    LEVEL_OPTIONS.includes(value.level) &&
-    PURPOSE_OPTIONS.includes(value.purpose)
+    normalizePracticePreferences(value, null) !== null
   );
 }
 
@@ -27,14 +40,14 @@ export function getPracticePreferences(userId, fallback = DEFAULT_PRACTICE_PREFE
     const raw = localStorage.getItem(keyFor(userId));
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
-    return isValidPracticePreferences(parsed) ? parsed : fallback;
+    return normalizePracticePreferences(parsed, fallback);
   } catch {
     return fallback;
   }
 }
 
 export function savePracticePreferences(userId, prefs) {
-  const next = isValidPracticePreferences(prefs) ? prefs : DEFAULT_PRACTICE_PREFERENCES;
+  const next = normalizePracticePreferences(prefs, DEFAULT_PRACTICE_PREFERENCES);
   localStorage.setItem(keyFor(userId), JSON.stringify(next));
   return next;
 }

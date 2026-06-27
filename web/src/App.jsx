@@ -8,9 +8,11 @@ import ReviewPage from "./pages/ReviewPage.jsx";
 import HistoryPage from "./pages/HistoryPage.jsx";
 import SessionDetailPage from "./pages/SessionDetailPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
+import PracticePreferencePage from "./pages/PracticePreferencePage.jsx";
 import ManageSharesPage from "./pages/ManageSharesPage.jsx";
 import SharePage from "./pages/SharePage.jsx";
 import "./App.css";
+import "./styles/practice-preferences.css";
 
 function ProtectedRoutes() {
   const { user } = useUser();
@@ -32,6 +34,7 @@ function AppRoutes() {
         <Route path="/history/:practiceId" element={<SessionDetailPage />} />
         <Route path="/shares" element={<ManageSharesPage />} />
         <Route path="/me" element={<ProfilePage />} />
+        <Route path="/me/practice-preferences" element={<PracticePreferencePage />} />
       </Route>
     </Routes>
   );
