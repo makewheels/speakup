@@ -4,7 +4,7 @@ import time
 
 def _new_id(prefix: str) -> str:
     ts = int(time.time() * 1000)   # 13位毫秒时间戳，天然有序
-    rand = secrets.token_hex(3)    # 6位随机十六进制
+    rand = secrets.token_hex(5)    # 10位随机十六进制，降低同毫秒批量生成碰撞概率
     return f"{prefix}{ts}{rand}"
 
 

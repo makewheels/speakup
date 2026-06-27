@@ -455,18 +455,8 @@ export default function PracticePage() {
     return (
       <div className="practice-page pref-welcome fade-in">
         <div className="pref-hero">
-          <div className="pref-rhythm" aria-hidden="true">
-            {Array.from({ length: 8 }).map((_, i) => <span key={i} />)}
-          </div>
           <div className="pref-hero-main">
-            <div className="eyebrow">{t("practicePrefs.eyebrow")}</div>
             <h1>{t("practicePrefs.welcomeTitle")}</h1>
-            <p>{t("practicePrefs.welcomeSub")}</p>
-          </div>
-          <div className="pref-steps">
-            <div className="pref-step"><span className="pref-step-num">1</span>{t("practicePrefs.welcomeStep1")}</div>
-            <div className="pref-step"><span className="pref-step-num">2</span>{t("practicePrefs.welcomeStep2")}</div>
-            <div className="pref-step"><span className="pref-step-num">3</span>{t("practicePrefs.welcomeStep3")}</div>
           </div>
         </div>
 

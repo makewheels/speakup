@@ -92,15 +92,10 @@
     "addFailed": "Failed to add: {msg}"
   },
   "practicePrefs": {
-    "eyebrow": "Welcome to SpeakUp",
-    "welcomeTitle": "Tune the practice to you",
-    "welcomeSub": "Pick a real goal. SpeakUp will prioritize scenes you can actually use.",
-    "welcomeStep1": "Choose level",
-    "welcomeStep2": "Pick scenes",
-    "welcomeStep3": "Start speaking",
     "settingsSub": "Changes apply immediately. The next scenario will use this preference.",
     "levelTitle": "Level",
-    "purposeTitle": "Practice goal",
+    "welcomeTitle": "What do you want to practice?",
+    "purposeTitle": "Goal",
     "start": "Start practicing",
     "level": {
       "beginner": "Beginner",
@@ -117,16 +112,16 @@
     "purpose": {
       "travel": "Travel",
       "work": "Work",
-      "exam": "IELTS / study abroad",
-      "dailyLife": "Daily life",
-      "review": "Review"
+      "ielts": "IELTS",
+      "toefl": "TOEFL",
+      "dailyLife": "Daily chat"
     },
     "purposeDesc": {
       "travel": "Airport, hotel, food, directions",
       "work": "Meetings, leave, interviews, salary",
-      "exam": "Describe, explain, give opinions",
-      "dailyLife": "Shopping, social, health, housing",
-      "review": "Practice around your weak phrases"
+      "ielts": "Describe, explain, give opinions",
+      "toefl": "Describe, explain, give opinions",
+      "dailyLife": "Shopping, social, health, housing"
     },
     "summary": "{level} · {purpose}",
     "saved": "Set to {summary}",

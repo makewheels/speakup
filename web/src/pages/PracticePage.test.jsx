@@ -350,18 +350,18 @@ describe("PracticePage", () => {
     const { api } = await import("../api/client.js");
     setup("/practice", { prefs: false });
 
-    expect(screen.getByText("Tune the practice to you")).toBeInTheDocument();
+    expect(screen.getByText("What do you want to practice?")).toBeInTheDocument();
     expect(api.nextScenario).not.toHaveBeenCalled();
 
+    await userEvent.click(screen.getByText("IELTS"));
     await userEvent.click(screen.getByText("Beginner"));
-    await userEvent.click(screen.getByText("Travel"));
     await userEvent.click(screen.getByText("Start practicing"));
 
     await waitFor(() =>
       expect(api.nextScenario).toHaveBeenCalledWith(
         USER.userId,
         [],
-        { level: "beginner", purpose: "travel" },
+        { level: "beginner", purpose: "ielts" },
       ),
     );
   });
