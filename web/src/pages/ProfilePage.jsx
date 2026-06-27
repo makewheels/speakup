@@ -3,10 +3,8 @@ import { useUser } from "../context/UserContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { useT, useLang } from "../i18n/index.jsx";
 import Icon from "../components/Icon.jsx";
-import PracticePreferencePicker from "../components/PracticePreferencePicker.jsx";
 import {
   getPracticePreferences,
-  savePracticePreferences,
 } from "../lib/practicePreferences.js";
 
 export default function ProfilePage() {
@@ -14,7 +12,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const t = useT();
   const { lang, setLang } = useLang();
-  const [practicePrefs, setPracticePrefs] = useState(() => getPracticePreferences(user?.userId));
+  const [practicePrefs] = useState(() => getPracticePreferences(user?.userId));
 
   if (!user) return null;
 
@@ -27,10 +25,10 @@ export default function ProfilePage() {
     ? `${user.phone.slice(0, 3)} **** ${user.phone.slice(-4)}`
     : "";
   const initial = user.nickname?.charAt(0)?.toUpperCase() || "U";
-  const updatePracticePrefs = (next) => {
-    const saved = savePracticePreferences(user.userId, next);
-    setPracticePrefs(saved);
-  };
+  const prefSummary = t("practicePrefs.summary", {
+    level: t(`practicePrefs.level.${practicePrefs.level}`),
+    purpose: t(`practicePrefs.purpose.${practicePrefs.purpose}`),
+  });
 
   return (
     <div className="profile-page">
@@ -70,17 +68,14 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-        <div className="profile-pref-block">
-          <div className="profile-lang-key profile-pref-key">
+        <button className="profile-setting-row" onClick={() => navigate("/me/practice-preferences")}>
+          <div className="profile-lang-key">
             <Icon name="spark" size={18} color="var(--ink-3)" />
             <span>{t("profile.practicePreference")}</span>
           </div>
-          <PracticePreferencePicker
-            value={practicePrefs}
-            onChange={updatePracticePrefs}
-            t={t}
-          />
-        </div>
+          <span className="profile-setting-summary">{prefSummary}</span>
+          <Icon name="next" size={16} color="var(--ink-4)" />
+        </button>
       </div>
 
       <button className="profile-entry" onClick={() => navigate("/shares")}>

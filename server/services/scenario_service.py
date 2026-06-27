@@ -52,6 +52,13 @@ PURPOSE_FILTERS = {
     "expression": {
         "kinds": {"describe", "opinion", "explain"},
     },
+    "exam": {
+        "kinds": {"describe", "opinion", "explain"},
+    },
+    "dailyLife": {
+        "domains": {"social", "hobby", "food", "lodging", "shopping", "health", "telecom", "bank"},
+        "kinds": {"chat", "task"},
+    },
 }
 
 

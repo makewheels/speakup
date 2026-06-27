@@ -68,7 +68,7 @@ const SESSION_B = {
   title: "Airport check-in",
 };
 
-const PREFS = { level: "daily", purpose: "openup" };
+const PREFS = { level: "daily", purpose: "travel" };
 
 function setup(path = "/practice", { prefs = true } = {}) {
   localStorage.setItem("english-speak-user", JSON.stringify(USER));
@@ -118,13 +118,14 @@ function installMediaStubs() {
   global.URL.revokeObjectURL = vi.fn();
 }
 
-// 一路把录音录到底、停掉、转写完成，停在 review 阶段
-async function recordUntilReview() {
+// 一路把录音录到底、停掉、转写完成，进入 AI 自动评估
+async function recordUntilEvaluating() {
+  const { api } = await import("../api/client.js");
   const micBtn = document.querySelector(".su-rec");
   await userEvent.click(micBtn);
-  await waitFor(() => expect(screen.getByText("Tap to stop")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("Tap once to stop")).toBeInTheDocument());
   await userEvent.click(document.querySelector(".su-rec"));
-  await waitFor(() => expect(screen.getByText("Get feedback")).toBeInTheDocument());
+  await waitFor(() => expect(api.transcribeAudio).toHaveBeenCalled());
 }
 
 describe("PracticePage", () => {
@@ -333,15 +334,15 @@ describe("PracticePage", () => {
 
   // ── 录音按钮 ──────────────────────────────────────────
 
-  it("Tap to start button is disabled while loading", () => {
+  it("record button is disabled while loading", () => {
     setup("/practice/sess_abc");
     const micBtn = document.querySelector(".su-rec");
     expect(micBtn).toBeDisabled();
   });
 
-  it("Tap to start button is enabled in ready phase", async () => {
+  it("record button is enabled in ready phase", async () => {
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
+    await waitFor(() => screen.getByText("Tap once to record"));
     const micBtn = document.querySelector(".su-rec");
     expect(micBtn).not.toBeDisabled();
   });
@@ -352,7 +353,7 @@ describe("PracticePage", () => {
     const { api } = await import("../api/client.js");
     setup("/practice", { prefs: false });
 
-    expect(screen.getByText("What are you practicing today?")).toBeInTheDocument();
+    expect(screen.getByText("Tune the practice to you")).toBeInTheDocument();
     expect(api.nextScenario).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByText("Beginner"));
@@ -391,27 +392,25 @@ describe("PracticePage", () => {
 
   it("requests microphone and shows recording UI after tapping start", async () => {
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
+    await waitFor(() => screen.getByText("Tap once to record"));
     await userEvent.click(document.querySelector(".su-rec"));
 
     const { api } = await import("../api/client.js");
     expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByText("Tap to stop")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Tap once to stop")).toBeInTheDocument());
     expect(screen.getByText("Listening…")).toBeInTheDocument();
     expect(api).toBeDefined();
   });
 
-  it("transcribes audio after stop and shows transcript in review phase", async () => {
+  it("transcribes audio after stop and automatically starts AI review", async () => {
     const { api } = await import("../api/client.js");
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
-    await recordUntilReview();
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await recordUntilEvaluating();
 
     expect(api.transcribeAudio).toHaveBeenCalledWith(USER.userId, expect.any(Object));
     expect(screen.getByText("Can you redo my latte")).toBeInTheDocument();
-    // review 阶段两个按钮
-    expect(screen.getByText("Get feedback")).toBeInTheDocument();
-    expect(screen.getByText(/Redo/)).toBeInTheDocument();
+    expect(screen.getAllByText(/AI is reviewing/).length).toBeGreaterThan(0);
   });
 
   it("shows review phase even when transcription fails", async () => {
@@ -419,23 +418,27 @@ describe("PracticePage", () => {
     api.transcribeAudio.mockRejectedValue(new Error("asr down"));
     vi.spyOn(window, "alert").mockImplementation(() => {});
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
+    await waitFor(() => screen.getByText("Tap once to record"));
     await userEvent.click(document.querySelector(".su-rec"));
-    await waitFor(() => screen.getByText("Tap to stop"));
+    await waitFor(() => screen.getByText("Tap once to stop"));
     await userEvent.click(document.querySelector(".su-rec"));
 
-    await waitFor(() => expect(screen.getByText("Get feedback")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Review now")).toBeInTheDocument());
     expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Transcription failed"));
   });
 
-  it("Get feedback is disabled when transcript is empty", async () => {
+  it("Review now is disabled when transcript is empty", async () => {
     const { api } = await import("../api/client.js");
     api.transcribeAudio.mockResolvedValue({ text: "" });
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
-    await recordUntilReview();
+    await waitFor(() => screen.getByText("Tap once to record"));
+    const micBtn = document.querySelector(".su-rec");
+    await userEvent.click(micBtn);
+    await waitFor(() => expect(screen.getByText("Tap once to stop")).toBeInTheDocument());
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByText("Review now")).toBeInTheDocument());
 
-    const btn = screen.getByText("Get feedback").closest("button");
+    const btn = screen.getByText("Review now").closest("button");
     expect(btn).toBeDisabled();
   });
 
@@ -460,9 +463,8 @@ describe("PracticePage", () => {
     });
 
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
-    await recordUntilReview();
-    await userEvent.click(screen.getByText("Get feedback"));
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await recordUntilEvaluating();
 
     await waitFor(() => expect(screen.getByText("Native version")).toBeInTheDocument());
     expect(correctStream).toHaveBeenCalledWith(
@@ -501,9 +503,8 @@ describe("PracticePage", () => {
     });
 
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
-    await recordUntilReview();
-    await userEvent.click(screen.getByText("Get feedback"));
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await recordUntilEvaluating();
 
     await waitFor(() => expect(screen.getByText("Sounded native this time ✓")).toBeInTheDocument());
     expect(screen.getByText("Much better this time")).toBeInTheDocument();
@@ -523,14 +524,13 @@ describe("PracticePage", () => {
     });
 
     setup("/practice/sess_abc");
-    await waitFor(() => screen.getByText("Tap to start"));
-    await recordUntilReview();
-    await userEvent.click(screen.getByText("Get feedback"));
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await recordUntilEvaluating();
 
     await waitFor(() =>
       expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Feedback request failed")),
     );
-    expect(screen.getByText("Get feedback")).toBeInTheDocument();
+    expect(screen.getByText("Review now")).toBeInTheDocument();
   });
 
   // ── 三轮重说 / 下一题 ──────────────────────────────────
@@ -555,7 +555,7 @@ describe("PracticePage", () => {
     await waitFor(() => screen.getByText(/Say it again/));
     await userEvent.click(screen.getByText(/Say it again/));
 
-    await waitFor(() => expect(screen.getByText("Tap to start")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Tap once to record")).toBeInTheDocument());
     // 提示条带着上一轮 better
     expect(screen.getByText(/Try to use/)).toBeInTheDocument();
     expect(screen.getByText("remake my latte")).toBeInTheDocument();
