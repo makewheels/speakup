@@ -1,7 +1,7 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useUser } from "../../context/UserContext.jsx";
-import { useT } from "../../i18n/index.jsx";
+import { useUser } from "../../context/useUser.js";
+import { useT } from "../../i18n/useI18n.js";
 import { api } from "../../api/client.js";
 import Icon from "../Icon.jsx";
 

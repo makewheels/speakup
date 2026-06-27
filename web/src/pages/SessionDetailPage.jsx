@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, chatStream } from "../api/client.js";
-import { useUser } from "../context/UserContext.jsx";
-import { useT } from "../i18n/index.jsx";
+import { useUser } from "../context/useUser.js";
+import { useT } from "../i18n/useI18n.js";
 import Icon from "../components/Icon.jsx";
 import SessionView from "../components/SessionView.jsx";
 import { copyShare } from "../lib/share.js";

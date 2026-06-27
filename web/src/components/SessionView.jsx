@@ -3,14 +3,18 @@ import Icon from "./Icon.jsx";
 import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
-import { useT } from "../i18n/index.jsx";
+import { useT } from "../i18n/useI18n.js";
 
 const splitSentences = (s = "") =>
   s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
 
+const EMOJI_BLOCK_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu;
+const EMOJI_JOINER_RE = new RegExp("[\\uFE00-\\uFE0F\\u200D]", "gu");
+
 const stripEmoji = (s = "") =>
   s
-    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
+    .replace(EMOJI_BLOCK_RE, "")
+    .replace(EMOJI_JOINER_RE, "")
     .replace(/^[\s·•・]+/, "")
     .replace(/\s{2,}/g, " ")
     .trim();

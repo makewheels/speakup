@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useUser } from "../context/UserContext.jsx";
-import { useT } from "../i18n/index.jsx";
+import { useUser } from "../context/useUser.js";
+import { useT } from "../i18n/useI18n.js";
 import { api, correctStream, chatStream } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import PracticePreferencePicker from "../components/PracticePreferencePicker.jsx";

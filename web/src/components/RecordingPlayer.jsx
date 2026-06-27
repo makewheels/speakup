@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import Icon from "./Icon.jsx";
-import { useT } from "../i18n/index.jsx";
+import { useT } from "../i18n/useI18n.js";
 
 // 自定义录音回放：蓝色播放/暂停键 + 进度条 + 时间，结果页和 history 共用，
 // 替换浏览器原生 <audio controls>（各浏览器样式不一、跟朗读按钮风格也对不上）。

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "../context/UserContext.jsx";
-import { useT } from "../i18n/index.jsx";
+import { useUser } from "../context/useUser.js";
+import { useT } from "../i18n/useI18n.js";
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");

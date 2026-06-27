@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import Icon from "./Icon.jsx";
-import { useT } from "../i18n/index.jsx";
+import { useT } from "../i18n/useI18n.js";
 import { speak, stop, isCached } from "../utils/tts.js";
 
 // 点击 → 没缓存就先合成（显示「生成中」动画文字），合成完播放；缓存命中直接播放。
