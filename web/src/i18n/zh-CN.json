@@ -108,7 +108,10 @@
       "work": "工作求职",
       "expression": "表达升级",
       "review": "错题巩固"
-    }
+    },
+    "matchRelaxedDifficulty": "这个方向暂时缺少完全匹配的题，先给你一题相近难度的。",
+    "matchRelaxedPurpose": "这个水平暂时缺少完全匹配的题，先给你一题相近主题的。",
+    "matchFallback": "题库正在补充，先给你一题可练的场景。"
   },
   "review": {
     "title": "复习",

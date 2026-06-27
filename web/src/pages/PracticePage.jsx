@@ -74,6 +74,13 @@ function ScenarioCard({ scenario, topic, t }) {
   );
 }
 
+function preferenceNoticeKey(match) {
+  if (match === "relaxedDifficulty") return "practicePrefs.matchRelaxedDifficulty";
+  if (match === "relaxedPurpose") return "practicePrefs.matchRelaxedPurpose";
+  if (match === "fallback") return "practicePrefs.matchFallback";
+  return "";
+}
+
 export default function PracticePage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
@@ -153,7 +160,11 @@ export default function PracticePage() {
         userId: user.userId,
         scenarioId: scenario.scenarioId,
       });
-      setSession({ ...sess, isCustom: scenario.isCustom });
+      setSession({
+        ...sess,
+        isCustom: scenario.isCustom,
+        preferenceMatch: scenario.preferenceMatch,
+      });
       // URL 带上 practiceId，方便分享 / 复制 id 排查（不重新触发加载）
       navigate(`/practice/${sess._id}`, { replace: true });
       setPhase("ready");
@@ -588,6 +599,12 @@ export default function PracticePage() {
       </div>
 
       {phase !== "loading" && <ScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
+
+      {phase !== "loading" && preferenceNoticeKey(session?.preferenceMatch) && (
+        <div className="pref-match-note">
+          {t(preferenceNoticeKey(session.preferenceMatch))}
+        </div>
+      )}
 
       {hintGaps.length > 0 && phase !== "loading" && (
         <div className="sc-hintbar">

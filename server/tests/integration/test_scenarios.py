@@ -130,7 +130,16 @@ def test_next_filters_by_level_and_purpose(client, user_id, scenario_id):
         },
     ])
     resp = client.get(f"/api/scenarios/next?userId={user_id}&level=challenge&purpose=travel")
-    assert resp.json()["scenarioId"] == "sc_travel_hard"
+    data = resp.json()
+    assert data["scenarioId"] == "sc_travel_hard"
+    assert data["preferenceMatch"] == "exact"
+
+
+def test_next_reports_fallback_when_preference_pool_is_sparse(client, user_id, scenario_id):
+    resp = client.get(f"/api/scenarios/next?userId={user_id}&level=challenge&purpose=work")
+    data = resp.json()
+    assert data["scenarioId"] == scenario_id
+    assert data["preferenceMatch"] == "fallback"
 
 
 def test_practiced_scenario_deprioritized(client, user_id, scenario_id):

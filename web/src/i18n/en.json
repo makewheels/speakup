@@ -108,7 +108,10 @@
       "work": "Work",
       "expression": "Expression",
       "review": "Review"
-    }
+    },
+    "matchRelaxedDifficulty": "This goal needs more exact matches, so here is a nearby level for now.",
+    "matchRelaxedPurpose": "This level needs more exact matches, so here is a nearby theme for now.",
+    "matchFallback": "The library is being filled in, so here is a useful scene for now."
   },
   "review": {
     "title": "Review",
