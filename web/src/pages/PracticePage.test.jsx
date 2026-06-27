@@ -87,7 +87,6 @@ function setup(path = "/practice", { prefs = true } = {}) {
 
 // ── 录音相关的浏览器 API 在 jsdom 里没有，统一 stub ─────────
 // MediaRecorder：start() 立刻可用，stop() 同步触发 onstop（onstop 内会调 transcribeAudio）
-let lastRecorder;
 class FakeMediaRecorder {
   static isTypeSupported() { return true; }
   constructor(stream) {
@@ -95,7 +94,6 @@ class FakeMediaRecorder {
     this.mimeType = "audio/webm";
     this.ondataavailable = null;
     this.onstop = null;
-    lastRecorder = this;
   }
   start() {
     this.ondataavailable?.({ data: { size: 10 } });
@@ -106,16 +104,15 @@ class FakeMediaRecorder {
 }
 
 function installMediaStubs() {
-  lastRecorder = undefined;
   const track = { stop: vi.fn() };
-  global.MediaRecorder = FakeMediaRecorder;
-  Object.defineProperty(global.navigator, "mediaDevices", {
+  globalThis.MediaRecorder = FakeMediaRecorder;
+  Object.defineProperty(globalThis.navigator, "mediaDevices", {
     configurable: true,
     value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [track] }) },
   });
-  if (!global.URL.createObjectURL) global.URL.createObjectURL = vi.fn();
-  global.URL.createObjectURL = vi.fn(() => "blob:fake-url");
-  global.URL.revokeObjectURL = vi.fn();
+  if (!globalThis.URL.createObjectURL) globalThis.URL.createObjectURL = vi.fn();
+  globalThis.URL.createObjectURL = vi.fn(() => "blob:fake-url");
+  globalThis.URL.revokeObjectURL = vi.fn();
 }
 
 // 一路把录音录到底、停掉、转写完成，进入 AI 自动评估

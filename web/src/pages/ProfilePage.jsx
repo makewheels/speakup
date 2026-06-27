@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useUser } from "../context/UserContext.jsx";
+import { useUser } from "../context/useUser.js";
 import { useNavigate } from "react-router-dom";
-import { useT, useLang } from "../i18n/index.jsx";
+import { useT, useLang } from "../i18n/useI18n.js";
 import Icon from "../components/Icon.jsx";
 import {
   getPracticePreferences,

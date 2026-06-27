@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { UserProvider, useUser } from "./context/UserContext.jsx";
+import { UserProvider } from "./context/UserContext.jsx";
+import { useUser } from "./context/useUser.js";
 import { LanguageProvider } from "./i18n/index.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";

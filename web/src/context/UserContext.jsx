@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api/client.js";
-
-const UserContext = createContext(null);
+import { UserContext } from "./user-context.js";
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -36,10 +35,4 @@ export function UserProvider({ children }) {
       {children}
     </UserContext.Provider>
   );
-}
-
-export function useUser() {
-  const ctx = useContext(UserContext);
-  if (!ctx) throw new Error("useUser must be inside UserProvider");
-  return ctx;
 }

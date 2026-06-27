@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client.js";
-import { useT } from "../i18n/index.jsx";
+import { useT } from "../i18n/useI18n.js";
 import SessionView from "../components/SessionView.jsx";
 
 export default function SharePage() {

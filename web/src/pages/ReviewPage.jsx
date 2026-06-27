@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "../context/UserContext.jsx";
-import { useT } from "../i18n/index.jsx";
+import { useUser } from "../context/useUser.js";
+import { useT } from "../i18n/useI18n.js";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import SpeakBtn from "../components/SpeakBtn.jsx";
@@ -19,14 +19,14 @@ export default function ReviewPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const deleteTimerRef = useRef(null);
 
-  const fetchItems = () => {
+  const fetchItems = useCallback(() => {
     api.listReviewItems(user.userId)
       .then(setItems)
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [user.userId]);
 
-  useEffect(() => { fetchItems(); }, [user.userId]);
+  useEffect(() => { fetchItems(); }, [fetchItems]);
 
   const isMastered = (w) => (w.reviewCount || 0) >= 3 && (w.interval || 0) >= 7;
   const isDue = (w) => new Date(w.nextReviewAt) <= new Date() && !isMastered(w);

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "../context/UserContext.jsx";
-import { useT } from "../i18n/index.jsx";
+import { useUser } from "../context/useUser.js";
+import { useT } from "../i18n/useI18n.js";
 import Icon from "../components/Icon.jsx";
 import PracticePreferencePicker from "../components/PracticePreferencePicker.jsx";
 import {
