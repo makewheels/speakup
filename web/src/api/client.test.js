@@ -119,6 +119,12 @@ describe("api/client 各方法 URL/method/body", () => {
     expect(url).toBe("/api/scenarios/next?userId=u1&exclude=sc_1&exclude=sc_2");
   });
 
+  it("nextScenario 拼练习偏好", async () => {
+    await api.nextScenario("u1", ["sc_1"], { level: "beginner", purpose: "travel" });
+    const [url] = callArgs();
+    expect(url).toBe("/api/scenarios/next?userId=u1&exclude=sc_1&level=beginner&purpose=travel");
+  });
+
   it("nextScenario 默认无 exclude", async () => {
     await api.nextScenario("u1");
     const [url] = callArgs();

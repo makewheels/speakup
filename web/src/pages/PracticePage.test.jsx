@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 import PracticePage from "./PracticePage.jsx";
 import { UserProvider } from "../context/UserContext.jsx";
+import { savePracticePreferences } from "../lib/practicePreferences.js";
 
 vi.mock("../api/client.js", () => ({
   api: {
@@ -67,8 +68,11 @@ const SESSION_B = {
   title: "Airport check-in",
 };
 
-function setup(path = "/practice") {
+const PREFS = { level: "daily", purpose: "openup" };
+
+function setup(path = "/practice", { prefs = true } = {}) {
   localStorage.setItem("english-speak-user", JSON.stringify(USER));
+  if (prefs) savePracticePreferences(USER.userId, PREFS);
   return render(
     <MemoryRouter initialEntries={[path]}>
       <UserProvider>
@@ -272,6 +276,7 @@ describe("PracticePage", () => {
       expect(api.nextScenario).toHaveBeenCalledWith(
         USER.userId,
         expect.arrayContaining(["sc_coffee"]),
+        PREFS,
       ),
     );
   });
@@ -343,10 +348,30 @@ describe("PracticePage", () => {
 
   // ── 无 practiceId 时调 startNewRound ──────────────────
 
+  it("shows preference welcome before first practice", async () => {
+    const { api } = await import("../api/client.js");
+    setup("/practice", { prefs: false });
+
+    expect(screen.getByText("What are you practicing today?")).toBeInTheDocument();
+    expect(api.nextScenario).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByText("Beginner"));
+    await userEvent.click(screen.getByText("Travel"));
+    await userEvent.click(screen.getByText("Start practicing"));
+
+    await waitFor(() =>
+      expect(api.nextScenario).toHaveBeenCalledWith(
+        USER.userId,
+        [],
+        { level: "beginner", purpose: "travel" },
+      ),
+    );
+  });
+
   it("fetches next scenario when no practiceId in URL", async () => {
     const { api } = await import("../api/client.js");
     setup("/practice");
-    await waitFor(() => expect(api.nextScenario).toHaveBeenCalledWith(USER.userId, []));
+    await waitFor(() => expect(api.nextScenario).toHaveBeenCalledWith(USER.userId, [], PREFS));
   });
 
   // ── 录音 → 转写 → review ───────────────────────────────
@@ -546,7 +571,11 @@ describe("PracticePage", () => {
     await userEvent.click(nextBtn.closest("button"));
 
     await waitFor(() =>
-      expect(api.nextScenario).toHaveBeenCalledWith(USER.userId, expect.arrayContaining(["sc_coffee"])),
+      expect(api.nextScenario).toHaveBeenCalledWith(
+        USER.userId,
+        expect.arrayContaining(["sc_coffee"]),
+        PREFS,
+      ),
     );
   });
 

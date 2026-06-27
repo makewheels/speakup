@@ -30,6 +30,108 @@ FRESH_THRESHOLD = 3     # 没练过的题少于这个数时，取题会后台补
 
 TAXONOMY_PATH = Path(__file__).parent.parent / "data" / "scenario_taxonomy.yaml"
 
+LEVEL_DIFFICULTIES = {
+    "beginner": {1},
+    "daily": {1, 2},
+    "advanced": {2, 3},
+    "challenge": {3},
+}
+
+PURPOSE_FILTERS = {
+    # 低压开口：寒暄和轻任务为主，避开硬核解释/观点题。
+    "openup": {
+        "domains": {"social", "hobby", "food", "travel", "lodging", "shopping"},
+        "kinds": {"chat", "task"},
+    },
+    "travel": {
+        "domains": {"travel", "lodging", "food", "shopping", "health", "bank", "telecom", "emergency"},
+    },
+    "work": {
+        "domains": {"work", "job", "biz"},
+    },
+    "expression": {
+        "kinds": {"describe", "opinion", "explain"},
+    },
+}
+
+
+def _normalized_level(level: str | None) -> str | None:
+    return level if level in LEVEL_DIFFICULTIES else None
+
+
+def _normalized_purpose(purpose: str | None) -> str | None:
+    return purpose if purpose in {*PURPOSE_FILTERS.keys(), "review"} else None
+
+
+def _relaxed_difficulties(level: str | None) -> set[int] | None:
+    if not level:
+        return None
+    values = LEVEL_DIFFICULTIES[level]
+    lo = max(1, min(values) - 1)
+    hi = min(3, max(values) + 1)
+    return set(range(lo, hi + 1))
+
+
+def _scenario_domain(scenario: dict) -> str:
+    return (scenario.get("category") or {}).get("domain", "")
+
+
+def _matches_purpose(scenario: dict, purpose: str | None) -> bool:
+    if not purpose or purpose == "review":
+        return True
+    f = PURPOSE_FILTERS[purpose]
+    domain_ok = "domains" not in f or _scenario_domain(scenario) in f["domains"]
+    kind_ok = "kinds" not in f or scenario.get("kind", "task") in f["kinds"]
+    return domain_ok and kind_ok
+
+
+def _matches_difficulty(scenario: dict, difficulties: set[int] | None) -> bool:
+    if not difficulties:
+        return True
+    return scenario.get("difficulty") in difficulties
+
+
+def _filtered(pool: list[dict], difficulties: set[int] | None, purpose: str | None) -> list[dict]:
+    return [
+        s for s in pool
+        if _matches_difficulty(s, difficulties) and _matches_purpose(s, purpose)
+    ]
+
+
+def _pick_public(
+    public: list[dict],
+    practiced: set[str],
+    skipped: set[str],
+    level: str | None,
+    purpose: str | None,
+) -> dict:
+    blocked = practiced | skipped
+    layers = [
+        [s for s in public if s["_id"] not in blocked],
+        [s for s in public if s["_id"] not in practiced],
+        [s for s in public if s["_id"] not in skipped],
+        public,
+    ]
+
+    if level or purpose:
+        strict = LEVEL_DIFFICULTIES.get(level)
+        relaxed = _relaxed_difficulties(level)
+        filter_steps = [
+            (strict, purpose),
+            (relaxed, purpose),
+            (strict, None),
+        ]
+        for base in layers:
+            for difficulties, p in filter_steps:
+                pool = _filtered(base, difficulties, p)
+                if pool:
+                    return random.choice(pool)
+
+    for base in layers:
+        if base:
+            return random.choice(base)
+    return random.choice(public)
+
 
 def scenario_image_key(sid: str) -> str:
     return f"scenarios/{sid}/cover.jpg"
@@ -62,11 +164,18 @@ async def _practiced_scenario_ids(user_id: str) -> set:
     return ids
 
 
-async def next_scenario(user_id: str, exclude: list[str] | None = None) -> dict | None:
+async def next_scenario(
+    user_id: str,
+    exclude: list[str] | None = None,
+    level: str | None = None,
+    purpose: str | None = None,
+) -> dict | None:
     """取下一题：自己的未练定制题 > 未练公共题 > 随机公共题。返回带签名图 URL 的场景。
 
     exclude：本会话内已经"看过但跳过"的 scenarioId，强制排除（用于首页 ↻ 换题）。
     """
+    level = _normalized_level(level)
+    purpose = _normalized_purpose(purpose)
     practiced = await _practiced_scenario_ids(user_id)
     skipped = set(exclude or [])
     blocked = practiced | skipped
@@ -75,24 +184,15 @@ async def next_scenario(user_id: str, exclude: list[str] | None = None) -> dict 
         {"ownerUserId": user_id, "status": "active"}
     ).sort("createdAt", 1).to_list(50)
     fresh_custom = [s for s in custom if s["_id"] not in blocked]
-    if fresh_custom:
+    if fresh_custom and (purpose in {None, "review"}):
         chosen = fresh_custom[0]
     else:
         public = await get_db().scenarios.find(
             {"ownerUserId": None, "status": "active"}
         ).to_list(200)
         if not public:
-            return None
-        # 候选优先级（每一层只要非空就用，且每层内随机，避免反复换到同一道）：
-        #   1. 既没练过、也没被本会话 skip 的
-        #   2. 没练过的（放开 skip，至少给个新题）
-        #   3. 没被 skip 的（练过也行，只要不是刚跳过的那几道）
-        #   4. 全池（实在没得挑了）
-        fresh = [s for s in public if s["_id"] not in blocked]
-        not_practiced = [s for s in public if s["_id"] not in practiced]
-        not_skipped = [s for s in public if s["_id"] not in skipped]
-        pool = fresh or not_practiced or not_skipped or public
-        chosen = random.choice(pool)
+            return fresh_custom[0] if fresh_custom else None
+        chosen = _pick_public(public, practiced, skipped, level, purpose)
 
     chosen["imageUrl"] = oss_signed_url(chosen["imageKey"]) if chosen.get("imageKey") else ""
     chosen["isCustom"] = chosen.get("ownerUserId") is not None

@@ -679,6 +679,83 @@ button { font-family: inherit; }
   margin-top: 8px;
 }
 
+.pref-welcome {
+  min-height: calc(100dvh - 150px);
+  display: flex;
+  flex-direction: column;
+}
+
+.pref-hero {
+  padding: 10px 2px 18px;
+}
+
+.pref-hero h1 {
+  margin: 10px 0 8px;
+  font-size: 34px;
+  line-height: 1.12;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.pref-hero p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 16px;
+  line-height: 1.65;
+  letter-spacing: 0;
+}
+
+.pref-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pref-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pref-label {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: 0;
+}
+
+.pref-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pref-option {
+  min-height: 44px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--bg-elev);
+  color: var(--ink);
+  font-family: var(--ff-cn);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.pref-option.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.pref-start {
+  margin-top: auto;
+  margin-bottom: 8px;
+}
+
 /* ──────────────────────────────────────────────
    PAGE: Feedback (inside practice)
    ────────────────────────────────────────────── */
@@ -2508,6 +2585,27 @@ button { font-family: inherit; }
 .profile-lang-segmented .seg.active {
   background: var(--ink);
   color: #fff;
+}
+
+.profile-pref-block {
+  margin-top: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+}
+
+.profile-pref-key {
+  margin-bottom: 12px;
+}
+
+.profile-pref-block .pref-picker {
+  gap: 14px;
+}
+
+.profile-pref-block .pref-option {
+  min-height: 38px;
+  font-size: 13px;
 }
 
 

@@ -46,8 +46,10 @@ def _maybe_topup(user_id: str) -> None:
 async def get_next(
     userId: str = Query(...),
     exclude: list[str] = Query(default_factory=list),
+    level: str | None = Query(default=None),
+    purpose: str | None = Query(default=None),
 ):
-    scenario = await next_scenario(userId, exclude=exclude)
+    scenario = await next_scenario(userId, exclude=exclude, level=level, purpose=purpose)
     if not scenario:
         raise HTTPException(404, "题库为空，请先运行 scripts/generate_scenarios.py")
     _maybe_topup(userId)

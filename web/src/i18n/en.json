@@ -89,6 +89,27 @@
     "removeFailed": "Failed to remove: {msg}",
     "addFailed": "Failed to add: {msg}"
   },
+  "practicePrefs": {
+    "eyebrow": "Before you start",
+    "welcomeTitle": "What are you practicing today?",
+    "welcomeSub": "Pick a range first. Scenarios will match your level and goal.",
+    "levelTitle": "Level",
+    "purposeTitle": "Goal",
+    "start": "Start practicing",
+    "level": {
+      "beginner": "Beginner",
+      "daily": "Daily",
+      "advanced": "Advanced",
+      "challenge": "Challenge"
+    },
+    "purpose": {
+      "openup": "Speak up",
+      "travel": "Travel",
+      "work": "Work",
+      "expression": "Expression",
+      "review": "Review"
+    }
+  },
   "review": {
     "title": "Review",
     "allItemsTitle": "All review items",
@@ -174,6 +195,7 @@
     "language": "Language",
     "langZh": "中文",
     "langEn": "English",
+    "practicePreference": "Practice preference",
     "settings": "Settings"
   }
 }

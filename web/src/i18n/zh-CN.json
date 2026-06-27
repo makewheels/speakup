@@ -89,6 +89,27 @@
     "removeFailed": "取消收录失败：{msg}",
     "addFailed": "加入错题本失败：{msg}"
   },
+  "practicePrefs": {
+    "eyebrow": "开始前",
+    "welcomeTitle": "今天练什么？",
+    "welcomeSub": "先定一个合适范围，场景会按你的水平和目的来出。",
+    "levelTitle": "水平",
+    "purposeTitle": "目的",
+    "start": "开始练习",
+    "level": {
+      "beginner": "入门",
+      "daily": "日常",
+      "advanced": "进阶",
+      "challenge": "挑战"
+    },
+    "purpose": {
+      "openup": "敢开口",
+      "travel": "出国旅行",
+      "work": "工作求职",
+      "expression": "表达升级",
+      "review": "错题巩固"
+    }
+  },
   "review": {
     "title": "复习",
     "allItemsTitle": "全部复习项",
@@ -174,6 +195,7 @@
     "language": "语言",
     "langZh": "中文",
     "langEn": "English",
+    "practicePreference": "练习偏好",
     "settings": "设置"
   }
 }

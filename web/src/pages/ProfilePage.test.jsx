@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 import ProfilePage from "./ProfilePage.jsx";
 import { UserProvider } from "../context/UserContext.jsx";
+import { getPracticePreferences } from "../lib/practicePreferences.js";
 
 const USER = { userId: "u_1", phone: "13812345678", nickname: "Alice" };
 
@@ -45,6 +46,17 @@ describe("ProfilePage", () => {
   it("shows Log out button", () => {
     setup();
     expect(screen.getByText("Log out")).toBeInTheDocument();
+  });
+
+  it("saves practice preference changes", async () => {
+    setup();
+    await userEvent.click(screen.getByText("Challenge"));
+    await userEvent.click(screen.getByText("Travel"));
+
+    expect(getPracticePreferences(USER.userId)).toEqual({
+      level: "challenge",
+      purpose: "travel",
+    });
   });
 
   it("navigates to /login after logout", async () => {
