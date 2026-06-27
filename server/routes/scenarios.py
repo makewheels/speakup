@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
 logger = logging.getLogger(__name__)
 
 
-def _maybe_topup(user_id: str) -> None:
+def _maybe_topup(user_id: str, level: str | None = None, purpose: str | None = None) -> None:
     """取题时静默补题：用户定制题（基于错题本）+ 公共池按 yaml 坐标系补缺。两条独立失败只记日志。"""
     async def _run():
         try:
@@ -30,7 +30,7 @@ def _maybe_topup(user_id: str) -> None:
             logger.warning("custom scenario top-up failed for %s: %s", user_id, e)
 
         try:
-            doc = await topup_public_scenario()
+            doc = await topup_public_scenario(level=level, purpose=purpose)
             if doc:
                 logger.info(
                     "topped up public scenario: %s [%s]",
@@ -52,7 +52,7 @@ async def get_next(
     scenario = await next_scenario(userId, exclude=exclude, level=level, purpose=purpose)
     if not scenario:
         raise HTTPException(404, "题库为空，请先运行 scripts/generate_scenarios.py")
-    _maybe_topup(userId)
+    _maybe_topup(userId, level=level, purpose=purpose)
     return {
         "scenarioId": scenario["_id"],
         "kind": scenario.get("kind", "task"),
@@ -63,6 +63,7 @@ async def get_next(
         "points": scenario.get("points", []),
         "imageUrl": scenario.get("imageUrl", ""),
         "isCustom": scenario.get("isCustom", False),
+        "preferenceMatch": scenario.get("preferenceMatch", "exact"),
         "targetWords": scenario.get("targetWords", []),
     }
 

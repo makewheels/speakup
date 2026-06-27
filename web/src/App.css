@@ -2298,6 +2298,18 @@ button { font-family: inherit; }
 .sc-hint-item { margin-right: 10px; white-space: nowrap; }
 .sc-hint-item b { color: var(--accent); }
 
+.pref-match-note {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  background: var(--bg-mute);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin: -4px 0 12px;
+}
+
 .spk-btn {
   background: var(--accent-soft);
   border: none;

@@ -91,6 +91,21 @@ def _matches_difficulty(scenario: dict, difficulties: set[int] | None) -> bool:
     return scenario.get("difficulty") in difficulties
 
 
+def _coord_matches_difficulty(coord: dict, difficulties: set[int] | None) -> bool:
+    if not difficulties:
+        return True
+    return coord.get("difficulty") in difficulties
+
+
+def _coord_matches_purpose(coord: dict, purpose: str | None) -> bool:
+    if not purpose or purpose == "review":
+        return True
+    f = PURPOSE_FILTERS[purpose]
+    domain_ok = "domains" not in f or coord.get("domainShort") in f["domains"]
+    kind_ok = "kinds" not in f or coord.get("kind") in f["kinds"]
+    return domain_ok and kind_ok
+
+
 def _filtered(pool: list[dict], difficulties: set[int] | None, purpose: str | None) -> list[dict]:
     return [
         s for s in pool
@@ -104,7 +119,7 @@ def _pick_public(
     skipped: set[str],
     level: str | None,
     purpose: str | None,
-) -> dict:
+) -> tuple[dict, str]:
     blocked = practiced | skipped
     layers = [
         [s for s in public if s["_id"] not in blocked],
@@ -117,20 +132,44 @@ def _pick_public(
         strict = LEVEL_DIFFICULTIES.get(level)
         relaxed = _relaxed_difficulties(level)
         filter_steps = [
-            (strict, purpose),
-            (relaxed, purpose),
-            (strict, None),
+            (strict, purpose, "exact"),
+            (relaxed, purpose, "relaxedDifficulty"),
+            (strict, None, "relaxedPurpose"),
         ]
         for base in layers:
-            for difficulties, p in filter_steps:
+            for difficulties, p, match in filter_steps:
                 pool = _filtered(base, difficulties, p)
                 if pool:
-                    return random.choice(pool)
+                    return random.choice(pool), match
 
     for base in layers:
         if base:
-            return random.choice(base)
-    return random.choice(public)
+            return random.choice(base), "fallback"
+    return random.choice(public), "fallback"
+
+
+def _prioritized_topup_candidates(
+    candidates: list[dict],
+    level: str | None,
+    purpose: str | None,
+) -> list[dict]:
+    if not candidates or not (level or purpose):
+        return candidates
+    strict = LEVEL_DIFFICULTIES.get(level)
+    relaxed = _relaxed_difficulties(level)
+    steps = [
+        (strict, purpose),
+        (relaxed, purpose),
+        (strict, None),
+    ]
+    for difficulties, p in steps:
+        matched = [
+            c for c in candidates
+            if _coord_matches_difficulty(c, difficulties) and _coord_matches_purpose(c, p)
+        ]
+        if matched:
+            return matched
+    return candidates
 
 
 def scenario_image_key(sid: str) -> str:
@@ -186,16 +225,22 @@ async def next_scenario(
     fresh_custom = [s for s in custom if s["_id"] not in blocked]
     if fresh_custom and (purpose in {None, "review"}):
         chosen = fresh_custom[0]
+        preference_match = "custom"
     else:
         public = await get_db().scenarios.find(
             {"ownerUserId": None, "status": "active"}
         ).to_list(200)
         if not public:
-            return fresh_custom[0] if fresh_custom else None
-        chosen = _pick_public(public, practiced, skipped, level, purpose)
+            if not fresh_custom:
+                return None
+            chosen = fresh_custom[0]
+            preference_match = "custom"
+        else:
+            chosen, preference_match = _pick_public(public, practiced, skipped, level, purpose)
 
     chosen["imageUrl"] = oss_signed_url(chosen["imageKey"]) if chosen.get("imageKey") else ""
     chosen["isCustom"] = chosen.get("ownerUserId") is not None
+    chosen["preferenceMatch"] = preference_match
     return chosen
 
 
@@ -459,16 +504,20 @@ async def _llm_spec_for_coord(coord: dict, link_to: dict | None = None) -> dict:
 async def topup_public_scenario(
     skip_ids: set[str] | None = None,
     dry_run: bool = False,
+    level: str | None = None,
+    purpose: str | None = None,
 ) -> dict | None:
     """生成 1 道公共题：选 gap 最大的 sub → LLM 编故事 → Seedream 生图 → 入库。
 
     dry_run=True 只跑 LLM 拿文案，不调生图、不入库；用来验证 prompt 质量。
     全部 sub 达 target 时返回 None（系统短路停止花钱）。
     """
+    level = _normalized_level(level)
+    purpose = _normalized_purpose(purpose)
     candidates = await undercovered_subs(skip_ids=skip_ids)
     if not candidates:
         return None
-    coord = candidates[0]
+    coord = _prioritized_topup_candidates(candidates, level, purpose)[0]
     sid = scenario_id()  # 提前生成，让 audit + image 都挂同一个 scenarioId
     link = {"scenarioId": sid, "subId": coord["subId"]}
     spec = await _llm_spec_for_coord(coord, link_to=link)

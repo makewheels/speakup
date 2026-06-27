@@ -157,6 +157,47 @@ async def test_topup_public_dry_run_returns_doc_no_db_no_image(
     assert not mock_get_db.return_value.scenarios.insert_one.called
 
 
+@patch.object(scenario_service, "_llm_spec_for_coord")
+@patch.object(scenario_service, "load_taxonomy")
+@patch.object(scenario_service, "get_db")
+@pytest.mark.asyncio
+async def test_topup_public_prioritizes_requested_preference(
+    mock_get_db, mock_load, mock_llm_spec
+):
+    """用户取题带偏好时，后台公共池补题优先补这个偏好的缺口。"""
+    mock_load.return_value = {
+        "target_per_sub": 1,
+        "domains": [
+            {"domain": "出行", "short": "travel", "subs": [
+                {"id": "travel.a", "sub": "机场值机", "kind": "task",
+                 "difficulty": 2, "note": "行李超重"},
+            ]},
+            {"domain": "工作", "short": "work", "subs": [
+                {"id": "work.a", "sub": "茶水间", "kind": "chat",
+                 "difficulty": 1, "note": "闲聊"},
+            ]},
+        ],
+    }
+    mock_get_db.return_value = _fake_db_with_counts({})
+    mock_llm_spec.return_value = {
+        "title": "偏好补题",
+        "where": "机场 · 早晨",
+        "story": "你的行李超重了。",
+        "mission": "跟柜台沟通。",
+        "points": ["说明情况", "请求帮忙"],
+        "imagePrompt": "airport check-in counter",
+    }
+
+    doc = await scenario_service.topup_public_scenario(
+        dry_run=True,
+        level="daily",
+        purpose="travel",
+    )
+
+    assert doc["category"] == {"domain": "travel", "subId": "travel.a"}
+    assert doc["difficulty"] == 2
+
+
 @patch.object(scenario_service, "load_taxonomy")
 @patch.object(scenario_service, "get_db")
 @pytest.mark.asyncio

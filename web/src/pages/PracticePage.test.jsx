@@ -374,6 +374,19 @@ describe("PracticePage", () => {
     await waitFor(() => expect(api.nextScenario).toHaveBeenCalledWith(USER.userId, [], PREFS));
   });
 
+  it("shows a short note when the library falls back from the selected preference", async () => {
+    const { api } = await import("../api/client.js");
+    api.nextScenario.mockResolvedValue({
+      ...SCENARIO_B,
+      preferenceMatch: "fallback",
+    });
+    setup("/practice");
+
+    await waitFor(() =>
+      expect(screen.getByText(/The library is being filled in/)).toBeInTheDocument(),
+    );
+  });
+
   // ── 录音 → 转写 → review ───────────────────────────────
 
   it("requests microphone and shows recording UI after tapping start", async () => {
