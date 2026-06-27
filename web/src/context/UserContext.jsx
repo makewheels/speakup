@@ -17,6 +17,12 @@ export function UserProvider({ children }) {
     }
   }, [user]);
 
+  useEffect(() => {
+    const handleUnauthorized = () => setUser(null);
+    window.addEventListener("speakup:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("speakup:unauthorized", handleUnauthorized);
+  }, []);
+
   const login = async (phone) => {
     const data = await api.login(phone);
     setUser(data);

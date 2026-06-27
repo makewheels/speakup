@@ -1,5 +1,27 @@
 const BASE = "/api";
 const DEFAULT_TIMEOUT = 90_000; // 90s，留足 AI 推理时间
+const USER_STORAGE_KEY = "english-speak-user";
+const UNAUTHORIZED_EVENT = "speakup:unauthorized";
+
+function authHeaders() {
+  try {
+    const user = JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || "null");
+    return user?.token ? { Authorization: `Bearer ${user.token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
+function clearStoredUserOnUnauthorized(status) {
+  if (status === 401) {
+    try {
+      localStorage.removeItem(USER_STORAGE_KEY);
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    } catch {
+      // localStorage may be unavailable in tests or private browsing.
+    }
+  }
+}
 
 async function request(path, options = {}) {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = options;
@@ -8,14 +30,19 @@ async function request(path, options = {}) {
 
   try {
     const res = await fetch(`${BASE}${path}`, {
-      headers: { "Content-Type": "application/json" },
       ...fetchOpts,
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...(fetchOpts.headers || {}),
+      },
       body: fetchOpts.body ? JSON.stringify(fetchOpts.body) : undefined,
       signal: controller.signal,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Request failed");
+      clearStoredUserOnUnauthorized(res.status);
+      throw new Error(err.detail || err.error || "Request failed");
     }
     return res.json();
   } catch (e) {
@@ -41,12 +68,13 @@ export function correctStream(data, { onChunk, onDone, onError } = {}) {
     try {
       const res = await fetch(`${BASE}/correct/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(data),
         signal: controller.signal,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        clearStoredUserOnUnauthorized(res.status);
         throw new Error(err.detail || err.error || "请求失败");
       }
 
@@ -97,12 +125,13 @@ export function chatStream(data, { onChunk, onDone, onError } = {}) {
     try {
       const res = await fetch(`${BASE}/correct/chat/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(data),
         signal: controller.signal,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        clearStoredUserOnUnauthorized(res.status);
         throw new Error(err.detail || err.error || "请求失败");
       }
 
@@ -179,8 +208,14 @@ export const api = {
     form.append("userId", userId);
     form.append("attemptIndex", attemptIndex);
     form.append("audio", blob, "recording.webm");
-    return fetch(`${BASE}/practice-sessions/${practiceId}/recording`, { method: "POST", body: form })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("录音上传失败"))));
+    return fetch(`${BASE}/practice-sessions/${practiceId}/recording`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: form,
+    }).then((r) => {
+      clearStoredUserOnUnauthorized(r.status);
+      return r.ok ? r.json() : Promise.reject(new Error("录音上传失败"));
+    });
   },
 
   // 全平台统一：录音上传 → 后端 DashScope ASR 返文本
@@ -194,10 +229,16 @@ export const api = {
     form.append("audio", blob, `recording.${ext}`);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 90_000);
-    return fetch(`${BASE}/transcribe`, { method: "POST", body: form, signal: controller.signal })
+    return fetch(`${BASE}/transcribe`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: form,
+      signal: controller.signal,
+    })
       .then(async (r) => {
         clearTimeout(timer);
         if (!r.ok) {
+          clearStoredUserOnUnauthorized(r.status);
           // 502/503 多半是服务重启窗口；把状态码带出来，别再吞成空文案
           if (r.status === 502 || r.status === 503) {
             throw new Error(`服务正在重启，请稍后重试（HTTP ${r.status}）`);

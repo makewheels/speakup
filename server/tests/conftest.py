@@ -81,9 +81,24 @@ def client():
 
 
 @pytest.fixture
-def user_id(client):
+def user_login(client):
     resp = client.post("/api/auth/login", json={"phone": "13800001234"})
-    return resp.json()["userId"]
+    return resp.json()
+
+
+@pytest.fixture
+def user_id(user_login):
+    return user_login["userId"]
+
+
+@pytest.fixture
+def auth_headers(user_login):
+    return {"Authorization": f"Bearer {user_login['token']}"}
+
+
+def login_headers(client, phone: str = "13900001234") -> tuple[str, dict[str, str]]:
+    data = client.post("/api/auth/login", json={"phone": phone}).json()
+    return data["userId"], {"Authorization": f"Bearer {data['token']}"}
 
 
 @pytest.fixture
@@ -110,9 +125,10 @@ def scenario_id(client):
 
 
 @pytest.fixture
-def practice_id(client, user_id, scenario_id):
+def practice_id(client, user_id, auth_headers, scenario_id):
     resp = client.post(
         "/api/practice-sessions",
         json={"userId": user_id, "scenarioId": scenario_id},
+        headers=auth_headers,
     )
     return resp.json()["_id"]

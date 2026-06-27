@@ -1,11 +1,12 @@
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
+from services.auth_tokens import assert_same_user, current_user_id
 from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream, followup_chat_stream
 from utils.id_generator import review_item_id
 from utils.mongo_ids import id_filter
@@ -19,9 +20,10 @@ class CorrectRequest(BaseModel):
     text: str
 
 
-async def _load_practice(req: CorrectRequest) -> dict:
+async def _load_practice(req: CorrectRequest, token_user_id: str) -> dict:
+    assert_same_user(req.userId, token_user_id)
     practice = await get_db().practiceSessions.find_one(
-        {**id_filter(req.practiceId), "userId": req.userId}
+        {**id_filter(req.practiceId), "userId": token_user_id}
     )
     if not practice:
         raise HTTPException(404, "练习不存在")
@@ -92,8 +94,8 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
 
 
 @router.post("")
-async def correct(req: CorrectRequest):
-    practice = await _load_practice(req)
+async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
+    practice = await _load_practice(req, token_user_id)
     scenario, prev, round_no = _round_context(practice)
     link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
     result = await correct_text(req.text, scenario, prev, round_no, link_to=link)
@@ -102,8 +104,8 @@ async def correct(req: CorrectRequest):
 
 
 @router.post("/stream")
-async def correct_stream(req: CorrectRequest):
-    practice = await _load_practice(req)
+async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
+    practice = await _load_practice(req, token_user_id)
     scenario, prev, round_no = _round_context(practice)
     link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
 
@@ -140,15 +142,16 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat/stream")
-async def correct_chat_stream(req: ChatRequest):
+async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(current_user_id)):
     """用户拿到反馈后，基于本次练习上下文继续追问 AI（SSE 纯文本流）。
     把问答历史存进对应 attempt 的 chat 数组，刷新/历史页可回看。
     """
     if not req.question or not req.question.strip():
         raise HTTPException(400, "问题不能为空")
 
+    assert_same_user(req.userId, token_user_id)
     practice = await get_db().practiceSessions.find_one(
-        {**id_filter(req.practiceId), "userId": req.userId}
+        {**id_filter(req.practiceId), "userId": token_user_id}
     )
     if not practice:
         raise HTTPException(404, "练习不存在")

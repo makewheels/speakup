@@ -1,9 +1,10 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from services.auth_tokens import assert_same_user, current_user_id
 from services.scenario_service import (
     FRESH_THRESHOLD,
     fresh_scenario_count,
@@ -48,7 +49,9 @@ async def get_next(
     exclude: list[str] = Query(default_factory=list),
     level: str | None = Query(default=None),
     purpose: str | None = Query(default=None),
+    token_user_id: str = Depends(current_user_id),
 ):
+    assert_same_user(userId, token_user_id)
     scenario = await next_scenario(userId, exclude=exclude, level=level, purpose=purpose)
     if not scenario:
         raise HTTPException(404, "题库为空，请先运行 scripts/generate_scenarios.py")
@@ -75,8 +78,9 @@ class PracticeWordRequest(BaseModel):
 
 
 @router.post("/practice-word")
-async def practice_word(req: PracticeWordRequest):
+async def practice_word(req: PracticeWordRequest, token_user_id: str = Depends(current_user_id)):
     """错题本「练这个词」：针对单个表达即时出一道场景题，返回 scenarioId 供前端建练习。"""
+    assert_same_user(req.userId, token_user_id)
     doc = await generate_scenario_for_expression(req.userId, req.expression, req.original)
     if not doc:
         raise HTTPException(400, "出题失败，请重试")
