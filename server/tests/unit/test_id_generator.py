@@ -27,12 +27,12 @@ def test_id_contains_timestamp():
 
 
 def test_id_length():
-    # sc_ (3) + 13位时间戳 + 6位hex = 22字符
-    assert len(scenario_id()) == 22
-    # u_ (2) + 13位时间戳 + 6位hex = 21字符
-    assert len(user_id()) == 21
-    # ps_/rv_ (3) + 13位时间戳 + 6位hex = 22字符
-    assert len(practice_session_id()) == 22
-    assert len(review_item_id()) == 22
-    # llm_ (4) + 13位时间戳 + 6位hex = 23字符
-    assert len(llm_call_id()) == 23
+    # sc_ (3) + 13位时间戳 + 10位hex = 26字符
+    assert len(scenario_id()) == 26
+    # u_ (2) + 13位时间戳 + 10位hex = 25字符
+    assert len(user_id()) == 25
+    # ps_/rv_ (3) + 13位时间戳 + 10位hex = 26字符
+    assert len(practice_session_id()) == 26
+    assert len(review_item_id()) == 26
+    # llm_ (4) + 13位时间戳 + 10位hex = 27字符
+    assert len(llm_call_id()) == 27

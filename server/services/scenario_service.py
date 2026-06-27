@@ -55,6 +55,12 @@ PURPOSE_FILTERS = {
     "exam": {
         "kinds": {"describe", "opinion", "explain"},
     },
+    "ielts": {
+        "kinds": {"describe", "opinion", "explain"},
+    },
+    "toefl": {
+        "kinds": {"describe", "opinion", "explain"},
+    },
     "dailyLife": {
         "domains": {"social", "hobby", "food", "lodging", "shopping", "health", "telecom", "bank"},
         "kinds": {"chat", "task"},

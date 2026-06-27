@@ -4,11 +4,13 @@ export const DEFAULT_PRACTICE_PREFERENCES = {
 };
 
 export const LEVEL_OPTIONS = ["beginner", "daily", "advanced", "challenge"];
-export const PURPOSE_OPTIONS = ["travel", "work", "exam", "dailyLife", "review"];
+export const PURPOSE_OPTIONS = ["travel", "work", "ielts", "toefl", "dailyLife"];
 
 const LEGACY_PURPOSE_MAP = {
   openup: "dailyLife",
-  expression: "exam",
+  expression: "ielts",
+  exam: "ielts",
+  review: "dailyLife",
 };
 
 const PREFIX = "speakup-practice-preferences";

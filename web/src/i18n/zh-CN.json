@@ -92,15 +92,10 @@
     "addFailed": "加入错题本失败：{msg}"
   },
   "practicePrefs": {
-    "eyebrow": "欢迎来到 SpeakUp",
-    "welcomeTitle": "先把题目调到适合你",
-    "welcomeSub": "选一个真实目标，SpeakUp 会优先给你匹配可开口的场景。",
-    "welcomeStep1": "选难度",
-    "welcomeStep2": "选场景",
-    "welcomeStep3": "开口练",
     "settingsSub": "修改后立即生效，下一道场景会按新的偏好匹配。",
+    "welcomeTitle": "你想练什么？",
     "levelTitle": "水平",
-    "purposeTitle": "练习目标",
+    "purposeTitle": "目标",
     "start": "开始练习",
     "level": {
       "beginner": "入门",
@@ -117,16 +112,16 @@
     "purpose": {
       "travel": "出国旅行",
       "work": "工作求职",
-      "exam": "雅思/留学考试",
-      "dailyLife": "日常生活",
-      "review": "错题巩固"
+      "ielts": "IELTS",
+      "toefl": "TOEFL",
+      "dailyLife": "日常聊天"
     },
     "purposeDesc": {
       "travel": "机场、酒店、点餐、问路",
       "work": "会议、请假、面试、谈薪",
-      "exam": "描述、观点、解释类题",
-      "dailyLife": "购物、社交、健康、住处",
-      "review": "围绕你说错的表达出题"
+      "ielts": "描述、观点、解释类题",
+      "toefl": "描述、观点、解释类题",
+      "dailyLife": "购物、社交、健康、住处"
     },
     "summary": "{level} · {purpose}",
     "saved": "已设置为 {summary}",

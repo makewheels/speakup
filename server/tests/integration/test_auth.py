@@ -5,7 +5,7 @@ def test_login_creates_user(client):
     assert data["phone"] == "13800001234"
     assert data["nickname"] == "User1234"
     assert data["userId"].startswith("u_")
-    assert len(data["userId"]) == 21
+    assert len(data["userId"]) == 25
     assert data["token"]
 
 
