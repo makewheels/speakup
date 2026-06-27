@@ -1,13 +1,20 @@
+import { useState } from "react";
 import { useUser } from "../context/UserContext.jsx";
 import { useNavigate } from "react-router-dom";
 import { useT, useLang } from "../i18n/index.jsx";
 import Icon from "../components/Icon.jsx";
+import PracticePreferencePicker from "../components/PracticePreferencePicker.jsx";
+import {
+  getPracticePreferences,
+  savePracticePreferences,
+} from "../lib/practicePreferences.js";
 
 export default function ProfilePage() {
   const { user, logout } = useUser();
   const navigate = useNavigate();
   const t = useT();
   const { lang, setLang } = useLang();
+  const [practicePrefs, setPracticePrefs] = useState(() => getPracticePreferences(user?.userId));
 
   if (!user) return null;
 
@@ -20,6 +27,10 @@ export default function ProfilePage() {
     ? `${user.phone.slice(0, 3)} **** ${user.phone.slice(-4)}`
     : "";
   const initial = user.nickname?.charAt(0)?.toUpperCase() || "U";
+  const updatePracticePrefs = (next) => {
+    const saved = savePracticePreferences(user.userId, next);
+    setPracticePrefs(saved);
+  };
 
   return (
     <div className="profile-page">
@@ -58,6 +69,17 @@ export default function ProfilePage() {
               {t("profile.langEn")}
             </button>
           </div>
+        </div>
+        <div className="profile-pref-block">
+          <div className="profile-lang-key profile-pref-key">
+            <Icon name="spark" size={18} color="var(--ink-3)" />
+            <span>{t("profile.practicePreference")}</span>
+          </div>
+          <PracticePreferencePicker
+            value={practicePrefs}
+            onChange={updatePracticePrefs}
+            t={t}
+          />
         </div>
       </div>
 

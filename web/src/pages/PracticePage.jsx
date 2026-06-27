@@ -4,15 +4,23 @@ import { useUser } from "../context/UserContext.jsx";
 import { useT } from "../i18n/index.jsx";
 import { api, correctStream, chatStream } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
+import PracticePreferencePicker from "../components/PracticePreferencePicker.jsx";
 import SpeakBtn from "../components/SpeakBtn.jsx";
 import RecordingPlayer from "../components/RecordingPlayer.jsx";
+import {
+  getPracticePreferences,
+  hasPracticePreferences,
+  savePracticePreferences,
+} from "../lib/practicePreferences.js";
 
 const MAX_ROUNDS = 2;
 
 // 去掉文本里的 emoji（旧场景数据的 where/points 可能带 emoji，统一不显示）
 const stripEmoji = (s = "") =>
   s
-    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
+    .replace(/[\u{1F000}-\u{1FAFF}]/gu, "")
+    .replace(/[\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu, "")
+    .replace(/[\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
     .replace(/^[\s·•・]+/, "")
     .replace(/\s{2,}/g, " ")
     .trim();
@@ -37,6 +45,35 @@ function ScoreBadge({ score }) {
   );
 }
 
+function ScenarioCard({ scenario, topic, t }) {
+  const points = scenario?.points ?? [];
+  const where = stripEmoji(scenario?.where || topic || t("practice.scene_default"));
+  return (
+    <div className="sc-card">
+      <div className="sc-grid">
+        <div className="sc-k">{t("practice.place")}</div>
+        <div className="sc-v sc-v-where">{where}</div>
+
+        {scenario?.story && <>
+          <div className="sc-k">{t("practice.scene")}</div>
+          <div className="sc-v">{stripEmoji(scenario.story)}</div>
+        </>}
+
+        <div className="sc-k say">{t("practice.goal")}</div>
+        <div className="sc-v say">
+          {points.length > 0 ? (
+            <ul className="sc-points">
+              {points.map((p, i) => <li key={i}>{stripEmoji(p)}</li>)}
+            </ul>
+          ) : (
+            <span className="sc-say-text">{stripEmoji(scenario?.mission || "")}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PracticePage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
@@ -57,6 +94,8 @@ export default function PracticePage() {
 
   const [session, setSession] = useState(null);
   const [phase, setPhase] = useState("loading");
+  const [practicePrefs, setPracticePrefs] = useState(() => getPracticePreferences(user.userId));
+  const [needsPrefs, setNeedsPrefs] = useState(() => !practiceId && !hasPracticePreferences(user.userId));
   const [transcript, setTranscript] = useState("");
   const [elapsed, setElapsed] = useState("0:00");
   const [result, setResult] = useState(null);
@@ -80,6 +119,49 @@ export default function PracticePage() {
   const sseControllerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef(null);
+
+  // 本会话「看过但跳过」的 scenarioId（sessionStorage 跨刷新保留，不串号到其他用户）
+  const skipKey = `skipped:${user.userId}`;
+  const readSkipped = () => {
+    try { return JSON.parse(sessionStorage.getItem(skipKey) || "[]"); } catch { return []; }
+  };
+  const writeSkipped = (arr) => sessionStorage.setItem(skipKey, JSON.stringify(arr));
+
+  const startNewRound = async (extraSkip = null, overridePrefs = null) => {
+    setPhase("loading");
+    setResult(null);
+    setTranscript("");
+    setAutoSaved(0);
+    setRound(1);
+    setHintGaps([]);
+    setSavedMap({});
+    setElapsed("0:00");
+    secondsRef.current = 0;
+    setSession(null);
+    audioChunksRef.current = null;
+    setRecordingUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return ""; });
+    let skipped = readSkipped();
+    if (extraSkip && !skipped.includes(extraSkip)) {
+      skipped = [...skipped, extraSkip];
+      writeSkipped(skipped);
+    }
+    try {
+      const activePrefs = overridePrefs || getPracticePreferences(user.userId);
+      setPracticePrefs(activePrefs);
+      const scenario = await api.nextScenario(user.userId, skipped, activePrefs);
+      const sess = await api.createPractice({
+        userId: user.userId,
+        scenarioId: scenario.scenarioId,
+      });
+      setSession({ ...sess, isCustom: scenario.isCustom });
+      // URL 带上 practiceId，方便分享 / 复制 id 排查（不重新触发加载）
+      navigate(`/practice/${sess._id}`, { replace: true });
+      setPhase("ready");
+    } catch (err) {
+      alert(t("practice.loadScenarioFailed", { msg: err.message }));
+      setPhase("ready");
+    }
+  };
 
   useEffect(() => {
     // 已经在内存里加载好这道题（刚 startNewRound 后 navigate 改 URL 触发的回流）就别再拉
@@ -113,7 +195,15 @@ export default function PracticePage() {
       }).catch(console.error);
       return;
     }
-    startNewRound();
+    if (!hasPracticePreferences(user.userId)) {
+      return;
+    }
+    const prefs = getPracticePreferences(user.userId);
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) startNewRound(null, prefs);
+    });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [practiceId]);
 
@@ -130,45 +220,11 @@ export default function PracticePage() {
     }
   }, [phase]);
 
-  // 本会话「看过但跳过」的 scenarioId（sessionStorage 跨刷新保留，不串号到其他用户）
-  const skipKey = `skipped:${user.userId}`;
-  const readSkipped = () => {
-    try { return JSON.parse(sessionStorage.getItem(skipKey) || "[]"); } catch { return []; }
-  };
-  const writeSkipped = (arr) => sessionStorage.setItem(skipKey, JSON.stringify(arr));
-
-  const startNewRound = async (extraSkip = null) => {
-    setPhase("loading");
-    setResult(null);
-    setTranscript("");
-    setAutoSaved(0);
-    setRound(1);
-    setHintGaps([]);
-    setSavedMap({});
-    setElapsed("0:00");
-    secondsRef.current = 0;
-    setSession(null);
-    audioChunksRef.current = null;
-    setRecordingUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return ""; });
-    let skipped = readSkipped();
-    if (extraSkip && !skipped.includes(extraSkip)) {
-      skipped = [...skipped, extraSkip];
-      writeSkipped(skipped);
-    }
-    try {
-      const scenario = await api.nextScenario(user.userId, skipped);
-      const sess = await api.createPractice({
-        userId: user.userId,
-        scenarioId: scenario.scenarioId,
-      });
-      setSession({ ...sess, isCustom: scenario.isCustom });
-      // URL 带上 practiceId，方便分享 / 复制 id 排查（不重新触发加载）
-      navigate(`/practice/${sess._id}`, { replace: true });
-      setPhase("ready");
-    } catch (err) {
-      alert(t("practice.loadScenarioFailed", { msg: err.message }));
-      setPhase("ready");
-    }
+  const startWithPreferences = () => {
+    const saved = savePracticePreferences(user.userId, practicePrefs);
+    setPracticePrefs(saved);
+    setNeedsPrefs(false);
+    startNewRound(null, saved);
   };
 
   // 同一场景再说一遍：保留 session，带着上一轮差距提示重录
@@ -354,34 +410,28 @@ export default function PracticePage() {
 
   const scenario = session?.scenario;
 
-  const ScenarioCard = () => {
-    const points = scenario?.points ?? [];
-    const where = stripEmoji(scenario?.where || session?.topic || t("practice.scene_default"));
+  if (needsPrefs) {
     return (
-      <div className="sc-card">
-        <div className="sc-grid">
-          <div className="sc-k">{t("practice.place")}</div>
-          <div className="sc-v sc-v-where">{where}</div>
-
-          {scenario?.story && <>
-            <div className="sc-k">{t("practice.scene")}</div>
-            <div className="sc-v">{stripEmoji(scenario.story)}</div>
-          </>}
-
-          <div className="sc-k say">{t("practice.goal")}</div>
-          <div className="sc-v say">
-            {points.length > 0 ? (
-              <ul className="sc-points">
-                {points.map((p, i) => <li key={i}>{stripEmoji(p)}</li>)}
-              </ul>
-            ) : (
-              <span className="sc-say-text">{stripEmoji(scenario?.mission || "")}</span>
-            )}
-          </div>
+      <div className="practice-page pref-welcome fade-in">
+        <div className="pref-hero">
+          <div className="eyebrow">{t("practicePrefs.eyebrow")}</div>
+          <h1>{t("practicePrefs.welcomeTitle")}</h1>
+          <p>{t("practicePrefs.welcomeSub")}</p>
         </div>
+
+        <PracticePreferencePicker
+          value={practicePrefs}
+          onChange={setPracticePrefs}
+          t={t}
+        />
+
+        <button className="su-btn su-btn-primary pref-start" onClick={startWithPreferences}>
+          {t("practicePrefs.start")}
+          <Icon name="next" size={16} />
+        </button>
       </div>
     );
-  };
+  }
 
   if (phase === "feedback" && result) {
     const gaps = result.gaps ?? [];
@@ -396,7 +446,7 @@ export default function PracticePage() {
             <img src={session.imageUrl} alt="scene" />
           </div>
         )}
-        <ScenarioCard />
+        <ScenarioCard scenario={scenario} topic={session?.topic} t={t} />
 
         {recordingUrl && <RecordingPlayer src={recordingUrl} />}
 
@@ -537,7 +587,7 @@ export default function PracticePage() {
         )}
       </div>
 
-      {phase !== "loading" && <ScenarioCard />}
+      {phase !== "loading" && <ScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
 
       {hintGaps.length > 0 && phase !== "loading" && (
         <div className="sc-hintbar">

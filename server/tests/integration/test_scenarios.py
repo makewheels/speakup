@@ -45,6 +45,46 @@ def test_custom_scenario_preferred(client, user_id, scenario_id):
     assert data["targetWords"] == ["I'm in a rush"]
 
 
+def test_custom_scenario_not_preferred_for_regular_goal(client, user_id, scenario_id):
+    db = _db()
+    db.scenarios.insert_one({
+        "_id": "sc_custom1",
+        "slug": "custom-1",
+        "where": "🏨 定制酒店",
+        "story": "s",
+        "mission": "m",
+        "difficulty": 2,
+        "imageKey": "scenarios/sc_custom1/cover.jpg",
+        "ownerUserId": user_id,
+        "targetWords": ["I'm in a rush"],
+        "status": "active",
+    })
+    resp = client.get(f"/api/scenarios/next?userId={user_id}&level=daily&purpose=openup")
+    data = resp.json()
+    assert data["scenarioId"] == scenario_id
+    assert data["isCustom"] is False
+
+
+def test_custom_scenario_preferred_for_review_goal(client, user_id, scenario_id):
+    db = _db()
+    db.scenarios.insert_one({
+        "_id": "sc_custom1",
+        "slug": "custom-1",
+        "where": "🏨 定制酒店",
+        "story": "s",
+        "mission": "m",
+        "difficulty": 2,
+        "imageKey": "scenarios/sc_custom1/cover.jpg",
+        "ownerUserId": user_id,
+        "targetWords": ["I'm in a rush"],
+        "status": "active",
+    })
+    resp = client.get(f"/api/scenarios/next?userId={user_id}&level=daily&purpose=review")
+    data = resp.json()
+    assert data["scenarioId"] == "sc_custom1"
+    assert data["isCustom"] is True
+
+
 def test_other_users_custom_not_served(client, user_id, scenario_id):
     db = _db()
     db.scenarios.insert_one({
@@ -57,6 +97,40 @@ def test_other_users_custom_not_served(client, user_id, scenario_id):
     })
     resp = client.get(f"/api/scenarios/next?userId={user_id}")
     assert resp.json()["scenarioId"] == scenario_id
+
+
+def test_next_filters_by_level_and_purpose(client, user_id, scenario_id):
+    db = _db()
+    db.scenarios.insert_many([
+        {
+            "_id": "sc_travel_hard",
+            "slug": "travel-hard",
+            "kind": "task",
+            "where": "机场海关",
+            "story": "s",
+            "mission": "m",
+            "difficulty": 3,
+            "category": {"domain": "travel", "subId": "travel.customs"},
+            "imageKey": "scenarios/sc_travel_hard/cover.jpg",
+            "ownerUserId": None,
+            "status": "active",
+        },
+        {
+            "_id": "sc_work_easy",
+            "slug": "work-easy",
+            "kind": "chat",
+            "where": "茶水间",
+            "story": "s",
+            "mission": "m",
+            "difficulty": 1,
+            "category": {"domain": "work", "subId": "work.tea_room_chat"},
+            "imageKey": "scenarios/sc_work_easy/cover.jpg",
+            "ownerUserId": None,
+            "status": "active",
+        },
+    ])
+    resp = client.get(f"/api/scenarios/next?userId={user_id}&level=challenge&purpose=travel")
+    assert resp.json()["scenarioId"] == "sc_travel_hard"
 
 
 def test_practiced_scenario_deprioritized(client, user_id, scenario_id):

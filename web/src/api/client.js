@@ -20,7 +20,7 @@ async function request(path, options = {}) {
     return res.json();
   } catch (e) {
     if (e.name === "AbortError") {
-      throw new Error("请求超时，请重试");
+      throw new Error("请求超时，请重试", { cause: e });
     }
     throw e;
   } finally {
@@ -67,7 +67,9 @@ export function correctStream(data, { onChunk, onDone, onError } = {}) {
             if (event.type === "chunk") onChunk?.(event.text);
             else if (event.type === "done") onDone?.({ result: event.result, autoSaved: event.autoSaved });
             else if (event.type === "error") onError?.(new Error(event.message));
-          } catch {}
+          } catch {
+            // 忽略不完整或非 JSON 的 SSE 片段，等待下一帧继续解析。
+          }
         }
       }
     } catch (e) {
@@ -121,7 +123,9 @@ export function chatStream(data, { onChunk, onDone, onError } = {}) {
             if (event.type === "chunk") onChunk?.(event.text);
             else if (event.type === "done") onDone?.({ text: event.text });
             else if (event.type === "error") onError?.(new Error(event.message));
-          } catch {}
+          } catch {
+            // 忽略不完整或非 JSON 的 SSE 片段，等待下一帧继续解析。
+          }
         }
       }
     } catch (e) {
@@ -138,9 +142,11 @@ export function chatStream(data, { onChunk, onDone, onError } = {}) {
 export const api = {
   login: (phone) => request("/auth/login", { method: "POST", body: { phone } }),
 
-  nextScenario: (userId, exclude = []) => {
+  nextScenario: (userId, exclude = [], prefs = {}) => {
     const params = new URLSearchParams({ userId });
     for (const id of exclude) params.append("exclude", id);
+    if (prefs?.level) params.set("level", prefs.level);
+    if (prefs?.purpose) params.set("purpose", prefs.purpose);
     return request(`/scenarios/next?${params}`);
   },
 
@@ -197,8 +203,9 @@ export const api = {
             throw new Error(`服务正在重启，请稍后重试（HTTP ${r.status}）`);
           }
           const body = await r.text().catch(() => "");
-          let detail = "";
-          try { detail = JSON.parse(body).detail || ""; } catch { detail = body.slice(0, 120); }
+          const detail = (() => {
+            try { return JSON.parse(body).detail || ""; } catch { return body.slice(0, 120); }
+          })();
           throw new Error(detail || `识别失败（HTTP ${r.status}）`);
         }
         return r.json();
