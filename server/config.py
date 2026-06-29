@@ -36,6 +36,9 @@ ASR_RESOURCE_ID = os.getenv("ASR_RESOURCE_ID", "volc.seedasr.sauc.duration")
 VIDEO_API_KEY = os.getenv("VIDEO_API_KEY") or CHAT_API_KEY
 VIDEO_BASE_URL = os.getenv("VIDEO_BASE_URL", "https://ark.cn-beijing.volces.com/api/plan/v3")
 VIDEO_MODEL = os.getenv("VIDEO_MODEL", "doubao-seedance-1.5-pro")
+VIDEO_ENABLED = os.getenv("VIDEO_ENABLED", "false").lower() in ("1", "true", "yes")
+VIDEO_POLL_INTERVAL_SECONDS = float(os.getenv("VIDEO_POLL_INTERVAL_SECONDS", "5"))
+VIDEO_POLL_TIMEOUT_SECONDS = float(os.getenv("VIDEO_POLL_TIMEOUT_SECONDS", "180"))
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/speakup")
 PORT = int(os.getenv("PORT", "3001"))
 

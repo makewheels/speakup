@@ -8,6 +8,7 @@ TEST_DB_NAME = "speakup-test"
 os.environ["MONGO_URI"] = f"mongodb://localhost:27017/{TEST_DB_NAME}"
 os.environ.setdefault("CHAT_API_KEY", "test-key-mocked")
 os.environ.setdefault("IMAGE_API_KEY", "test-key-mocked")
+os.environ.setdefault("VIDEO_API_KEY", "test-key-mocked")
 os.environ.setdefault("VOICE_API_KEY", "test-key-mocked")
 # 假 OSS 凭据：sign_url 是本地 HMAC（无网络），但需要非空凭据才能构造 Auth
 os.environ.setdefault("OSS_ACCESS_KEY_ID", "test-oss-id")
@@ -117,6 +118,7 @@ def scenario_id(client):
         "points": ["请他重做成热拿铁", "说你赶时间"],
         "difficulty": 1,
         "imageKey": "scenarios/sc_test_coffee/cover.jpg",
+        "videoKey": "scenarios/sc_test_coffee/cover.mp4",
         "ownerUserId": None,
         "status": "active",
     })

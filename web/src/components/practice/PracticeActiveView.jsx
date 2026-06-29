@@ -1,5 +1,6 @@
 import Icon from "../Icon.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
+import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
 
 function preferenceNoticeKey(match) {
@@ -35,11 +36,11 @@ export default function PracticeActiveView({
 }) {
   return (
     <div className="practice-page">
-      <div className={"su-img" + (phase === "loading" ? " loading" : "")}>
-        {phase !== "loading" && session?.imageUrl && (
-          <img src={session.imageUrl} alt="scene" />
-        )}
-      </div>
+      <PracticeMedia
+        className={"su-img" + (phase === "loading" ? " loading" : "")}
+        imageUrl={phase !== "loading" ? session?.imageUrl : ""}
+        videoUrl={phase !== "loading" ? session?.videoUrl : ""}
+      />
 
       {phase !== "loading" && <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
 

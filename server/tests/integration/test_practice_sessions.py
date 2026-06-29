@@ -15,6 +15,8 @@ def test_create_practice_snapshots_scenario(client, user_id, auth_headers, scena
     assert p["scenario"]["mission"]
     assert p["imageKey"] == "scenarios/sc_test_coffee/cover.jpg"
     assert p["imageUrl"]  # imageKey 现签出 URL
+    assert p["videoKey"] == "scenarios/sc_test_coffee/cover.mp4"
+    assert p["videoUrl"]  # videoKey 现签出 URL
     assert p["attempts"] == []
     assert "createdAt" in p and p["createdAt"]
 
@@ -103,6 +105,7 @@ def test_get_legacy_objectid_practice_by_id(client, user_id, auth_headers, scena
         "topic": "legacy topic",
         "scenario": {},
         "imageKey": "",
+        "videoKey": "",
         "attempts": [],
     })
 

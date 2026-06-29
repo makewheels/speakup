@@ -18,6 +18,7 @@ from services.scenario_preferences import (
     normalized_purpose,
     prioritized_topup_candidates,
 )
+from services.scenario_videos import maybe_gen_video
 from utils.id_generator import scenario_id
 
 TAXONOMY_PATH = Path(__file__).parent.parent / "data" / "scenario_taxonomy.yaml"
@@ -70,6 +71,7 @@ kind：{kind}
 - 标题、地点不能用 emoji
 - 真实可发生，中国成年学习者真生活会用得到
 - imagePrompt 仍然要写
+- videoPrompt 也要写，描述 5 秒无声短视频：包含场景核心动作、广角/侧面/背影，不要字幕/文字/水印
 
 只输出 strict JSON，不要 markdown 围栏：
 {{
@@ -78,7 +80,8 @@ kind：{kind}
   "story": "一句完整自然的中文，30-45 字，只交代冲突核心，不写心理活动",
   "mission": "8-15 字简短中文指令，看得出'我现在要做什么'",
   "points": ["一句用户可以直接照着说的中文话", "另一句备用 fallback 中文话"],
-  "imagePrompt": "English photo description for an image generator. Image MUST visually show the actual scene/conflict from the story (e.g. collapse → person on the floor with bystanders gathered; bargaining → driver and passenger gesturing; airport coffee mistake → counter with cup). People are encouraged in scene — just avoid sharp close-up faces by using wide shots, side angles, back views, or hands-only framing. No abstract 'empty space implying an incident'. No text/captions in image."
+  "imagePrompt": "English photo description for an image generator. Image MUST visually show the actual scene/conflict from the story (e.g. collapse → person on the floor with bystanders gathered; bargaining → driver and passenger gesturing; airport coffee mistake → counter with cup). People are encouraged in scene — just avoid sharp close-up faces by using wide shots, side angles, back views, or hands-only framing. No abstract 'empty space implying an incident'. No text/captions in image.",
+  "videoPrompt": "English 5-second silent video prompt for the same scene. Show the actual conflict and visible human action with gentle camera motion, wide or side-angle shot, no sharp close-up faces, no text/captions/watermarks."
 }}"""
 
 
@@ -187,17 +190,21 @@ async def topup_public_scenario(
         "points": spec.get("points", []),
         "difficulty": coord["difficulty"],
         "imagePrompt": spec.get("imagePrompt", ""),
+        "videoPrompt": spec.get("videoPrompt") or spec.get("imagePrompt", ""),
     }
     if dry_run:
         return {"_dry_run": True, **base, "subName": coord["subName"]}
 
     image = await maybe_gen_image(sid, spec.get("imagePrompt", ""), link)
+    video = await maybe_gen_video(sid, base["videoPrompt"], link)
     now = datetime.now(timezone.utc)
 
     doc = {
         "_id": sid,
         "slug": f"auto-{coord['subId']}-{int(now.timestamp())}",
         "imageKey": image,
+        "videoKey": video,
+        "videoStatus": "ready" if video else "skipped",
         "ownerUserId": None,
         "status": "active",
         "createdAt": now,

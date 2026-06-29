@@ -63,6 +63,7 @@ async def create_practice(req: CreatePracticeRequest, token_user_id: str = Depen
         },
         # 只存 OSS key，签名 URL 一律读取时现签
         "imageKey": scenario.get("imageKey", ""),
+        "videoKey": scenario.get("videoKey", ""),
         "attempts": [],
         "createdAt": datetime.now(timezone.utc),
     }
@@ -74,6 +75,8 @@ def _sign(practice: dict) -> dict:
     """按 imageKey / 录音 key 现生成签名 URL（1 小时有效），库里不存 URL。"""
     if practice.get("imageKey"):
         practice["imageUrl"] = oss_signed_url(practice["imageKey"])
+    if practice.get("videoKey"):
+        practice["videoUrl"] = oss_signed_url(practice["videoKey"])
     for rec in practice.get("recordings", []):
         if "key" in rec:
             rec["url"] = oss_signed_url(rec["key"])

@@ -2,6 +2,7 @@
 
 题目存 scenarios 集合：ownerUserId 为 None 是公共题，为 u_xxx 是只出给该用户的定制题。
 场景图存 OSS `scenarios/{scenarioId}/cover.jpg`，库里只存 imageKey，URL 读取时现签。
+场景视频同理存 `scenarios/{scenarioId}/cover.mp4`，前端视频优先、图片兜底。
 
 公共池增长靠 `data/scenario_taxonomy.yaml`：每个 (domain × sub) 是一个坐标，目标 N 道；
 取题时用户触发后台 topup → 找 actual<target 的坐标 → LLM 按坐标编故事 → 入库。全部
@@ -21,6 +22,7 @@ from services.llm_audit import audited_invoke
 from services.oss_storage import get_url as oss_signed_url
 from services.scenario_images import maybe_gen_image
 from services.scenario_preferences import normalized_level, normalized_purpose, pick_public
+from services.scenario_videos import maybe_gen_video
 from services.wanx import wanx_generate
 from utils.id_generator import scenario_id
 
@@ -126,6 +128,7 @@ async def next_scenario(
             chosen, preference_match = pick_public(public, practiced, skipped, level, purpose)
 
     chosen["imageUrl"] = oss_signed_url(chosen["imageKey"]) if chosen.get("imageKey") else ""
+    chosen["videoUrl"] = oss_signed_url(chosen["videoKey"]) if chosen.get("videoKey") else ""
     chosen["isCustom"] = chosen.get("ownerUserId") is not None
     chosen["preferenceMatch"] = preference_match
     return chosen
@@ -147,7 +150,8 @@ GEN_PROMPT = """你是英语口语教练的出题人。学习者有几个总是�
   "where": "地点，纯文字不要 emoji，如：咖啡店 · 西雅图",
   "story": "2句以内中文情境描述，交代冲突",
   "mission": "1句中文任务指令，以动词开头",
-  "imagePrompt": "English photo description of this scene for an image generator, concrete objects and setting, no people's faces close-up"
+  "imagePrompt": "English photo description of this scene for an image generator, concrete objects and setting, no people's faces close-up",
+  "videoPrompt": "English short video prompt for the same scene, include visible action and camera motion, no text"
 }}"""
 
 
@@ -178,6 +182,8 @@ async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
 
     now = datetime.now(timezone.utc)
     key = await maybe_gen_image(sid, spec["imagePrompt"], link, wanx_generate)
+    video_prompt = spec.get("videoPrompt") or spec.get("imagePrompt", "")
+    video_key = await maybe_gen_video(sid, video_prompt, link)
 
     doc = {
         "_id": sid,
@@ -190,6 +196,9 @@ async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
         "difficulty": 2,
         "imageKey": key,
         "imagePrompt": spec["imagePrompt"],
+        "videoKey": video_key,
+        "videoPrompt": video_prompt,
+        "videoStatus": "ready" if video_key else "skipped",
         "ownerUserId": user_id,
         "targetWords": words,
         "status": "active",
