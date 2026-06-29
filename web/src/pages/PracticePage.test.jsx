@@ -46,6 +46,8 @@ const SESSION = {
   },
   imageUrl: "https://oss.example.com/img.jpg",
   imageKey: "scenarios/sc_coffee/cover.jpg",
+  videoUrl: "https://oss.example.com/clip.mp4",
+  videoKey: "scenarios/sc_coffee/cover.mp4",
   attempts: [],
   createdAt: "2026-06-01T10:00:00Z",
 };

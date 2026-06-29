@@ -2,6 +2,7 @@
 
 跑：cd server && uv run python scripts/probe_volc.py
 读 .env 的 CHAT_API_KEY；不会打印 key。
+默认只列视频任务，不创建视频；如需花费额度创建视频任务，设置 PROBE_VIDEO_CREATE=true。
 """
 
 import asyncio
@@ -168,12 +169,34 @@ async def probe_video_list():
     print(_short(r.text, 500))
 
 
+async def probe_video_create():
+    print("\n=== [5b] 视频任务创建（会消耗额度） ===")
+    async with httpx.AsyncClient(timeout=30.0) as c:
+        r = await c.post(
+            f"{ARK_PLAN_BASE}/contents/generations/tasks",
+            headers={"Authorization": f"Bearer {ARK_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": os.getenv("VIDEO_MODEL", "doubao-seedance-1.5-pro"),
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "5-second silent video of a suitcase on an airport check-in scale, wide documentary shot, no text",
+                    },
+                ],
+            },
+        )
+    print("status:", r.status_code)
+    print(_short(r.text, 800))
+
+
 async def main():
     await probe_chat()
     await probe_image()
     await probe_tts()
     await probe_asr()
     await probe_video_list()
+    if os.getenv("PROBE_VIDEO_CREATE", "false").lower() in ("1", "true", "yes"):
+        await probe_video_create()
 
 
 if __name__ == "__main__":

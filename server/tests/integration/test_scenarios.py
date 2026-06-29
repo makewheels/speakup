@@ -17,6 +17,7 @@ def test_next_returns_public_scenario(client, user_id, auth_headers, scenario_id
     assert data["mission"]
     assert data["isCustom"] is False
     assert data["imageUrl"]  # imageKey 现签出 URL
+    assert data["videoUrl"]  # videoKey 现签出 URL
 
 
 def test_next_empty_library_404(client, user_id, auth_headers):

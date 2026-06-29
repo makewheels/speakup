@@ -1,6 +1,7 @@
 import Icon from "../Icon.jsx";
 import RecordingPlayer from "../RecordingPlayer.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
+import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
@@ -50,10 +51,12 @@ export default function PracticeFeedbackView({
 
   return (
     <div className="practice-page fb-page fade-in">
-      {session?.imageUrl && (
-        <div className="fb-img">
-          <img src={session.imageUrl} alt="scene" />
-        </div>
+      {(session?.videoUrl || session?.imageUrl) && (
+        <PracticeMedia
+          className="fb-img"
+          imageUrl={session.imageUrl}
+          videoUrl={session.videoUrl}
+        />
       )}
       <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
 

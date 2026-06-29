@@ -8,18 +8,21 @@
 
 ```
 scenarios/{scenarioId}/cover.jpg                                       ← 场景图（题目共享资产，全用户复用）
+scenarios/{scenarioId}/cover.mp4                                       ← 场景视频（题目共享资产，全用户复用）
 practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm    ← 每轮练习录音
 practiceSessions/{practiceId}/tts/{sha1(model:voice:text)}.mp3         ← CosyVoice 朗读缓存（挂在该 session 下）
 ```
 
-- 场景图属于题目本身（一题一图、全体共用），所以挂在 `scenarios/{id}/` 下。
+- 场景图/视频属于题目本身（一题一组媒体、全体共用），所以挂在 `scenarios/{id}/` 下。前端视频优先，失败或缺失时回退图片。
 - 朗读音频挂 session 下：LLM 个性化生成的 nativeVersion / gap.better 几乎不会跨 session 撞同一句，全局缓存命中率约等于 0；挂 session 下让所有资源结构对齐（题目图在 scenarios/，session 内的录音 + 朗读都在 practiceSessions/）。session 内重听同一段仍走 OSS 缓存（按 hash 去重）。
 - 一次练习的产物（录音 / 朗读 / 将来可能加反馈归档）都收在 `practiceSessions/{practiceId}/` 下，按类型分子目录。
 
 ## 关联关系
 
 - `scenarios.imageKey` → `scenarios/{id}/cover.jpg`
+- `scenarios.videoKey` → `scenarios/{id}/cover.mp4`
 - `practiceSessions.imageKey` → 创建练习时从题目复制的同一个 key（题目改图不影响历史回看）
+- `practiceSessions.videoKey` → 创建练习时从题目复制的同一个 key（题目改视频不影响历史回看）
 - `practiceSessions.attempts[].recordingKey` / `recordings[].key` → 录音 key
 
 ## 删除

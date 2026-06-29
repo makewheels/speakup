@@ -3,7 +3,7 @@
 方便事后调试题目质量、反馈漏抓等问题。
 
 用法：
-    from services.llm_audit import audited_invoke, log_image_call
+    from services.llm_audit import audited_invoke, log_image_call, log_video_call
 
     # LLM 调用
     result = await audited_invoke(
@@ -59,6 +59,13 @@ IMAGE_PRICING = {
 }
 IMAGE_PRICING_FALLBACK = 0.30
 
+VIDEO_PRICING = {
+    "doubao-seedance-1.5-pro": 0.0,
+    "doubao-seedance-2.0": 0.0,
+    "doubao-seedance-2.0-fast": 0.0,
+}
+VIDEO_PRICING_FALLBACK = 0.0
+
 
 def estimate_text_cost(model: str, prompt_tok: int, completion_tok: int) -> float:
     p = TEXT_PRICING.get(model, TEXT_PRICING_FALLBACK)
@@ -67,6 +74,10 @@ def estimate_text_cost(model: str, prompt_tok: int, completion_tok: int) -> floa
 
 def estimate_image_cost(model: str) -> float:
     return IMAGE_PRICING.get(model, IMAGE_PRICING_FALLBACK)
+
+
+def estimate_video_cost(model: str) -> float:
+    return VIDEO_PRICING.get(model, VIDEO_PRICING_FALLBACK)
 
 
 # ---------- 写库（fire-and-forget 安全包装） ----------
@@ -179,6 +190,33 @@ async def log_image_call(
         "response": {"sizeBytes": size_bytes},
         "tokens": {},
         "cost": round(cost, 6),
+        "error": error,
+        "linkedTo": link_to or {},
+        "createdAt": datetime.now(timezone.utc),
+    }
+    await _safe_insert(doc)
+
+
+async def log_video_call(
+    *,
+    model: str,
+    prompt: str,
+    metadata: dict | None = None,
+    link_to: dict | None = None,
+    error: str | None = None,
+) -> None:
+    """视频生成审计。"""
+    metadata = metadata or {}
+    cost = 0.0 if error else estimate_video_cost(model)
+    doc = {
+        "_id": llm_call_id(),
+        "kind": "video",
+        "model": model,
+        "request": {"prompt": (prompt or "")[:2000], "taskId": metadata.get("taskId", "")},
+        "response": {"sizeBytes": metadata.get("sizeBytes", 0)},
+        "tokens": {},
+        "cost": round(cost, 6),
+        "durationMs": metadata.get("durationMs", 0),
         "error": error,
         "linkedTo": link_to or {},
         "createdAt": datetime.now(timezone.utc),

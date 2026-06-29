@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-29 16:45
+
+- **add(server)**：接入火山方舟 Agent Plan 视频任务链路。新增 `VIDEO_ENABLED` 开关、`services/volc_video.py` 异步任务适配器、`scenario_videos.py` 场景视频 OSS 持久化，场景生成时可写入 `videoKey/videoPrompt/videoStatus`；默认关闭，避免自动补题消耗视频额度。
+- **add(api/web)**：`/api/scenarios/next`、`practiceSessions`、分享读取支持返回 `videoUrl`；前端新增 `PracticeMedia`，练习页和反馈页视频优先、图片兜底，视频报错自动回退图片。
+- **add(ops)**：新增 `scripts/backfill_scenario_videos.py` dry-run/execute 补视频脚本；`probe_volc.py` 增加可选视频任务创建探测；schema/storage 文档补视频 key 与 OSS 路径。
+
 ### 2026-06-29 16:09
 
 - **chore(ci)**：新增结构质量门禁。前端 `pnpm run lint` 接入 CI，并用 ESLint 限制单文件最多 500 行、函数最多 5 个入参；函数长度和复杂度作为 warning 暴露。后端新增 `scripts/check_code_quality.py`，检查业务源码单文件最多 500 行、函数最多 5 个入参，并接入 CI。

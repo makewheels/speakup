@@ -39,6 +39,9 @@
   "difficulty":  1,
   "imageKey":    "scenarios/sc_.../cover.jpg",  // 场景图 OSS key（私有桶，读取时现签 URL）
   "imagePrompt": "busy specialty coffee shop counter, ...",
+  "videoKey":    "scenarios/sc_.../cover.mp4",  // 场景视频 OSS key（可空；读取时现签 URL）
+  "videoPrompt": "5-second silent video of the same scene, ...",
+  "videoStatus": "ready | skipped | failed | pending",
   "ownerUserId": null,                     // null=公共题；u_xxx=只派给该用户的定制题
   "category":    { "domain": "travel", "subId": "travel.airport_checkin" },  // 公共题：从 server/data/scenario_taxonomy.yaml 落 (domainShort, subId)；定制题不写
   "targetWords": ["could you take a look"], // 定制题：必须逼用户用上的弱点表达
@@ -61,6 +64,7 @@
   "topic":       "☕️ 咖啡店 · 西雅图",     // = scenario.where
   "scenario":    { "kind": "...", "title": "...", "where": "...", "story": "...", "mission": "...", "targetWords": [] },  // 快照，题目改动不影响历史
   "imageKey":    "scenarios/sc_.../cover.jpg",  // 从题目复制的场景图 key，读取时现签
+  "videoKey":    "scenarios/sc_.../cover.mp4",  // 从题目复制的场景视频 key，读取时现签；前端视频优先、图片兜底
   "attempts": [
     {
       "round":         1,                  // 第几轮重说（最多 3）
@@ -89,7 +93,7 @@
 
 > 分享：`POST /api/practice-sessions/{pid}/share` 生成 token（幂等），`DELETE /api/practice-sessions/{pid}/share?userId=` 撤销。公开读取走 `GET /api/share/{token}`（无鉴权，额外返回 `ownerNickname`）。token 用 `secrets.token_urlsafe`，不可枚举。
 
-> 图片与录音库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。
+> 图片、视频与录音库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。
 
 ## reviewItems（错题本 / 复习项）
 
@@ -122,12 +126,12 @@
 
 ## llmCalls（LLM/图片调用审计日志）
 
-每次调 qwen / 万相都写一行，记 prompt + response + tokens + 估算成本，挂到对应业务实体（scenarioId / sessionId / userId）。诊断"为什么这道题烂 / 为什么 corrector 没抓到 thief"用。
+每次调文字模型 / 图片 / 视频都写一行，记 prompt + response + tokens + 估算成本，挂到对应业务实体（scenarioId / sessionId / userId）。诊断"为什么这道题烂 / 为什么 corrector 没抓到 thief"用。
 
 ```json
 {
   "_id":         "llm_1781276...",
-  "kind":        "scenario_gen_public",  // scenario_gen_public / scenario_gen_custom / correct / correct_retry / correct_stream / image
+  "kind":        "scenario_gen_public",  // scenario_gen_public / scenario_gen_custom / correct / correct_retry / correct_stream / image / video
   "model":       "qwen3.7-plus",          // 真实用的模型名（来自 response_metadata，不是配置里写的）
   "request": {
     "systemPrompt": "...",

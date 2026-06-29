@@ -65,6 +65,7 @@ async def get_next(
         "mission": scenario.get("mission", ""),
         "points": scenario.get("points", []),
         "imageUrl": scenario.get("imageUrl", ""),
+        "videoUrl": scenario.get("videoUrl", ""),
         "isCustom": scenario.get("isCustom", False),
         "preferenceMatch": scenario.get("preferenceMatch", "exact"),
         "targetWords": scenario.get("targetWords", []),
