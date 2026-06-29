@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-06-29 16:09
+
+- **chore(ci)**：新增结构质量门禁。前端 `pnpm run lint` 接入 CI，并用 ESLint 限制单文件最多 500 行、函数最多 5 个入参；函数长度和复杂度作为 warning 暴露。后端新增 `scripts/check_code_quality.py`，检查业务源码单文件最多 500 行、函数最多 5 个入参，并接入 CI。
+- **change(web)**：拆分 Practice 页面展示层，把反馈页和录音主视图从 `PracticePage.jsx` 抽到 `components/practice/`，主页面降到 500 行以内；反馈相关测试拆到独立文件，测试文件也降到 500 行以内。
+- **change(server)**：拆分 `scenario_service.py`，将偏好匹配、场景配图、公共题池 topup 分离到独立 service 模块，原入口继续 re-export，保持调用方兼容。
+
 ### 2026-06-21 16:14
 
 - **chore(ci)**：**后端接入覆盖率统计 + CI 门槛**（原来只有前端有）。加 `pytest-cov`，`pytest` 默认带 `--cov --cov-fail-under=80`；纯外部 IO 适配器（wanx 文生图 / transcriber ASR，测试里整个 mock）从统计 omit，门槛守护真正的业务逻辑。后端整体 **84.67%**。
