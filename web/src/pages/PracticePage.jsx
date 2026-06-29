@@ -5,8 +5,8 @@ import { useT } from "../i18n/useI18n.js";
 import { api, correctStream, chatStream } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
 import PracticePreferencePicker from "../components/PracticePreferencePicker.jsx";
-import SpeakBtn from "../components/SpeakBtn.jsx";
-import RecordingPlayer from "../components/RecordingPlayer.jsx";
+import PracticeActiveView from "../components/practice/PracticeActiveView.jsx";
+import PracticeFeedbackView from "../components/practice/PracticeFeedbackView.jsx";
 import {
   getPracticePreferences,
   hasPracticePreferences,
@@ -14,72 +14,6 @@ import {
 } from "../lib/practicePreferences.js";
 
 const MAX_ROUNDS = 2;
-
-// 去掉文本里的 emoji（旧场景数据的 where/points 可能带 emoji，统一不显示）
-const stripEmoji = (s = "") =>
-  s
-    .replace(/[\u{1F000}-\u{1FAFF}]/gu, "")
-    .replace(/[\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu, "")
-    .replace(/[\u{FE00}-\u{FE0F}\u{200D}]/gu, "")
-    .replace(/^[\s·•・]+/, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-function SpeakBtns({ text, practiceId }) {
-  return <SpeakBtn text={text} practiceId={practiceId} />;
-}
-
-// 按句拆分 native 版，每句一行更清晰
-const splitSentences = (s = "") =>
-  s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
-
-function ScoreBadge({ score }) {
-  const t = useT();
-  if (score == null) return null;
-  return (
-    <div className="fb-score">
-      <span className="fb-score-num">{Number(score).toFixed(1)}</span>
-      <span className="fb-score-unit">/ 9.0</span>
-      <span className="fb-score-cap">{t("practice.ieltsBand")}</span>
-    </div>
-  );
-}
-
-function ScenarioCard({ scenario, topic, t }) {
-  const points = scenario?.points ?? [];
-  const where = stripEmoji(scenario?.where || topic || t("practice.scene_default"));
-  return (
-    <div className="sc-card">
-      <div className="sc-grid">
-        <div className="sc-k">{t("practice.place")}</div>
-        <div className="sc-v sc-v-where">{where}</div>
-
-        {scenario?.story && <>
-          <div className="sc-k">{t("practice.scene")}</div>
-          <div className="sc-v">{stripEmoji(scenario.story)}</div>
-        </>}
-
-        <div className="sc-k say">{t("practice.goal")}</div>
-        <div className="sc-v say">
-          {points.length > 0 ? (
-            <ul className="sc-points">
-              {points.map((p, i) => <li key={i}>{stripEmoji(p)}</li>)}
-            </ul>
-          ) : (
-            <span className="sc-say-text">{stripEmoji(scenario?.mission || "")}</span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function preferenceNoticeKey(match) {
-  if (match === "relaxedDifficulty") return "practicePrefs.matchRelaxedDifficulty";
-  if (match === "relaxedPurpose") return "practicePrefs.matchRelaxedPurpose";
-  if (match === "fallback") return "practicePrefs.matchFallback";
-  return "";
-}
 
 export default function PracticePage() {
   const { practiceId } = useParams();
@@ -475,288 +409,50 @@ export default function PracticePage() {
   }
 
   if (phase === "feedback" && result) {
-    const gaps = result.gaps ?? [];
-    const progress = result.progress;
-    const passed = progress?.verdict === "passed";
-    const lastRound = round >= MAX_ROUNDS;
-
     return (
-      <div className="practice-page fb-page fade-in">
-        {session?.imageUrl && (
-          <div className="fb-img">
-            <img src={session.imageUrl} alt="scene" />
-          </div>
-        )}
-        <ScenarioCard scenario={scenario} topic={session?.topic} t={t} />
-
-        {recordingUrl && <RecordingPlayer src={recordingUrl} />}
-
-        <ScoreBadge score={result.score} />
-
-        {passed && <div className="fb-passed">{t("practice.soundedNative")}</div>}
-
-        {progress && (
-          <div className="fb-progress">
-            {progress.comment && <p className="fb-progress-comment">{progress.comment}</p>}
-            {progress.fixed?.length > 0 && (
-              <div className="fb-progress-list fixed">
-                <span className="label">{t("practice.usedThisTime")}</span>
-                {progress.fixed.map((x, i) => <span key={i} className="chip">{x}</span>)}
-              </div>
-            )}
-            {progress.remaining?.length > 0 && (
-              <div className="fb-progress-list remaining">
-                <span className="label">{t("practice.stillMissing")}</span>
-                {progress.remaining.map((x, i) => <span key={i} className="chip">{x}</span>)}
-              </div>
-            )}
-          </div>
-        )}
-
-        {transcript && (
-          <div className="fb-transcript-card">
-            <div className="fb-card-label">{t("practice.youSaid")}</div>
-            <p className="fb-transcript-text">{transcript}</p>
-          </div>
-        )}
-
-        {result.nativeVersion && (
-          <div className="fb-native-card">
-            <div className="fb-card-label native">{t("practice.nativeVersion")}<SpeakBtns text={result.nativeVersion} practiceId={session?._id} /></div>
-            {splitSentences(result.nativeVersion).map((s, i) => (
-              <p key={i} className="fb-native-text">{s}</p>
-            ))}
-          </div>
-        )}
-
-        {gaps.length > 0 && (
-          <div className="fb-gaps-section">
-            <div className="fb-section-label">{t("practice.gapsTitle", { n: gaps.length })}</div>
-            {gaps.map((g, i) => {
-              const added = Boolean(savedMap[i]);
-              return (
-                <div key={i} className="fb-gap-card">
-                  <div className="fb-gap-head">
-                    <span className="fb-gap-num">{i + 1}</span>
-                    <button
-                      className={"fb-gap-add" + (added ? " added" : "")}
-                      onClick={() => toggleGap(g, i)}
-                      title={added ? t("practice.removeTitle") : t("practice.addTitle")}
-                    >
-                      {added
-                        ? <><Icon name="check" size={14} />&nbsp;{t("practice.inReview")}</>
-                        : <><Icon name="plus" size={14} />&nbsp;{t("practice.addToReview")}</>}
-                    </button>
-                  </div>
-                  <div className="fb-gap-table">
-                    <div className="fb-gap-line is-said">
-                      <span className="fb-gap-tag">{t("practice.gapYouSaid")}</span>
-                      <span className="fb-gap-said">{g.original}</span>
-                    </div>
-                    <div className="fb-gap-line is-fix">
-                      <span className="fb-gap-tag">{t("practice.gapSayThis")}</span>
-                      <span className="fb-gap-fix">{g.better}</span>
-                      <SpeakBtns text={g.better} practiceId={session?._id} />
-                    </div>
-                    {g.why && (
-                      <div className="fb-gap-line">
-                        <span className="fb-gap-tag">{t("practice.gapWhy")}</span>
-                        <span className="fb-gap-whytext">{g.why}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {autoSaved > 0 && (
-          <p className="fb-autosaved">{t("practice.autoSaved", { n: autoSaved })}</p>
-        )}
-
-        <div className="fb-chat">
-          <div className="fb-section-label">{t("practice.askTheCoach")}</div>
-          {chat.map((m, i) => (
-            <div key={i} className={"fb-chat-msg " + m.role}>
-              {m.content || (chatBusy && i === chat.length - 1 ? <span className="fb-chat-typing">{t("practice.thinking")}</span> : "")}
-            </div>
-          ))}
-          <div className="fb-chat-input">
-            <textarea
-              rows={1}
-              value={chatInput}
-              placeholder={t("practice.chatPlaceholder")}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-              disabled={chatBusy}
-            />
-            <button className="su-btn su-btn-primary" onClick={sendChat} disabled={chatBusy || !chatInput.trim()}>
-              <Icon name="next" size={16} />
-            </button>
-          </div>
-        </div>
-
-        <div className="actions-row" style={{ marginTop: 8 }}>
-          {passed || lastRound ? (
-            <button className="su-btn su-btn-primary" onClick={() => startNewRound(session?.scenarioId)} style={{ flex: 1, height: 48 }}>
-              {t("practice.nextScenario")}&nbsp;<Icon name="next" size={16} />
-            </button>
-          ) : (
-            <>
-              <button className="su-btn su-btn-primary" onClick={retrySame} style={{ flex: 2, height: 48 }}>
-                <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain")}
-              </button>
-              <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} style={{ flex: 1, height: 48 }}>
-                {t("practice.next")}&nbsp;<Icon name="next" size={16} />
-              </button>
-            </>
-          )}
-        </div>
-        {!passed && lastRound && (
-          <p className="fb-rounds-out">{t("practice.roundsOut")}</p>
-        )}
-      </div>
+      <PracticeFeedbackView
+        autoSaved={autoSaved}
+        chat={chat}
+        chatBusy={chatBusy}
+        chatInput={chatInput}
+        maxRounds={MAX_ROUNDS}
+        recordingUrl={recordingUrl}
+        result={result}
+        retrySame={retrySame}
+        round={round}
+        savedMap={savedMap}
+        scenario={scenario}
+        sendChat={sendChat}
+        session={session}
+        setChatInput={setChatInput}
+        startNewRound={startNewRound}
+        t={t}
+        toggleGap={toggleGap}
+        transcript={transcript}
+      />
     );
   }
 
   return (
-    <div className="practice-page">
-      <div className={"su-img" + (phase === "loading" ? " loading" : "")}>
-        {phase !== "loading" && session?.imageUrl && (
-          <img src={session.imageUrl} alt="scene" />
-        )}
-      </div>
-
-      {phase !== "loading" && <ScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
-
-      {phase !== "loading" && preferenceNoticeKey(session?.preferenceMatch) && (
-        <div className="pref-match-note">
-          {t(preferenceNoticeKey(session.preferenceMatch))}
-        </div>
-      )}
-
-      {hintGaps.length > 0 && phase !== "loading" && (
-        <div className="sc-hintbar">
-          💡 {t("practice.tryToUse")}
-          {hintGaps.map((g, i) => (
-            <span key={i} className="sc-hint-item"><b>{g.better}</b><SpeakBtns text={g.better} practiceId={session?._id} /></span>
-          ))}
-        </div>
-      )}
-
-      <p className="su-prompt">{PROMPTS[phase]}</p>
-
-      {(phase === "recording" || phase === "transcribing" || phase === "review" || phase === "evaluating") && (
-        <div className={"su-transcript" + (!transcript ? " empty" : "")}>
-          {transcript ||
-            (phase === "recording"
-              ? t("practice.willTranscribe")
-              : phase === "transcribing"
-              ? t("practice.transcribingDots")
-              : t("practice.yourWordsHere"))}
-          {phase === "recording" && <span className="live-dot" />}
-        </div>
-      )}
-
-      {phase === "recording" && (
-        <div className="su-rec-meta">
-          <span className="rec-dot">{t("practice.rec")}</span>
-          <span className="elapsed">{elapsed}</span>
-        </div>
-      )}
-
-      <div style={{ height: phase === "review" || phase === "evaluating" ? 18 : 30 }} />
-
-      {(phase === "loading" || phase === "ready") && (
-        <div className="su-rec-wrap">
-          <button
-            className="su-rec"
-            onPointerDown={() => handleRecordPressStart(startRecording)}
-            onPointerUp={handleRecordPressEnd}
-            onPointerLeave={handleRecordPressEnd}
-            onContextMenu={(e) => e.preventDefault()}
-            onClick={() => handleRecordClick(startRecording)}
-            disabled={phase === "loading"}
-          >
-            <Icon name="mic" size={32} color="#fff" />
-          </button>
-          <div className="su-rec-label">{t("practice.tapToStart")}</div>
-          <div className="su-rec-hint">{t("practice.tapHint")}</div>
-          {phase === "ready" && session?.scenarioId && (
-            <button
-              className="su-skip"
-              title={t("practice.tryAnother")}
-              onClick={() => startNewRound(session.scenarioId)}
-            >
-              <Icon name="refresh" size={16} />
-              <span>{t("practice.tryAnother")}</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {phase === "recording" && (
-        <div className="su-rec-wrap">
-          <button
-            className="su-rec recording"
-            onPointerDown={() => handleRecordPressStart(stopRecording)}
-            onPointerUp={handleRecordPressEnd}
-            onPointerLeave={handleRecordPressEnd}
-            onContextMenu={(e) => e.preventDefault()}
-            onClick={() => handleRecordClick(stopRecording)}
-          >
-            <Icon name="stop" size={28} color="#fff" />
-          </button>
-          <div className="su-rec-label">{t("practice.tapToStop")}</div>
-          <div className="su-rec-hint">{t("practice.stopHint")}</div>
-        </div>
-      )}
-
-      {phase === "transcribing" && (
-        <div className="su-rec-wrap">
-          <button className="su-rec recording" disabled style={{ opacity: 0.6 }}>
-            <span className="spin" />
-          </button>
-          <div className="su-rec-label">{t("practice.transcribingShort")}</div>
-        </div>
-      )}
-
-      {phase === "review" && (
-        <div className="actions-row">
-          <button className="su-btn su-btn-secondary" style={{ flex: 1 }} onClick={startRecording}>
-            <Icon name="refresh" size={16} />&nbsp;{t("practice.redo")}
-          </button>
-          <button className="su-btn su-btn-primary" style={{ flex: 2 }} onClick={() => evaluate()} disabled={!transcript.trim()}>
-            {t("practice.getFeedback")}
-          </button>
-        </div>
-      )}
-
-      {phase === "evaluating" && (
-        <>
-          <div className="actions-row">
-            <button className="su-btn su-btn-secondary" disabled style={{ flex: 1, opacity: 0.5 }}>
-              <Icon name="refresh" size={16} />&nbsp;{t("practice.redo")}
-            </button>
-            <button className="su-btn su-btn-primary disabled" style={{ flex: 2 }}>
-              <span className="spin" />&nbsp;{t("practice.aiReviewing")} {evalElapsed > 0 && <span style={{ marginLeft: 4, opacity: 0.8 }}>({evalElapsed}s)</span>}
-            </button>
-          </div>
-          <p ref={evalAnchorRef} style={{
-            fontFamily: "var(--ff-cn)", fontSize: 12, color: "var(--ink-3)",
-            textAlign: "center", marginTop: 14, lineHeight: 1.6,
-          }}>
-            {streamingLen > 0
-              ? t("practice.writingChars", { n: streamingLen })
-              : evalElapsed < 15
-              ? t("practice.checkingTask")
-              : evalElapsed < 40
-              ? t("practice.comparingNative")
-              : t("practice.takingLonger")}
-          </p>
-        </>
-      )}
-    </div>
+    <PracticeActiveView
+      elapsed={elapsed}
+      evalAnchorRef={evalAnchorRef}
+      evalElapsed={evalElapsed}
+      evaluate={evaluate}
+      handleRecordClick={handleRecordClick}
+      handleRecordPressEnd={handleRecordPressEnd}
+      handleRecordPressStart={handleRecordPressStart}
+      hintGaps={hintGaps}
+      phase={phase}
+      prompts={PROMPTS}
+      scenario={scenario}
+      session={session}
+      startNewRound={startNewRound}
+      startRecording={startRecording}
+      stopRecording={stopRecording}
+      streamingLen={streamingLen}
+      t={t}
+      transcript={transcript}
+    />
   );
 }

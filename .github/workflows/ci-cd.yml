@@ -31,6 +31,9 @@ jobs:
       - name: Sync deps
         working-directory: server
         run: uv sync --frozen
+      - name: Code quality gates
+        working-directory: server
+        run: uv run python scripts/check_code_quality.py
       - name: Run pytest
         working-directory: server
         run: uv run pytest -v
@@ -50,6 +53,9 @@ jobs:
       - name: Install
         working-directory: web
         run: pnpm install --frozen-lockfile
+      - name: Lint
+        working-directory: web
+        run: pnpm run lint
       - name: Run vitest
         working-directory: web
         run: pnpm test
