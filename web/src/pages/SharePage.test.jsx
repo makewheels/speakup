@@ -20,7 +20,8 @@ const SHARED = {
   _id: "sess_1",
   title: "Coffee shop",
   topic: "Coffee shop · Seattle",
-  imageUrl: "",
+  imageUrl: "https://oss.example/cover.jpg",
+  videoUrl: "https://oss.example/cover.mp4",
   createdAt: "2026-06-01T10:00:00Z",
   ownerNickname: "Alice",
   attempts: [
@@ -59,6 +60,15 @@ describe("SharePage", () => {
     setup();
     await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("renders shared session video when available", async () => {
+    const { api } = await import("../api/client.js");
+    api.getSharedSession.mockResolvedValue(SHARED);
+    setup();
+    const video = await screen.findByLabelText("scene video");
+    expect(video).toHaveAttribute("src", "https://oss.example/cover.mp4");
+    expect(video).toHaveAttribute("poster", "https://oss.example/cover.jpg");
   });
 
   it("shows a friendly message when the share is closed", async () => {
