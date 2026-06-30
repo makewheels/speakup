@@ -1364,6 +1364,29 @@ button { font-family: inherit; }
 
 .detail-hero-info { display: flex; flex-direction: column; gap: 4px; }
 
+.session-practice-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.session-practice-media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-mute);
+}
+
+.session-practice-media img,
+.session-practice-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .detail-topic {
   font-family: var(--ff-mono);
   font-size: 16px;
