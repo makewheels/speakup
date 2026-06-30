@@ -2,7 +2,9 @@ import { useState } from "react";
 
 export default function PracticeMedia({ imageUrl = "", videoUrl = "", className = "su-img" }) {
   const [failedVideoUrl, setFailedVideoUrl] = useState("");
+  const [loadedVideoUrl, setLoadedVideoUrl] = useState("");
   const showVideo = videoUrl && failedVideoUrl !== videoUrl;
+  const loading = showVideo && loadedVideoUrl !== videoUrl;
 
   if (showVideo) {
     return (
@@ -13,10 +15,12 @@ export default function PracticeMedia({ imageUrl = "", videoUrl = "", className 
           aria-label="scene video"
           muted
           autoPlay
-          loop
+          controls
           playsInline
+          onLoadedMetadata={() => setLoadedVideoUrl(videoUrl)}
           onError={() => setFailedVideoUrl(videoUrl)}
         />
+        {loading && <div className="media-loading">Loading video...</div>}
       </div>
     );
   }
