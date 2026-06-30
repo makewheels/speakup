@@ -20,6 +20,12 @@ const SHARED = {
   _id: "sess_1",
   title: "Coffee shop",
   topic: "Coffee shop · Seattle",
+  scenario: {
+    where: "Coffee shop · Seattle",
+    story: "You are ordering coffee before work.",
+    mission: "Order a coffee politely",
+    points: ["Ask for a latte", "Ask about the price"],
+  },
   imageUrl: "https://oss.example/cover.jpg",
   videoUrl: "https://oss.example/cover.mp4",
   createdAt: "2026-06-01T10:00:00Z",
@@ -69,6 +75,16 @@ describe("SharePage", () => {
     const video = await screen.findByLabelText("scene video");
     expect(video).toHaveAttribute("src", "https://oss.example/cover.mp4");
     expect(video).toHaveAttribute("poster", "https://oss.example/cover.jpg");
+  });
+
+  it("renders an unattempted shared practice as a playable prompt preview", async () => {
+    const { api } = await import("../api/client.js");
+    api.getSharedSession.mockResolvedValue({ ...SHARED, attempts: [] });
+    setup();
+    const video = await screen.findByLabelText("scene video");
+    expect(video.closest(".session-practice-media")).toBeInTheDocument();
+    expect(screen.getByText("You are ordering coffee before work.")).toBeInTheDocument();
+    expect(screen.getByText("Ask for a latte")).toBeInTheDocument();
   });
 
   it("shows a friendly message when the share is closed", async () => {

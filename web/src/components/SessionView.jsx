@@ -3,6 +3,7 @@ import Icon from "./Icon.jsx";
 import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
 import PracticeMedia from "./practice/PracticeMedia.jsx";
+import PracticeScenarioCard from "./practice/PracticeScenarioCard.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
 
@@ -47,6 +48,8 @@ export default function SessionView({
   const rawAttempts = session?.attempts || [];
   const recordings = session?.recordings || [];
   const hasMedia = session?.videoUrl || session?.imageUrl;
+  const showHeaderMedia = hasMedia && rawAttempts.length > 0;
+  const scenario = session?.scenario || session;
 
   // 默认选中最新一轮
   const [sel, setSel] = useState(Math.max(0, rawAttempts.length - 1));
@@ -59,15 +62,15 @@ export default function SessionView({
   return (
     <div className="session-view">
       <div className="detail-hero">
-        {hasMedia ? (
+        {showHeaderMedia ? (
           <PracticeMedia
             className="detail-hero-media"
             imageUrl={session.imageUrl}
             videoUrl={session.videoUrl}
           />
-        ) : (
+        ) : rawAttempts.length > 0 ? (
           <div className="detail-hero-placeholder" />
-        )}
+        ) : null}
         <div className="detail-hero-info">
           <div className="detail-topic">{stripEmoji(session.title || session.topic || t("history.defaultTitle"))}</div>
           <div className="detail-when">{formatDateTime(session.createdAt)}</div>
@@ -79,7 +82,17 @@ export default function SessionView({
       {belowHero}
 
       {rawAttempts.length === 0 ? (
-        <div className="page-msg" style={{ paddingTop: 40 }}>{t("session.noFeedback")}</div>
+        <div className="session-practice-preview">
+          {hasMedia && (
+            <PracticeMedia
+              className="session-practice-media"
+              imageUrl={session.imageUrl}
+              videoUrl={session.videoUrl}
+            />
+          )}
+          <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
+          {!readOnly && <div className="page-msg">{t("session.noFeedback")}</div>}
+        </div>
       ) : (
         <>
           {rawAttempts.length > 1 && (
