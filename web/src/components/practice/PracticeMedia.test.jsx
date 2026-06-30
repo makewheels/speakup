@@ -5,7 +5,7 @@ import PracticeMedia from "./PracticeMedia.jsx";
 
 
 describe("PracticeMedia", () => {
-  it("renders a muted looping video when videoUrl is available", () => {
+  it("renders a visible controllable video when videoUrl is available", () => {
     render(
       <PracticeMedia
         imageUrl="https://oss.example/cover.jpg"
@@ -17,8 +17,24 @@ describe("PracticeMedia", () => {
     expect(video).toHaveAttribute("src", "https://oss.example/cover.mp4");
     expect(video).toHaveAttribute("poster", "https://oss.example/cover.jpg");
     expect(video).toHaveAttribute("playsinline");
-    expect(video).toHaveAttribute("loop");
+    expect(video).toHaveAttribute("controls");
+    expect(video).not.toHaveAttribute("loop");
     expect(video.muted).toBe(true);
+  });
+
+  it("shows a loading state until video metadata is ready", () => {
+    render(
+      <PracticeMedia
+        imageUrl="https://oss.example/cover.jpg"
+        videoUrl="https://oss.example/cover.mp4"
+      />,
+    );
+
+    expect(screen.getByText("Loading video...")).toBeInTheDocument();
+
+    fireEvent.loadedMetadata(screen.getByLabelText("scene video"));
+
+    expect(screen.queryByText("Loading video...")).not.toBeInTheDocument();
   });
 
   it("falls back to the image when video playback errors", () => {
