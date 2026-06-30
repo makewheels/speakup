@@ -2,6 +2,7 @@ import { useState } from "react";
 import Icon from "./Icon.jsx";
 import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
+import PracticeMedia from "./practice/PracticeMedia.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
 
@@ -45,7 +46,7 @@ export default function SessionView({
   const practiceId = session?._id;
   const rawAttempts = session?.attempts || [];
   const recordings = session?.recordings || [];
-  const thumb = session?.imageUrl || "";
+  const hasMedia = session?.videoUrl || session?.imageUrl;
 
   // 默认选中最新一轮
   const [sel, setSel] = useState(Math.max(0, rawAttempts.length - 1));
@@ -58,8 +59,12 @@ export default function SessionView({
   return (
     <div className="session-view">
       <div className="detail-hero">
-        {thumb ? (
-          <img src={thumb} alt={session.topic} className="detail-hero-img" onError={(e) => { e.target.style.display = "none"; }} />
+        {hasMedia ? (
+          <PracticeMedia
+            className="detail-hero-media"
+            imageUrl={session.imageUrl}
+            videoUrl={session.videoUrl}
+          />
         ) : (
           <div className="detail-hero-placeholder" />
         )}
