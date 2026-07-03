@@ -27,6 +27,8 @@ function setup() {
       <UserProvider>
         <Routes>
           <Route path="/shares" element={<ManageSharesPage />} />
+          <Route path="/history" element={<div>History page</div>} />
+          <Route path="/history/:practiceId" element={<div>History detail</div>} />
         </Routes>
       </UserProvider>
     </MemoryRouter>,
@@ -81,5 +83,35 @@ describe("ManageSharesPage", () => {
       expect(screen.queryByText("Coffee shop")).not.toBeInTheDocument(),
     );
     expect(api.unsharePractice).toHaveBeenCalledWith("s1", "u_1");
+  });
+
+  it("navigates to history from the empty state", async () => {
+    const { api } = await import("../api/client.js");
+    api.listShared.mockResolvedValue([]);
+    setup();
+    await waitFor(() => screen.getByText("Go to history"));
+    await userEvent.click(screen.getByText("Go to history"));
+    await waitFor(() => expect(screen.getByText("History page")).toBeInTheDocument());
+  });
+
+  it("navigates to the shared practice detail when an item is clicked", async () => {
+    const { api } = await import("../api/client.js");
+    api.listShared.mockResolvedValue(SHARED);
+    setup();
+    await waitFor(() => screen.getByText("Coffee shop"));
+    await userEvent.click(screen.getByText("Coffee shop"));
+    await waitFor(() => expect(screen.getByText("History detail")).toBeInTheDocument());
+  });
+
+  it("does not remove the item when stopping share fails", async () => {
+    const { api } = await import("../api/client.js");
+    api.listShared.mockResolvedValue(SHARED);
+    api.unsharePractice.mockRejectedValue(new Error("network"));
+    setup();
+    await waitFor(() => expect(screen.getByText("Coffee shop")).toBeInTheDocument());
+    await userEvent.click(screen.getAllByText("Stop")[0]);
+
+    await waitFor(() => expect(screen.getByText("Failed: network")).toBeInTheDocument());
+    expect(screen.getByText("Coffee shop")).toBeInTheDocument();
   });
 });

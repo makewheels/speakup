@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 import ReviewPage from "./ReviewPage.jsx";
 import { UserProvider } from "../context/UserContext.jsx";
@@ -67,9 +67,12 @@ const ITEM_MASTERED = {
 function setup() {
   localStorage.setItem("english-speak-user", JSON.stringify(USER));
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={["/review"]}>
       <UserProvider>
-        <ReviewPage />
+        <Routes>
+          <Route path="/review" element={<ReviewPage />} />
+          <Route path="/practice/:practiceId" element={<div>Practice session</div>} />
+        </Routes>
       </UserProvider>
     </MemoryRouter>,
   );
@@ -190,6 +193,13 @@ describe("ReviewPage", () => {
     // ITEM_DUE's original should be shown first
     expect(screen.getByText("you see this")).toBeInTheDocument();
   });
+});
+
+describe("ReviewPage list view", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
 
   it("switches to list view when 'All N' is clicked", async () => {
     const { api } = await import("../api/client.js");
@@ -259,5 +269,44 @@ describe("ReviewPage", () => {
     await waitFor(() =>
       expect(screen.getByText("What you said")).toBeInTheDocument(),
     );
+  });
+});
+
+describe("ReviewPage practice-word regressions", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("'Practice this word' creates a practice session and navigates to it", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE]);
+    api.practiceWord.mockResolvedValue({ scenarioId: "sc_word" });
+    api.createPractice.mockResolvedValue({ _id: "ps_word" });
+    setup();
+    await waitFor(() => screen.getByText("you see this"));
+    await userEvent.click(screen.getByText("you see this"));
+    await userEvent.click(screen.getByText("Practice this word"));
+
+    await waitFor(() => expect(screen.getByText("Practice session")).toBeInTheDocument());
+    expect(api.practiceWord).toHaveBeenCalledWith(USER.userId, ITEM_DUE.expression, ITEM_DUE.original);
+    expect(api.createPractice).toHaveBeenCalledWith({ userId: USER.userId, scenarioId: "sc_word" });
+  });
+
+  it("'Practice this word' shows an alert and stays on review when scenario creation fails", async () => {
+    const { api } = await import("../api/client.js");
+    vi.spyOn(window, "alert").mockImplementation(() => {});
+    api.listReviewItems.mockResolvedValue([ITEM_DUE]);
+    api.practiceWord.mockRejectedValue(new Error("boom"));
+    setup();
+    await waitFor(() => screen.getByText("you see this"));
+    await userEvent.click(screen.getByText("you see this"));
+    await userEvent.click(screen.getByText("Practice this word"));
+
+    await waitFor(() =>
+      expect(window.alert).toHaveBeenCalledWith("Failed to create scenario: boom"),
+    );
+    expect(screen.getByText("Native version")).toBeInTheDocument();
+    expect(screen.queryByText("Practice session")).not.toBeInTheDocument();
   });
 });
