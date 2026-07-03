@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 
 import HistoryPage from "./HistoryPage.jsx";
 import { UserProvider } from "../context/UserContext.jsx";
@@ -46,9 +46,13 @@ const SESSION_A2 = {
 function setup() {
   localStorage.setItem("english-speak-user", JSON.stringify(USER));
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={["/history"]}>
       <UserProvider>
-        <HistoryPage />
+        <Routes>
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/history/:practiceId" element={<div>History detail</div>} />
+          <Route path="/practice" element={<div>Practice page</div>} />
+        </Routes>
       </UserProvider>
     </MemoryRouter>,
   );
@@ -177,13 +181,48 @@ describe("HistoryPage", () => {
     await waitFor(() => screen.getByText("Coffee shop"));
     expect(screen.queryByText("Load more")).not.toBeInTheDocument();
   });
+});
+
+describe("HistoryPage navigation regressions", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
 
   it("navigates to practice when empty state button clicked", async () => {
     const { api } = await import("../api/client.js");
     api.listPractices.mockResolvedValue([]);
     setup();
     await waitFor(() => screen.getByText("Start practicing"));
-    // Just verify button is rendered and clickable
-    expect(screen.getByText("Start practicing")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Start practicing"));
+    await waitFor(() => expect(screen.getByText("Practice page")).toBeInTheDocument());
+  });
+
+  it("navigates to detail when a single-session row is clicked", async () => {
+    const { api } = await import("../api/client.js");
+    api.listPractices.mockResolvedValue([SESSION_A]);
+    setup();
+    await waitFor(() => screen.getByText("Coffee shop"));
+    await userEvent.click(screen.getByText("Coffee shop"));
+    await waitFor(() => expect(screen.getByText("History detail")).toBeInTheDocument());
+  });
+
+  it("Load more appends the next page and hides the button when the page is partial", async () => {
+    const { api } = await import("../api/client.js");
+    const sessions = Array.from({ length: 20 }, (_, i) => ({
+      ...SESSION_A,
+      _id: `s${i}`,
+      scenarioId: `sc_${i}`,
+      title: `Scenario ${i}`,
+    }));
+    api.listPractices
+      .mockResolvedValueOnce(sessions)
+      .mockResolvedValueOnce([SESSION_B]);
+    setup();
+    await waitFor(() => screen.getByText("Load more"));
+    await userEvent.click(screen.getByText("Load more"));
+
+    await waitFor(() => expect(screen.getByText("Airport check-in")).toBeInTheDocument());
+    expect(screen.queryByText("Load more")).not.toBeInTheDocument();
   });
 });

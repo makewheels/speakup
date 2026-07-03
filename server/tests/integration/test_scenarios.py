@@ -1,8 +1,10 @@
 """场景题库取题逻辑：定制题优先、未练优先。"""
 
+from unittest.mock import AsyncMock, patch
+
 from pymongo import MongoClient
 
-from tests.conftest import TEST_DB_NAME
+from tests.conftest import TEST_DB_NAME, login_headers
 
 
 def _db():
@@ -245,3 +247,46 @@ def test_repeated_switch_no_immediate_repeat(client, user_id, auth_headers, scen
 def test_next_rejects_missing_token(client, user_id, scenario_id):
     resp = client.get(f"/api/scenarios/next?userId={user_id}")
     assert resp.status_code == 401
+
+
+def test_practice_word_returns_generated_scenario_id(client, user_id, auth_headers):
+    mock = AsyncMock(return_value={"_id": "sc_word"})
+    with patch("routes.scenarios.generate_scenario_for_expression", new=mock):
+        resp = client.post(
+            "/api/scenarios/practice-word",
+            json={
+                "userId": user_id,
+                "expression": "Could you take a look?",
+                "original": "you see this",
+            },
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    assert resp.json() == {"scenarioId": "sc_word"}
+    mock.assert_awaited_once_with(user_id, "Could you take a look?", "you see this")
+
+
+def test_practice_word_returns_400_when_generation_fails(client, user_id, auth_headers):
+    with patch("routes.scenarios.generate_scenario_for_expression", new=AsyncMock(return_value=None)):
+        resp = client.post(
+            "/api/scenarios/practice-word",
+            json={"userId": user_id, "expression": "", "original": ""},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "出题失败，请重试"
+
+
+def test_practice_word_rejects_userid_token_mismatch(client, user_id, auth_headers):
+    other, _ = login_headers(client, "13900009999")
+    with patch("routes.scenarios.generate_scenario_for_expression", new=AsyncMock()) as mock:
+        resp = client.post(
+            "/api/scenarios/practice-word",
+            json={"userId": other, "expression": "Could you take a look?"},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 403
+    mock.assert_not_awaited()
