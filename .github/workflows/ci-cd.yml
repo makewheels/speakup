@@ -81,6 +81,9 @@ jobs:
           username: ${{ secrets.ACR_AK_ID }}
           password: ${{ secrets.ACR_AK_SECRET }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Compute image tag
         id: tag
         run: |
@@ -89,22 +92,18 @@ jobs:
           SEQ=$(printf "%06d" "${{ github.run_number }}")
           echo "value=${TS}-${SEQ}" >> "$GITHUB_OUTPUT"
 
-      - name: Build speakup
+      - name: Build and push speakup
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: false
-          load: true
+          platforms: linux/amd64
+          push: true
           tags: |
             ${{ env.ACR_IMAGE }}:latest
             ${{ env.ACR_IMAGE }}:${{ steps.tag.outputs.value }}
-
-      - name: Push speakup
-        run: |
-          echo "=== push 开始 $(date +%T) ==="
-          time docker push ${{ env.ACR_IMAGE }}:latest
-          time docker push ${{ env.ACR_IMAGE }}:${{ steps.tag.outputs.value }}
-          echo "=== push 结束 $(date +%T) ==="
+          cache-from: type=gha,scope=speakup
+          cache-to: type=gha,scope=speakup,mode=max
+          provenance: false
 
       - name: Install SSH key
         uses: shimataro/ssh-key-action@v2
