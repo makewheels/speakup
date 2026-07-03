@@ -231,6 +231,8 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("remake my latte")).toBeInTheDocument();
     expect(screen.getByText("more natural")).toBeInTheDocument();
     expect(screen.getByText(/1 added to Review/)).toBeInTheDocument();
+    expect(screen.getByText(/Say it again/)).toBeInTheDocument();
+    expect(api.nextScenario).not.toHaveBeenCalled();
     await waitFor(() => expect(api.uploadRecording).toHaveBeenCalled());
   });
 
@@ -266,6 +268,34 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("in a hurry")).toBeInTheDocument();
     expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
     expect(screen.queryByText(/Say it again/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the user on feedback after a streamed final-round review", async () => {
+    const { api, correctStream } = await import("../api/client.js");
+    correctStream.mockImplementation((_data, { onDone }) => {
+      onDone({
+        result: {
+          summary: "still needs practice",
+          nativeVersion: "Could you remake my latte? I'm in a hurry.",
+          score: 6.5,
+          gaps: [],
+          progress: { verdict: "needs-work" },
+        },
+        autoSaved: 0,
+        round: 2,
+      });
+      return { abort: vi.fn() };
+    });
+
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await recordUntilEvaluating();
+
+    await waitFor(() => expect(screen.getByText("Native version")).toBeInTheDocument());
+    expect(screen.getByText(/these expressions are saved to review/)).toBeInTheDocument();
+    expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
+    expect(screen.queryByText(/Tap once to record/)).not.toBeInTheDocument();
+    expect(api.nextScenario).not.toHaveBeenCalled();
   });
 
   it("returns to review phase and alerts when correctStream errors", async () => {

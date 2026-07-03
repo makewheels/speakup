@@ -359,7 +359,7 @@ describe("api/client SSE 流（correctStream / chatStream）", () => {
       ok: true,
       body: sseStream([
         'data: {"type":"chunk","text":"He"}\n\n',
-        'data: {"type":"chunk","text":"llo"}\n\ndata: {"type":"done","result":{"score":9},"autoSaved":true}\n\n',
+        'data: {"type":"chunk","text":"llo"}\n\ndata: {"type":"done","result":{"score":9},"autoSaved":true,"round":2}\n\n',
       ]),
     });
     const onChunk = vi.fn();
@@ -373,7 +373,7 @@ describe("api/client SSE 流（correctStream / chatStream）", () => {
 
     expect(onChunk).toHaveBeenNthCalledWith(1, "He");
     expect(onChunk).toHaveBeenNthCalledWith(2, "llo");
-    expect(onDone).toHaveBeenCalledWith({ result: { score: 9 }, autoSaved: true });
+    expect(onDone).toHaveBeenCalledWith({ result: { score: 9 }, autoSaved: true, round: 2 });
     expect(onError).not.toHaveBeenCalled();
 
     const [url, opts] = fetchMock.mock.calls[0];
