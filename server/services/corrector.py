@@ -1,5 +1,6 @@
 import re
 import time
+import json
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Literal
 
@@ -43,6 +44,10 @@ class CorrectResult(BaseModel):
     score: float | None = None  # 雅思口语级别 0~9，0.5 进制
     gaps: list[GapItem] = Field(default_factory=list)
     progress: ProgressInfo | None = None
+
+
+_CATEGORIES = {"task", "grammar", "naturalness", "vocabulary", "register"}
+_VERDICTS = {"passed", "improved", "stuck"}
 
 
 def _get_client() -> ChatOpenAI:
@@ -195,11 +200,73 @@ def _build_messages(
     return [SystemMessage(content=system), HumanMessage(content=user)]
 
 
-def _parse_result(raw: str) -> dict:
+def _clean_model_json(raw: str) -> str:
     raw = raw.replace("```json", "").replace("```", "").strip()
     raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+    if raw.startswith("{") and raw.endswith("}"):
+        return raw
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end > start:
+        return raw[start:end + 1]
+    return raw
+
+
+def _coerce_result(data: dict) -> dict:
+    if isinstance(data.get("feedback"), dict):
+        data = data["feedback"]
+    if isinstance(data.get("result"), dict):
+        data = data["result"]
+
+    gaps = []
+    for item in data.get("gaps") or []:
+        if not isinstance(item, dict):
+            continue
+        category = item.get("category") if item.get("category") in _CATEGORIES else "vocabulary"
+        gaps.append({
+            "title": str(item.get("title") or ""),
+            "original": str(item.get("original") or ""),
+            "better": str(item.get("better") or ""),
+            "example": str(item.get("example") or ""),
+            "why": str(item.get("why") or ""),
+            "category": category,
+            "saveToReview": bool(item.get("saveToReview")),
+        })
+
+    score = data.get("score")
+    if isinstance(score, str):
+        match = re.search(r"\d+(?:\.\d+)?", score)
+        score = float(match.group(0)) if match else None
+
+    progress = data.get("progress")
+    if isinstance(progress, dict):
+        verdict = progress.get("verdict")
+        if verdict == "needs-work":
+            verdict = "improved"
+        if verdict not in _VERDICTS:
+            verdict = "improved"
+        progress = {
+            "verdict": verdict,
+            "fixed": [str(x) for x in progress.get("fixed") or []],
+            "remaining": [str(x) for x in progress.get("remaining") or []],
+            "comment": str(progress.get("comment") or ""),
+        }
+    else:
+        progress = None
+
+    return {
+        "summary": str(data.get("summary") or ""),
+        "nativeVersion": str(data.get("nativeVersion") or data.get("native_version") or ""),
+        "score": score,
+        "gaps": gaps,
+        "progress": progress,
+    }
+
+
+def _parse_result(raw: str) -> dict:
+    raw = _clean_model_json(raw)
     try:
-        result = CorrectResult.model_validate_json(raw)
+        result = CorrectResult.model_validate(_coerce_result(json.loads(raw)))
     except Exception:
         return {**_EMPTY, "summary": "Evaluation failed. Try again."}
     return result.model_dump()

@@ -141,6 +141,37 @@ def test_parse_result_invalid_json_returns_failure_summary():
     assert "fail" in result["summary"].lower()
 
 
+def test_parse_result_keeps_feedback_when_model_output_is_wrapped_or_noisy():
+    raw = """
+    Sure, here is the JSON:
+    ```json
+    {
+      "summary": "请求可以更自然",
+      "native_version": "Could you remake my latte? I'm in a hurry.",
+      "score": "6.5/9",
+      "gaps": [
+        {
+          "original": "redo my latte",
+          "better": "remake my latte",
+          "why": "redo 偏随意，remake 更贴合重做饮品。",
+          "category": "phrasing",
+          "saveToReview": true
+        }
+      ],
+      "progress": {"verdict": "needs-work", "fixed": [], "remaining": ["remake my latte"], "comment": "还要更自然"}
+    }
+    ```
+    """
+    result = _parse_result(raw)
+
+    assert result["summary"] == "请求可以更自然"
+    assert result["nativeVersion"] == "Could you remake my latte? I'm in a hurry."
+    assert result["score"] == 6.5
+    assert result["gaps"][0]["better"] == "remake my latte"
+    assert result["gaps"][0]["category"] == "vocabulary"
+    assert result["progress"]["verdict"] == "improved"
+
+
 def test_progress_model_defaults():
     p = ProgressInfo()
     assert p.verdict == "improved"
