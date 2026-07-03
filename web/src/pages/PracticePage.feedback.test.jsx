@@ -236,6 +236,32 @@ describe("PracticePage feedback", () => {
     await waitFor(() => expect(api.uploadRecording).toHaveBeenCalled());
   });
 
+  it("renders the AI summary even when nativeVersion and gaps are empty", async () => {
+    const { correctStream } = await import("../api/client.js");
+    correctStream.mockImplementation((_data, { onDone }) => {
+      onDone({
+        result: {
+          summary: "Evaluation failed. Try again.",
+          nativeVersion: "",
+          score: null,
+          gaps: [],
+          progress: null,
+        },
+        autoSaved: 0,
+        round: 1,
+      });
+      return { abort: vi.fn() };
+    });
+
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await recordUntilEvaluating();
+
+    await waitFor(() => expect(screen.getByText("Evaluation failed. Try again.")).toBeInTheDocument());
+    expect(screen.getByText("You said")).toBeInTheDocument();
+    expect(screen.getByText("Can you redo my latte")).toBeInTheDocument();
+  });
+
   it("renders progress block (passed verdict + fixed/remaining chips) in feedback", async () => {
     const { correctStream } = await import("../api/client.js");
     correctStream.mockImplementation((_data, { onDone }) => {

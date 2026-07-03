@@ -64,6 +64,8 @@ export default function PracticeFeedbackView({
 
       <ScoreBadge score={result.score} />
 
+      {result.summary && <p className="fb-summary-line">{result.summary}</p>}
+
       {passed && <div className="fb-passed">{t("practice.soundedNative")}</div>}
 
       {progress && (
