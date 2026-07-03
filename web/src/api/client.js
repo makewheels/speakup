@@ -93,7 +93,7 @@ export function correctStream(data, { onChunk, onDone, onError } = {}) {
           try {
             const event = JSON.parse(part.slice(6));
             if (event.type === "chunk") onChunk?.(event.text);
-            else if (event.type === "done") onDone?.({ result: event.result, autoSaved: event.autoSaved });
+            else if (event.type === "done") onDone?.({ result: event.result, autoSaved: event.autoSaved, round: event.round });
             else if (event.type === "error") onError?.(new Error(event.message));
           } catch {
             // 忽略不完整或非 JSON 的 SSE 片段，等待下一帧继续解析。
