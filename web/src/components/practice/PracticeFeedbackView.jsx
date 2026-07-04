@@ -146,6 +146,13 @@ export default function PracticeFeedbackView({
           })}
         </div>
       )}
+      {gaps.length === 0 && (
+        <div className="fb-empty-feedback">
+          {result.nativeVersion
+            ? t("practice.noGaps")
+            : t("practice.noUsableFeedback")}
+        </div>
+      )}
 
       {autoSaved > 0 && (
         <p className="fb-autosaved">{t("practice.autoSaved", { n: autoSaved })}</p>

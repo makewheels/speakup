@@ -250,9 +250,7 @@ export default function PracticePage() {
     setAutoSaved(0);
     setPhase("recording");
 
-    // 全平台统一走 MediaRecorder + 后端 ASR：
-    // 浏览器自带的 Web Speech API 走 Google 服务，国内不通；
-    // 改成录完整段音频上传到 /api/transcribe 由 DashScope 转写。
+    // 全平台统一走 MediaRecorder + 后端火山 openspeech ASR。
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const preferred = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];

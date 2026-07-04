@@ -138,7 +138,7 @@ def test_parse_result_without_progress_is_none():
 def test_parse_result_invalid_json_returns_failure_summary():
     result = _parse_result('{"summary": broken → arrows}')
     assert result["gaps"] == []
-    assert "fail" in result["summary"].lower()
+    assert "could not be parsed" in result["summary"].lower()
 
 
 def test_parse_result_keeps_feedback_when_model_output_is_wrapped_or_noisy():

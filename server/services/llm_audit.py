@@ -40,6 +40,8 @@ logger = logging.getLogger(__name__)
 TEXT_PRICING = {
     "ark-code-latest":  {"prompt": 0.0,  "completion": 0.0},
     "glm-5.2":          {"prompt": 0.0,  "completion": 0.0},
+    "deepseek-v4-pro":  {"prompt": 0.0,  "completion": 0.0},
+    "deepseek-v4-pro-260425": {"prompt": 0.0, "completion": 0.0},
     "qwen3.7-plus":     {"prompt": 0.4,  "completion": 1.2},
     "qwen3-max":        {"prompt": 4.0,  "completion": 12.0},
     "qwen-plus":        {"prompt": 0.4,  "completion": 1.2},

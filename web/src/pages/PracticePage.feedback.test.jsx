@@ -236,12 +236,12 @@ describe("PracticePage feedback", () => {
     await waitFor(() => expect(api.uploadRecording).toHaveBeenCalled());
   });
 
-  it("renders the AI summary even when nativeVersion and gaps are empty", async () => {
+  it("renders an explicit empty-feedback state when nativeVersion and gaps are empty", async () => {
     const { correctStream } = await import("../api/client.js");
     correctStream.mockImplementation((_data, { onDone }) => {
       onDone({
         result: {
-          summary: "Evaluation failed. Try again.",
+          summary: "AI feedback could not be parsed. Try again.",
           nativeVersion: "",
           score: null,
           gaps: [],
@@ -257,7 +257,8 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Evaluation failed. Try again.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("AI feedback could not be parsed. Try again.")).toBeInTheDocument());
+    expect(screen.getByText("AI did not return usable corrections. Try Review now again.")).toBeInTheDocument();
     expect(screen.getByText("You said")).toBeInTheDocument();
     expect(screen.getByText("Can you redo my latte")).toBeInTheDocument();
   });

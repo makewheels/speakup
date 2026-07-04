@@ -1609,6 +1609,17 @@ button { font-family: inherit; }
   text-align: center;
 }
 .fb-gaps-section { margin-top: 22px; margin-bottom: 8px; }
+
+.fb-empty-feedback {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(42, 33, 24, 0.12);
+  border-radius: 8px;
+  color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 1.5;
+}
 .fb-section-label {
   font-family: var(--ff-cn);
   font-size: 20px;
