@@ -57,7 +57,9 @@ _VERDICTS = {"passed", "improved", "stuck"}
 def _get_client() -> ChatOpenAI:
     global _client
     if _client is None:
-        extra_body = {"thinking": {"type": "enabled"}} if CHAT_THINKING else None
+        # Agent Plan/GLM defaults to thinking when omitted. For short JSON tasks this can
+        # burn the whole token budget on hidden reasoning and return an empty message.
+        extra_body = {"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}}
         _client = ChatOpenAI(
             openai_api_base=CHAT_BASE_URL,
             openai_api_key=CHAT_API_KEY,

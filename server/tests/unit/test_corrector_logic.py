@@ -12,6 +12,7 @@ from services.corrector import (
     _build_followup_messages,
     _build_messages,
     _followup_context,
+    _get_client,
     _parse_result,
     correct_text,
     correct_text_stream,
@@ -42,6 +43,17 @@ def _fake_llm(result: CorrectResult):
     fake_client = MagicMock()
     fake_client.ainvoke = AsyncMock(return_value=fake_response)
     return fake_client
+
+
+def test_get_client_disables_thinking_explicitly(monkeypatch):
+    fake_chat = MagicMock(return_value="client")
+    monkeypatch.setattr("services.corrector._client", None)
+    monkeypatch.setattr("services.corrector.CHAT_THINKING", False)
+    monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
+
+    assert _get_client() == "client"
+
+    assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
 def test_short_input_skips_llm_entirely():
