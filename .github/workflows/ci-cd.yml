@@ -149,8 +149,10 @@ jobs:
           VIDEO_POLL_INTERVAL_SECONDS=${{ vars.VIDEO_POLL_INTERVAL_SECONDS || '5' }}
           VIDEO_POLL_TIMEOUT_SECONDS=${{ vars.VIDEO_POLL_TIMEOUT_SECONDS || '180' }}
           APP_LOG_DIR=/app/logs
-          APP_LOG_MAX_BYTES=20971520
-          APP_LOG_BACKUP_COUNT=10
+          APP_LOG_ROTATE_WHEN=midnight
+          APP_LOG_ROTATE_INTERVAL=1
+          APP_LOG_BACKUP_COUNT=30
+          APP_LOG_UTC=false
           LOG_LEVEL=INFO
           MONGO_URI=${{ secrets.MONGO_URI }}
           OSS_BUCKET_PROD=${{ secrets.OSS_BUCKET_PROD }}

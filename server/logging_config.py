@@ -1,6 +1,6 @@
 import logging
 import os
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 
@@ -18,23 +18,22 @@ def configure_logging() -> None:
     path = Path(log_dir)
     path.mkdir(parents=True, exist_ok=True)
     log_file = (path / "speakup.log").resolve()
-    if any(
-        isinstance(handler, RotatingFileHandler)
-        and getattr(handler, "baseFilename", "") == str(log_file)
-        for handler in root.handlers
-    ):
+    if any(getattr(handler, "baseFilename", "") == str(log_file) for handler in root.handlers):
         return
 
     formatter = logging.Formatter(
         "%(asctime)s %(levelname)s [%(name)s] %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
-    handler = RotatingFileHandler(
+    handler = TimedRotatingFileHandler(
         log_file,
-        maxBytes=int(os.getenv("APP_LOG_MAX_BYTES", str(20 * 1024 * 1024))),
-        backupCount=int(os.getenv("APP_LOG_BACKUP_COUNT", "10")),
+        when=os.getenv("APP_LOG_ROTATE_WHEN", "midnight"),
+        interval=int(os.getenv("APP_LOG_ROTATE_INTERVAL", "1")),
+        backupCount=int(os.getenv("APP_LOG_BACKUP_COUNT", "30")),
         encoding="utf-8",
+        utc=os.getenv("APP_LOG_UTC", "false").lower() in ("1", "true", "yes"),
     )
+    handler.suffix = "%Y-%m-%d"
     handler.setFormatter(formatter)
     handler.setLevel(level)
     root.addHandler(handler)

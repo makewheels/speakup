@@ -7,8 +7,10 @@ services:
       - APP_ENV=production
       - PORT=3001
       - APP_LOG_DIR=/app/logs
-      - APP_LOG_MAX_BYTES=${APP_LOG_MAX_BYTES:-20971520}
-      - APP_LOG_BACKUP_COUNT=${APP_LOG_BACKUP_COUNT:-10}
+      - APP_LOG_ROTATE_WHEN=${APP_LOG_ROTATE_WHEN:-midnight}
+      - APP_LOG_ROTATE_INTERVAL=${APP_LOG_ROTATE_INTERVAL:-1}
+      - APP_LOG_BACKUP_COUNT=${APP_LOG_BACKUP_COUNT:-30}
+      - APP_LOG_UTC=${APP_LOG_UTC:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       # 文字/对话 LLM（火山方舟 Agent Plan）
       - CHAT_API_KEY=${CHAT_API_KEY}
