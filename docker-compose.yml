@@ -6,6 +6,10 @@ services:
     environment:
       - APP_ENV=production
       - PORT=3001
+      - APP_LOG_DIR=/app/logs
+      - APP_LOG_MAX_BYTES=${APP_LOG_MAX_BYTES:-20971520}
+      - APP_LOG_BACKUP_COUNT=${APP_LOG_BACKUP_COUNT:-10}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
       # 文字/对话 LLM（火山方舟 Agent Plan）
       - CHAT_API_KEY=${CHAT_API_KEY}
       - CHAT_BASE_URL=${CHAT_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}
@@ -43,6 +47,13 @@ services:
       - OSS_BUCKET=${OSS_BUCKET_PROD}
     expose:
       - "3001"
+    volumes:
+      - /opt/speakup/logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:3001/api/health',timeout=3).status==200 else 1)"]
       interval: 10s
