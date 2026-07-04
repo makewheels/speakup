@@ -64,6 +64,7 @@ export default function PracticePage() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef(null);
   const stoppingRef = useRef(false);
+  const onDoneFiredRef = useRef(false);  // 临时调试：定位 onDone 后自动跳题，找到后移除
 
   const hasUsableFeedback = (res) =>
     Boolean((res?.nativeVersion || "").trim() || (res?.gaps ?? []).length > 0);
@@ -76,6 +77,12 @@ export default function PracticePage() {
   const writeSkipped = (arr) => sessionStorage.setItem(skipKey, JSON.stringify(arr));
 
   const startNewRound = async (extraSkip = null, overridePrefs = null) => {
+    const __stack = new Error().stack || "";
+    console.warn("[speakup-debug] startNewRound onDoneFired=" + onDoneFiredRef.current, __stack);
+    // 临时调试：onDone 之后若被非点击触发 = 自动跳题真凶，弹栈定位
+    if (typeof window !== "undefined" && onDoneFiredRef.current && !/onClick|handleClick|handleRecordClick/i.test(__stack)) {
+      alert("[debug] onDone 后自动跳题！startNewRound 被非点击调用\n" + __stack.split("\n").slice(0, 10).join("\n"));
+    }
     setPhase("loading");
     setResult(null);
     setTranscript("");
@@ -210,6 +217,8 @@ export default function PracticePage() {
       {
         onChunk: (chunk) => setStreamingLen((n) => n + chunk.length),
         onDone: ({ result: res, autoSaved: n, round: r }) => {
+          onDoneFiredRef.current = true;
+          console.log("[speakup-debug] onDone", { usable: hasUsableFeedback(res), native: !!res?.nativeVersion, gapsLen: (res?.gaps ?? []).length, round: r });
           clearInterval(evalTimerRef.current);
           if (!hasUsableFeedback(res)) {
             alert(t("practice.feedbackFailed", { msg: res?.summary || t("practice.emptyFeedback") }));
