@@ -63,6 +63,8 @@
     "youSaid": "You said",
     "nativeVersion": "Native version",
     "gapsTitle": "Gaps · {n} total",
+    "noGaps": "No specific correction this time.",
+    "noUsableFeedback": "AI did not return usable corrections. Try Review now again.",
     "addToReview": "Add to Review",
     "inReview": "In Review",
     "addTitle": "Add to Review",

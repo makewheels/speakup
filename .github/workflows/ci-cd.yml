@@ -124,7 +124,7 @@ jobs:
             "cat > ${{ env.SERVER_DIR }}/.env"
           CHAT_API_KEY=${{ secrets.CHAT_API_KEY }}
           CHAT_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3
-          CHAT_MODEL=ark-code-latest
+          CHAT_MODEL=glm-5.2
           CHAT_THINKING=false
           IMAGE_API_KEY=${{ secrets.CHAT_API_KEY }}
           IMAGE_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3

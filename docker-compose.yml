@@ -9,7 +9,7 @@ services:
       # 文字/对话 LLM（火山方舟 Agent Plan）
       - CHAT_API_KEY=${CHAT_API_KEY}
       - CHAT_BASE_URL=${CHAT_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}
-      - CHAT_MODEL=${CHAT_MODEL:-ark-code-latest}
+      - CHAT_MODEL=${CHAT_MODEL:-glm-5.2}
       - CHAT_THINKING=${CHAT_THINKING:-false}
       # 图片生成（火山 Seedream，默认关闭省钱）
       - IMAGE_API_KEY=${IMAGE_API_KEY}

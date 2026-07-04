@@ -218,7 +218,7 @@ export const api = {
     });
   },
 
-  // 全平台统一：录音上传 → 后端 DashScope ASR 返文本
+  // 全平台统一：录音上传 → 后端火山 openspeech ASR 返文本
   transcribeAudio: (userId, blob) => {
     const form = new FormData();
     form.append("userId", userId);

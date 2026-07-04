@@ -63,6 +63,8 @@
     "youSaid": "你说",
     "nativeVersion": "Native 版本",
     "gapsTitle": "差距 · 共 {n} 条",
+    "noGaps": "这次没有发现具体差距。",
+    "noUsableFeedback": "AI 没有返回可用纠错，请再点一次立即评估。",
     "addToReview": "加入复习",
     "inReview": "已加入",
     "addTitle": "加入复习",

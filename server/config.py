@@ -9,7 +9,7 @@ load_dotenv(Path(__file__).parent / ".env", override=False)
 # 文字/对话 LLM：与运营商解耦，只认 CHAT_*。现接火山方舟 Agent Plan。
 CHAT_API_KEY = os.getenv("CHAT_API_KEY", "")
 CHAT_BASE_URL = os.getenv("CHAT_BASE_URL", "https://ark.cn-beijing.volces.com/api/plan/v3")
-CHAT_MODEL = os.getenv("CHAT_MODEL", "ark-code-latest")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "glm-5.2")
 CHAT_THINKING = os.getenv("CHAT_THINKING", "false").lower() in ("1", "true", "yes")
 
 # 图片生成：火山方舟 Agent Plan Seedream。默认仍关闭，避免自动补题意外消耗额度。
