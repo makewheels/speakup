@@ -1,7 +1,7 @@
 """音频转写服务：火山 openspeech Agent Plan Seed-ASR。
 
 前端浏览器录音格式不一致：iOS 录 m4a/mp4、Android 录 webm/ogg。
-服务器先用 ffmpeg 统一转成 16k mono mp3，再送 ASR WebSocket 接口。
+服务器先用 ffmpeg 统一转成 16k mono raw PCM，再送 ASR WebSocket 接口。
 """
 
 import asyncio
@@ -55,7 +55,7 @@ def _full_client_request() -> bytes:
     payload = {
         "user": {"uid": "speakup"},
         "audio": {
-            "format": "mp3",
+            "format": "pcm",
             "codec": "raw",
             "rate": 16000,
             "bits": 16,
@@ -132,16 +132,16 @@ def _text_from_response(data: dict) -> str:
     return ""
 
 
-async def _to_mp3(audio_bytes: bytes, suffix: str) -> bytes:
-    """ffmpeg 转 mp3，统一编码避免 webm/m4a 兼容问题。"""
+async def _to_pcm(audio_bytes: bytes, suffix: str) -> bytes:
+    """ffmpeg 转 16k mono s16le PCM，统一编码避免 webm/m4a 兼容问题。"""
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as src:
         src.write(audio_bytes)
         src_path = src.name
-    dst_path = src_path + ".mp3"
+    dst_path = src_path + ".pcm"
     try:
         proc = await asyncio.create_subprocess_exec(
             "ffmpeg", "-y", "-i", src_path,
-            "-ar", "16000", "-ac", "1", "-codec:a", "libmp3lame", "-b:a", "64k",
+            "-ar", "16000", "-ac", "1", "-f", "s16le", "-acodec", "pcm_s16le",
             dst_path,
             stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
         )
@@ -164,7 +164,7 @@ async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
     elif "wav" in content_type:
         suffix = ".wav"
 
-    mp3 = await _to_mp3(audio_bytes, suffix)
+    pcm = await _to_pcm(audio_bytes, suffix)
     headers = {
         "Authorization": f"Bearer {VOICE_API_KEY}",
         "X-Api-Key": VOICE_API_KEY,
@@ -189,7 +189,7 @@ async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
         if data:
             text = _text_from_response(data) or text
 
-        chunks = _audio_chunks(mp3)
+        chunks = _audio_chunks(pcm)
         for index, chunk in enumerate(chunks):
             await ws.send(_audio_request(chunk, last=index == len(chunks) - 1))
 
