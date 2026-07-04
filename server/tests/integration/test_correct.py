@@ -87,6 +87,27 @@ def test_correct_rejects_unusable_ai_feedback_without_persisting_attempt(client,
     assert p["attempts"] == []
 
 
+def test_correct_stream_uses_stable_result_and_persists_attempt(client, user_id, auth_headers, practice_id):
+    with _mock_correct():
+        with client.stream(
+            "POST",
+            "/api/correct/stream",
+            json={
+                "userId": user_id,
+                "practiceId": practice_id,
+                "text": "Please change it fast, my plane will fly soon.",
+            },
+            headers=auth_headers,
+        ) as resp:
+            body = "".join(resp.iter_text())
+
+    assert resp.status_code == 200
+    assert '"type": "done"' in body
+    assert "Could you remake it?" in body
+    p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert len(p["attempts"]) == 1
+
+
 def test_correct_persists_attempt_with_round(client, user_id, auth_headers, practice_id):
     with _mock_correct():
         client.post(

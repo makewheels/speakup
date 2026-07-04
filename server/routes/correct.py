@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
-from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream, followup_chat_stream
+from services.corrector import MAX_ROUNDS, correct_text, followup_chat_stream
 from utils.id_generator import review_item_id
 from utils.mongo_ids import id_filter
 
@@ -116,22 +116,14 @@ async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(curre
     link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
 
     async def generate():
-        full_result = None
-        async for event_type, data in correct_text_stream(req.text, scenario, prev, round_no, link_to=link):
-            if event_type == "chunk":
-                yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
-            elif event_type == "error":
-                yield f"data: {json.dumps({'type': 'error', 'message': data['message']})}\n\n"
-                return
-            elif event_type == "done":
-                full_result = data
-
-        if full_result:
-            if not _has_usable_feedback(full_result):
-                yield f"data: {json.dumps({'type': 'error', 'message': full_result.get('summary') or 'AI 没有返回可用反馈，请重试'})}\n\n"
-                return
-            auto_saved = await _save_attempt_and_review(req, full_result, round_no)
-            yield f"data: {json.dumps({'type': 'done', 'result': full_result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
+        # 火山 Agent Plan 的 chat streaming 在生产中会出现空 content，导致可用反馈被解析为空。
+        # 保持 SSE 外壳不变，但内部使用稳定的非流式调用，避免结果页只剩用户原话。
+        result = await correct_text(req.text, scenario, prev, round_no, link_to=link)
+        if not _has_usable_feedback(result):
+            yield f"data: {json.dumps({'type': 'error', 'message': result.get('summary') or 'AI 没有返回可用反馈，请重试'})}\n\n"
+            return
+        auto_saved = await _save_attempt_and_review(req, result, round_no)
+        yield f"data: {json.dumps({'type': 'done', 'result': result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
 
     return StreamingResponse(
         generate(),
