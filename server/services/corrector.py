@@ -2,6 +2,7 @@ import re
 import time
 import json
 import logging
+import asyncio
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Literal
 
@@ -13,6 +14,7 @@ from config import CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL, CHAT_THINKING
 from services.llm_audit import (
     _safe_insert as audit_safe_insert,
     audited_invoke,
+    content_to_text,
     estimate_text_cost,
 )
 
@@ -173,6 +175,7 @@ def _build_messages(
 
 
 def _clean_model_json(raw: str) -> str:
+    raw = content_to_text(raw)
     raw = raw.replace("```json", "").replace("```", "").strip()
     raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
     if raw.startswith("{") and raw.endswith("}"):
@@ -182,6 +185,19 @@ def _clean_model_json(raw: str) -> str:
     if start != -1 and end > start:
         return raw[start:end + 1]
     return raw
+
+
+def _loads_model_json(raw: str) -> dict:
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    try:
+        return json.loads(raw, strict=False)
+    except json.JSONDecodeError:
+        pass
+    repaired = re.sub(r",\s*([}\]])", r"\1", raw)
+    return json.loads(repaired, strict=False)
 
 
 def _coerce_result(data: dict) -> dict:
@@ -238,7 +254,7 @@ def _coerce_result(data: dict) -> dict:
 def _parse_result(raw: str) -> dict:
     raw = _clean_model_json(raw)
     try:
-        result = CorrectResult.model_validate(_coerce_result(json.loads(raw)))
+        result = CorrectResult.model_validate(_coerce_result(_loads_model_json(raw)))
     except Exception:
         logger.warning("corrector parse failed; raw_len=%d raw_start=%r", len(raw), raw[:200])
         return {**_EMPTY, "summary": "AI feedback could not be parsed. Try again."}
@@ -305,7 +321,7 @@ async def correct_text_stream(
 
     try:
         async for chunk in _get_client().astream(messages):
-            delta = chunk.content or ""
+            delta = content_to_text(chunk.content)
             if delta:
                 full_text += delta
                 yield "chunk", {"text": delta}
@@ -353,7 +369,7 @@ async def correct_text_stream(
         err,
         len(full_text),
     )
-    await audit_safe_insert(audit_doc)
+    asyncio.create_task(audit_safe_insert(audit_doc))
 
 
 # ── 追问对话：用户拿到反馈后，基于本次练习上下文继续问 AI（纯文本流式）──

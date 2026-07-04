@@ -89,13 +89,19 @@ class FakeMediaRecorder {
   constructor(stream) {
     this.stream = stream;
     this.mimeType = "audio/webm";
+    this.state = "inactive";
     this.ondataavailable = null;
     this.onstop = null;
   }
   start() {
+    this.state = "recording";
+    this.ondataavailable?.({ data: { size: 10 } });
+  }
+  requestData() {
     this.ondataavailable?.({ data: { size: 10 } });
   }
   stop() {
+    this.state = "inactive";
     this.onstop?.();
   }
 }
@@ -236,8 +242,9 @@ describe("PracticePage feedback", () => {
     await waitFor(() => expect(api.uploadRecording).toHaveBeenCalled());
   });
 
-  it("renders an explicit empty-feedback state when nativeVersion and gaps are empty", async () => {
+  it("stays on review and alerts when AI returns no usable feedback", async () => {
     const { correctStream } = await import("../api/client.js");
+    vi.spyOn(window, "alert").mockImplementation(() => {});
     correctStream.mockImplementation((_data, { onDone }) => {
       onDone({
         result: {
@@ -257,10 +264,12 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("AI feedback could not be parsed. Try again.")).toBeInTheDocument());
-    expect(screen.getByText("AI did not return usable corrections. Try Review now again.")).toBeInTheDocument();
-    expect(screen.getByText("You said")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Feedback request failed")),
+    );
+    expect(screen.getByText("Review now")).toBeInTheDocument();
     expect(screen.getByText("Can you redo my latte")).toBeInTheDocument();
+    expect(screen.queryByText("AI did not return usable corrections. Try Review now again.")).not.toBeInTheDocument();
   });
 
   it("renders progress block (passed verdict + fixed/remaining chips) in feedback", async () => {

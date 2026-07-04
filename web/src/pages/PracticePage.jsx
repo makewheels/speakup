@@ -45,6 +45,7 @@ export default function PracticePage() {
   const [hintGaps, setHintGaps] = useState([]);
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
+  const [feedbackActionsDisabled, setFeedbackActionsDisabled] = useState(false);
   const [savedMap, setSavedMap] = useState({}); // gap 下标 -> reviewItem id（自动收录的初始就带，手动加/取消同步）
   const [recordingUrl, setRecordingUrl] = useState(""); // 本次录音的本地 object URL，结果页回放用
   const [chat, setChat] = useState([]);          // 追问对话 [{role, content}]
@@ -62,6 +63,10 @@ export default function PracticePage() {
   const sseControllerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef(null);
+  const stoppingRef = useRef(false);
+
+  const hasUsableFeedback = (res) =>
+    Boolean((res?.nativeVersion || "").trim() || (res?.gaps ?? []).length > 0);
 
   // 本会话「看过但跳过」的 scenarioId（sessionStorage 跨刷新保留，不串号到其他用户）
   const skipKey = `skipped:${user.userId}`;
@@ -206,6 +211,11 @@ export default function PracticePage() {
         onChunk: (chunk) => setStreamingLen((n) => n + chunk.length),
         onDone: ({ result: res, autoSaved: n, round: r }) => {
           clearInterval(evalTimerRef.current);
+          if (!hasUsableFeedback(res)) {
+            alert(t("practice.feedbackFailed", { msg: res?.summary || t("practice.emptyFeedback") }));
+            setPhase("review");
+            return;
+          }
           setResult(res);
           // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
           const init = {};
@@ -215,6 +225,8 @@ export default function PracticePage() {
           if (r) setRound(r);
           setChat([]);
           setPhase("feedback");
+          setFeedbackActionsDisabled(true);
+          setTimeout(() => setFeedbackActionsDisabled(false), 1500);
           // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
           setSearchParams({ result: "1" }, { replace: true });
           // 评估完成后异步上传录音，关联到本轮 attempt（失败静默忽略）
@@ -278,8 +290,9 @@ export default function PracticePage() {
           setPhase("review");
         }
       };
-      recorder.start();
+      recorder.start(1000);
       mediaRecorderRef.current = recorder;
+      stoppingRef.current = false;
     } catch (err) {
       console.warn("MediaRecorder unavailable:", err);
       alert(t("practice.micFailed", { msg: err.message }));
@@ -297,8 +310,17 @@ export default function PracticePage() {
   }, [user, t, session]);
 
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || stoppingRef.current) return;
+    stoppingRef.current = true;
+    recorder.requestData?.();
+    setTimeout(() => {
+      if (mediaRecorderRef.current === recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      mediaRecorderRef.current = null;
+      stoppingRef.current = false;
+    }, 450);
     // setPhase 由 MediaRecorder.onstop 控制：transcribing → review
   };
 
@@ -424,6 +446,7 @@ export default function PracticePage() {
         session={session}
         setChatInput={setChatInput}
         startNewRound={startNewRound}
+        actionsDisabled={feedbackActionsDisabled}
         t={t}
         toggleGap={toggleGap}
         transcript={transcript}

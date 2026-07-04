@@ -94,13 +94,19 @@ class FakeMediaRecorder {
   constructor(stream) {
     this.stream = stream;
     this.mimeType = "audio/webm";
+    this.state = "inactive";
     this.ondataavailable = null;
     this.onstop = null;
   }
   start() {
+    this.state = "recording";
+    this.ondataavailable?.({ data: { size: 10 } });
+  }
+  requestData() {
     this.ondataavailable?.({ data: { size: 10 } });
   }
   stop() {
+    this.state = "inactive";
     this.onstop?.();
   }
 }

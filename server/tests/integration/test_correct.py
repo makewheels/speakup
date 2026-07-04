@@ -64,6 +64,29 @@ def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_
     assert set(g.keys()) >= {"original", "better", "why", "category", "saveToReview"}
 
 
+def test_correct_rejects_unusable_ai_feedback_without_persisting_attempt(client, user_id, auth_headers, practice_id):
+    empty_result = {
+        "summary": "AI feedback could not be parsed. Try again.",
+        "nativeVersion": "",
+        "score": None,
+        "gaps": [],
+        "progress": None,
+    }
+    with _mock_correct(empty_result):
+        resp = client.post(
+            "/api/correct",
+            json={
+                "userId": user_id,
+                "practiceId": practice_id,
+                "text": "Please change it fast, my plane will fly soon.",
+            },
+            headers=auth_headers,
+        )
+    assert resp.status_code == 502
+    p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert p["attempts"] == []
+
+
 def test_correct_persists_attempt_with_round(client, user_id, auth_headers, practice_id):
     with _mock_correct():
         client.post(
