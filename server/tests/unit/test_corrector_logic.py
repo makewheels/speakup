@@ -172,6 +172,29 @@ def test_parse_result_keeps_feedback_when_model_output_is_wrapped_or_noisy():
     assert result["progress"]["verdict"] == "improved"
 
 
+def test_parse_result_accepts_content_blocks_and_trailing_commas():
+    raw = [
+        {
+            "type": "text",
+            "text": """
+            {
+              "summary": "任务完成了",
+              "nativeVersion": "Could you remake my latte?",
+              "score": "6.5",
+              "gaps": [
+                {"original": "redo", "better": "remake", "why": "remake 更准确", "category": "vocabulary",},
+              ],
+            }
+            """,
+        }
+    ]
+    result = _parse_result(raw)
+
+    assert result["nativeVersion"] == "Could you remake my latte?"
+    assert result["score"] == 6.5
+    assert result["gaps"][0]["better"] == "remake"
+
+
 def test_progress_model_defaults():
     p = ProgressInfo()
     assert p.verdict == "improved"

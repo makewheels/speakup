@@ -30,6 +30,7 @@ _SER_JSON = 0x1
 _SER_NONE = 0x0
 _COMP_NONE = 0x0
 _COMP_GZIP = 0x1
+_AUDIO_CHUNK_BYTES = 256 * 1024
 
 
 def _header(message_type: int, flags: int, serialization: int, compression: int) -> bytes:
@@ -79,6 +80,10 @@ def _audio_request(audio: bytes, *, last: bool) -> bytes:
         _SER_NONE,
         audio,
     )
+
+
+def _audio_chunks(audio: bytes) -> list[bytes]:
+    return [audio[i:i + _AUDIO_CHUNK_BYTES] for i in range(0, len(audio), _AUDIO_CHUNK_BYTES)] or [b""]
 
 
 def _parse_response(message: bytes | str) -> tuple[dict | None, bool]:
@@ -184,7 +189,10 @@ async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
         if data:
             text = _text_from_response(data) or text
 
-        await ws.send(_audio_request(mp3, last=True))
+        chunks = _audio_chunks(mp3)
+        for index, chunk in enumerate(chunks):
+            await ws.send(_audio_request(chunk, last=index == len(chunks) - 1))
+
         while True:
             data, final = _parse_response(await asyncio.wait_for(ws.recv(), timeout=60))
             if data:

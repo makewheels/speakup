@@ -89,6 +89,7 @@
     "loadScenarioFailed": "加载场景失败：{msg}",
     "transcriptionFailed": "转写失败：{msg}",
     "feedbackFailed": "反馈请求失败：{msg}",
+    "emptyFeedback": "AI 没有返回可用反馈，请重试。",
     "micFailed": "无法访问麦克风：{msg}",
     "removeFailed": "取消收录失败：{msg}",
     "addFailed": "加入错题本失败：{msg}"

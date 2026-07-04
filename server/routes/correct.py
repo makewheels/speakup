@@ -39,6 +39,10 @@ def _round_context(practice: dict) -> tuple[dict | None, dict | None, int]:
     return scenario, prev, round_no
 
 
+def _has_usable_feedback(result: dict) -> bool:
+    return bool((result.get("nativeVersion") or "").strip() or result.get("gaps"))
+
+
 async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: int) -> int:
     """写入练习的 attempts，并自动把 saveToReview=true 的 gap 存进 reviewItems（错题/复习项）。
     返回实际新增的复习项数量。
@@ -99,6 +103,8 @@ async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user
     scenario, prev, round_no = _round_context(practice)
     link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
     result = await correct_text(req.text, scenario, prev, round_no, link_to=link)
+    if not _has_usable_feedback(result):
+        raise HTTPException(502, result.get("summary") or "AI 没有返回可用反馈，请重试")
     auto_saved = await _save_attempt_and_review(req, result, round_no)
     return {"practiceId": req.practiceId, "autoSaved": auto_saved, "round": round_no, **result}
 
@@ -121,6 +127,9 @@ async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(curre
                 full_result = data
 
         if full_result:
+            if not _has_usable_feedback(full_result):
+                yield f"data: {json.dumps({'type': 'error', 'message': full_result.get('summary') or 'AI 没有返回可用反馈，请重试'})}\n\n"
+                return
             auto_saved = await _save_attempt_and_review(req, full_result, round_no)
             yield f"data: {json.dumps({'type': 'done', 'result': full_result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
 

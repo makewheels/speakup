@@ -89,6 +89,7 @@
     "loadScenarioFailed": "Failed to load scenario: {msg}",
     "transcriptionFailed": "Transcription failed: {msg}",
     "feedbackFailed": "Feedback request failed: {msg}",
+    "emptyFeedback": "AI did not return usable feedback. Please try again.",
     "micFailed": "Can't access microphone: {msg}",
     "removeFailed": "Failed to remove: {msg}",
     "addFailed": "Failed to add: {msg}"

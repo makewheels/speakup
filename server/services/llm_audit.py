@@ -26,6 +26,7 @@
 """
 
 import logging
+import json
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable
@@ -93,6 +94,26 @@ async def _safe_insert(doc: dict) -> None:
 
 # ---------- 公共 API ----------
 
+def content_to_text(content: Any) -> str:
+    """Normalize LangChain/OpenAI message content into plain text."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                parts.append(str(item.get("text") or item.get("content") or ""))
+            else:
+                parts.append(str(item))
+        return "".join(parts)
+    if isinstance(content, dict):
+        return str(content.get("text") or content.get("content") or json.dumps(content, ensure_ascii=False))
+    return str(content)
+
 async def audited_invoke(
     client: Any,
     messages: list,
@@ -123,7 +144,7 @@ async def audited_invoke(
 
     try:
         resp = await client.ainvoke(messages)
-        raw = resp.content
+        raw = content_to_text(resp.content)
         metadata = resp.response_metadata or {}
     except Exception as e:
         error = f"llm_invoke_failed: {e}"

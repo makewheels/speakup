@@ -25,6 +25,7 @@ function ScoreBadge({ score }) {
 }
 
 export default function PracticeFeedbackView({
+  actionsDisabled = false,
   autoSaved,
   chat,
   chatBusy,
@@ -182,15 +183,15 @@ export default function PracticeFeedbackView({
 
       <div className="actions-row" style={{ marginTop: 8 }}>
         {passed || lastRound ? (
-          <button className="su-btn su-btn-primary" onClick={() => startNewRound(session?.scenarioId)} style={{ flex: 1, height: 48 }}>
+          <button className="su-btn su-btn-primary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
             {t("practice.nextScenario")}&nbsp;<Icon name="next" size={16} />
           </button>
         ) : (
           <>
-            <button className="su-btn su-btn-primary" onClick={retrySame} style={{ flex: 2, height: 48 }}>
+            <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
               <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain")}
             </button>
-            <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} style={{ flex: 1, height: 48 }}>
+            <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
               {t("practice.next")}&nbsp;<Icon name="next" size={16} />
             </button>
           </>
