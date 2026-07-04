@@ -8,7 +8,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from db.connection import connect_db
+from logging_config import configure_logging
 from routes import auth, correct, practice_sessions, review_items, scenarios, transcribe, tts
+
+configure_logging()
 
 
 @asynccontextmanager

@@ -37,7 +37,8 @@ speakup:3001  → MongoDB (内网, MONGO_URI)
 
 /opt/speakup/                  # 业务服务
 ├── docker-compose.yml         # speakup 容器（CI 写入）
-└── .env                       # CI 写入
+├── .env                       # CI 写入
+└── logs/                      # 应用持久化日志（容器 /app/logs）
 
 /opt/<其他服务>/                # 同上模式
 ```
@@ -87,6 +88,9 @@ docker compose up -d
 ```bash
 # 业务日志
 docker compose -f /opt/speakup/docker-compose.yml logs -f --tail=50
+
+# 持久化应用日志（跨容器重建保留）
+tail -f /opt/speakup/logs/speakup.log
 
 # 网关日志
 docker compose -f /opt/caddy/docker-compose.yml logs -f
