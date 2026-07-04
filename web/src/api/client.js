@@ -219,9 +219,10 @@ export const api = {
   },
 
   // 全平台统一：录音上传 → 后端火山 openspeech ASR 返文本
-  transcribeAudio: (userId, blob) => {
+  transcribeAudio: (userId, blob, practiceId) => {
     const form = new FormData();
     form.append("userId", userId);
+    if (practiceId) form.append("practiceId", practiceId);
     const ext = (blob.type.includes("mp4") ? "m4a"
               : blob.type.includes("ogg") ? "ogg"
               : blob.type.includes("wav") ? "wav"

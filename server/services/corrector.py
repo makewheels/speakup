@@ -263,6 +263,10 @@ def _parse_result(raw: str) -> dict:
     return result.model_dump()
 
 
+def _is_usable(result: dict | None) -> bool:
+    return bool(result and ((result.get("nativeVersion") or "").strip() or result.get("gaps")))
+
+
 async def correct_text(
     text: str,
     scenario: dict | None = None,
@@ -331,7 +335,17 @@ async def correct_text_stream(
             if hasattr(chunk, "response_metadata") and chunk.response_metadata:
                 final_metadata = chunk.response_metadata
 
-        parsed = _parse_result(full_text)
+        parsed = _parse_result(full_text) if full_text.strip() else None
+        # 流式返空（生产偶发空 content）→ 降级非流式重取，避免结果页只剩用户原话
+        if not _is_usable(parsed):
+            try:
+                fallback = await correct_text(text, scenario, prev_attempt, round, link_to=link_to)
+                if _is_usable(fallback):
+                    parsed = fallback
+            except Exception as e:
+                logger.warning("correct_text_stream fallback failed: %s", e)
+        if parsed is None:
+            parsed = {**_EMPTY, "summary": "AI feedback could not be parsed. Try again."}
         yield "done", parsed
     except Exception as e:
         logger.error("correct_text_stream error: %s: %s", type(e).__name__, e)

@@ -124,6 +124,8 @@ export default function SessionView({
               </div>
             )}
 
+            {attempt.summary && <p className="fb-summary-line">{attempt.summary}</p>}
+
             {attempt.transcript && (
               <div className="fb-transcript-card">
                 <div className="fb-card-label">{t("practice.youSaid")}</div>
