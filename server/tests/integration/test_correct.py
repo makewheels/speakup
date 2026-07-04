@@ -43,6 +43,15 @@ def _mock_correct(result=FAKE_AI_RESULT):
     return patch("routes.correct.correct_text", new=AsyncMock(return_value=deepcopy(result)))
 
 
+def _mock_correct_stream(result=FAKE_AI_RESULT, chunks=None):
+    """mock 流式 correct_text_stream：先推 chunks，再推 done(result)。"""
+    async def _gen(*args, **kwargs):
+        for c in chunks or []:
+            yield "chunk", {"text": c}
+        yield "done", deepcopy(result)
+    return patch("routes.correct.correct_text_stream", new=_gen)
+
+
 def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_id):
     with _mock_correct():
         resp = client.post(
@@ -87,8 +96,8 @@ def test_correct_rejects_unusable_ai_feedback_without_persisting_attempt(client,
     assert p["attempts"] == []
 
 
-def test_correct_stream_uses_stable_result_and_persists_attempt(client, user_id, auth_headers, practice_id):
-    with _mock_correct():
+def test_correct_stream_streams_chunks_and_persists_attempt(client, user_id, auth_headers, practice_id):
+    with _mock_correct_stream(chunks=["Could you remake it?"]):
         with client.stream(
             "POST",
             "/api/correct/stream",
@@ -102,6 +111,7 @@ def test_correct_stream_uses_stable_result_and_persists_attempt(client, user_id,
             body = "".join(resp.iter_text())
 
     assert resp.status_code == 200
+    assert '"type": "chunk"' in body    # 流式 chunk 推送（前端字数动画来源）
     assert '"type": "done"' in body
     assert "Could you remake it?" in body
     p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()

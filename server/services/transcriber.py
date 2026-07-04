@@ -8,6 +8,7 @@ import asyncio
 import gzip
 import json
 import logging
+import re
 import tempfile
 import uuid
 from pathlib import Path
@@ -127,9 +128,24 @@ def _text_from_response(data: dict) -> str:
     if isinstance(result, dict):
         return (result.get("text") or "").strip()
     if isinstance(result, list):
-        texts = [str(item.get("text", "")).strip() for item in result if isinstance(item, dict)]
-        return " ".join(t for t in texts if t).strip()
+        # result_type=full 时 list 可能含重复/累积片段，取最长那条（最完整），避免 join 拼重
+        best = ""
+        for item in result:
+            if isinstance(item, dict):
+                t = str(item.get("text", "")).strip()
+                if len(t) > len(best):
+                    best = t
+        return best
     return ""
+
+
+def _capitalize_sentences(text: str) -> str:
+    """句首大写：ASR 返回全小写带标点，按句末标点把下一句首字母大写。"""
+    if not text:
+        return text
+    text = text.strip()
+    text = re.sub(r"([.!?]\s+)([a-z])", lambda m: m.group(1) + m.group(2).upper(), text)
+    return text[:1].upper() + text[1:]
 
 
 async def _to_pcm(audio_bytes: bytes, suffix: str) -> bytes:
@@ -201,4 +217,4 @@ async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
                 break
 
     logger.info("ASR transcribed %d bytes -> %d chars", len(audio_bytes), len(text))
-    return text
+    return _capitalize_sentences(text)

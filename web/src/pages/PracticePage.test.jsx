@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { act } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -347,9 +348,44 @@ describe("PracticePage", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    expect(api.transcribeAudio).toHaveBeenCalledWith(USER.userId, expect.any(Object));
+    expect(api.transcribeAudio).toHaveBeenCalledWith(USER.userId, expect.any(Object), "sess_abc");
     expect(screen.getByText("Can you redo my latte")).toBeInTheDocument();
     expect(screen.getAllByText(/AI is reviewing/).length).toBeGreaterThan(0);
+  });
+
+  // ── onDone 后不跳题（防回归）─────────────────────────
+
+  it("shows feedback page (not next scenario) after AI review done", async () => {
+    const { api, correctStream } = await import("../api/client.js");
+    setup("/practice/sess_abc");
+    await recordUntilEvaluating();
+    const onDone = correctStream.mock.calls[0][1].onDone;
+    await act(async () => {
+      onDone({
+        result: { summary: "不错", nativeVersion: "Could you remake it?", gaps: [], score: 6.0, progress: null },
+        autoSaved: 0,
+        round: 1,
+      });
+    });
+    expect(screen.getByText("Could you remake it?")).toBeInTheDocument();
+    expect(api.nextScenario).not.toHaveBeenCalled();   // onDone 不应跳下一题
+  });
+
+  it("falls back to review (not next scenario) when AI feedback is empty", async () => {
+    const { api, correctStream } = await import("../api/client.js");
+    vi.spyOn(window, "alert").mockImplementation(() => {});
+    setup("/practice/sess_abc");
+    await recordUntilEvaluating();
+    const onDone = correctStream.mock.calls[0][1].onDone;
+    await act(async () => {
+      onDone({
+        result: { summary: "", nativeVersion: "", gaps: [], score: null, progress: null },
+        autoSaved: 0,
+        round: 1,
+      });
+    });
+    expect(window.alert).toHaveBeenCalled();
+    expect(api.nextScenario).not.toHaveBeenCalled();   // 空反馈回 review，不跳下一题
   });
 
   it("shows review phase even when transcription fails", async () => {

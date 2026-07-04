@@ -225,6 +225,8 @@ export default function PracticePage() {
           if (r) setRound(r);
           setChat([]);
           setPhase("feedback");
+          // 结果页从顶部 AI 回复开始展示，Next 推到屏外防误触（对齐 retrySame）
+          window.scrollTo(0, 0);
           setFeedbackActionsDisabled(true);
           setTimeout(() => setFeedbackActionsDisabled(false), 1500);
           // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
@@ -278,7 +280,7 @@ export default function PracticePage() {
         clearInterval(timerRef.current);
         setPhase("transcribing");
         try {
-          const { text: txt } = await api.transcribeAudio(user.userId, blob);
+          const { text: txt } = await api.transcribeAudio(user.userId, blob, session?._id);
           setTranscript(txt || "");
           if ((txt || "").trim()) {
             evaluate(txt);

@@ -14,9 +14,15 @@ logger = logging.getLogger(__name__)
 async def transcribe_audio(
     audio: UploadFile = File(...),
     userId: str = Form(...),
+    practiceId: str = Form(None),
     token_user_id: str = Depends(current_user_id),
 ):
-    """上传录音返回转写文本（iOS / 不支持 Web Speech API 的浏览器走这条路）。"""
+    """上传录音返回转写文本。
+
+    practiceId 用于日志关联。火山 Seed-ASR bigmodel 实测不支持 hot_words/context/
+    fixed_prefix 等上下文字段（服务忽略未知字段），场景上下文传不进 ASR，故暂不取 scenario；
+    参数保留，便于将来换支持热词的 ASR 时直接注入上下文。
+    """
     assert_same_user(userId, token_user_id)
     audio_bytes = await audio.read()
     if not audio_bytes:
@@ -35,7 +41,8 @@ async def transcribe_audio(
         )
         raise HTTPException(500, f"ASR failed: {exc}") from exc
     logger.info(
-        "ASR done content_type=%s bytes=%s chars=%s duration_ms=%s",
+        "ASR done practiceId=%s content_type=%s bytes=%s chars=%s duration_ms=%s",
+        practiceId,
         audio.content_type,
         len(audio_bytes),
         len(text),
