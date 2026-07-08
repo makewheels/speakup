@@ -74,6 +74,13 @@ async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(cur
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
+        # 清理同 attempt 的历史重复条（早期 insert_one 可能产生多条），保证一个 attempt 一条
+        await get_db().feedbacks.delete_many({
+            "userId": token_user_id,
+            "practiceId": req.practiceId,
+            "attemptIndex": req.attemptIndex,
+            "_id": {"$ne": doc["_id"]},
+        })
         doc["_id"] = str(doc["_id"])
         return doc
 
@@ -107,7 +114,7 @@ async def list_my_feedbacks(
         if attemptIndex is not None:
             query["attemptIndex"] = attemptIndex
     items = []
-    async for f in get_db().feedbacks.find(query).sort("createdAt", -1):
+    async for f in get_db().feedbacks.find(query).sort([("updatedAt", -1), ("createdAt", -1)]):
         f["_id"] = str(f["_id"])
         items.append(f)
     return items
