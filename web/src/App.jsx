@@ -12,6 +12,7 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import PracticePreferencePage from "./pages/PracticePreferencePage.jsx";
 import ManageSharesPage from "./pages/ManageSharesPage.jsx";
 import SharePage from "./pages/SharePage.jsx";
+import FeedbackPage from "./pages/FeedbackPage.jsx";
 import "./App.css";
 import "./styles/practice-preferences.css";
 
@@ -36,6 +37,7 @@ function AppRoutes() {
         <Route path="/shares" element={<ManageSharesPage />} />
         <Route path="/me" element={<ProfilePage />} />
         <Route path="/me/practice-preferences" element={<PracticePreferencePage />} />
+        <Route path="/me/feedback" element={<FeedbackPage />} />
       </Route>
     </Routes>
   );

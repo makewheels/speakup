@@ -218,6 +218,36 @@
     "langZh": "中文",
     "langEn": "English",
     "practicePreference": "Practice preference",
-    "settings": "Settings"
+    "settings": "Settings",
+    "feedback": "Send feedback"
+  },
+  "feedback": {
+    "practiceQ": "Was this AI feedback helpful?",
+    "good": "Helpful",
+    "bad": "Not helpful",
+    "tag": {
+      "score_too_strict": "Score too strict",
+      "score_too_loose": "Score too lenient",
+      "gap_wrong": "Corrections inaccurate",
+      "native_unnatural": "Native version unnatural",
+      "transcript_wrong": "Transcript wrong",
+      "summary_bad": "Summary unhelpful"
+    },
+    "commentPh": "What was wrong? (optional)",
+    "submit": "Submit",
+    "thanks": "Thanks - it helps us improve",
+    "failed": "Failed to submit, please try again",
+    "title": "Feedback",
+    "generalIntro": "Tell us what's not working or suggest improvements.",
+    "tagGeneral": {
+      "product": "Product suggestion",
+      "scenario": "Scenario issue",
+      "asr": "Voice recognition",
+      "bug": "Bug",
+      "other": "Other"
+    },
+    "commentPhGeneral": "Tell us more…",
+    "submitGeneral": "Send feedback",
+    "submitted": "Got your feedback - thanks!"
   }
 }

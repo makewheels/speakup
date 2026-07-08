@@ -149,6 +149,12 @@ export default function Icon({ name, size = 20, color = "currentColor", stroke =
           <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
         </svg>
       );
+    case "message":
+      return (
+        <svg {...p}>
+          <path d="M21 11.5a8.5 8.5 0 0 1-12.2 7.7L3 21l1.8-5.8A8.5 8.5 0 1 1 21 11.5z" />
+        </svg>
+      );
     default:
       return null;
   }
