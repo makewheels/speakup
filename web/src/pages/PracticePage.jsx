@@ -18,7 +18,7 @@ const MAX_ROUNDS = 2;
 export default function PracticePage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { user } = useUser();
   const t = useT();
 
@@ -189,7 +189,8 @@ export default function PracticePage() {
     setRound((r) => Math.min(r + 1, MAX_ROUNDS));
     setSavedMap({});
     setPhase("ready");
-    setSearchParams({}, { replace: true });   // 离开结果态，清掉 URL 标记
+    // 离开结果态，清掉 ?result 标记；同样用 navigate 显式带 pathname，避免 setSearchParams 丢 pathname 触发自动跳题
+    if (session?._id) navigate(`/practice/${session._id}`, { replace: true });
     window.scrollTo(0, 0);
   };
 
@@ -230,7 +231,9 @@ export default function PracticePage() {
           setFeedbackActionsDisabled(true);
           setTimeout(() => setFeedbackActionsDisabled(false), 1500);
           // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
-          setSearchParams({ result: "1" }, { replace: true });
+          // 必须用 navigate 显式带 pathname：setSearchParams 在当前 react-router 版本下会丢掉
+          // pathname 使 useParams 的 practiceId 变空，触发 useEffect 走"无 practiceId"分支自动跳下一题
+          navigate(`/practice/${session._id}?result=1`, { replace: true });
           // 评估完成后异步上传录音，关联到本轮 attempt（失败静默忽略）
           if (audioChunksRef.current && session?._id) {
             api.uploadRecording(session._id, user.userId, audioChunksRef.current, (r ?? round) - 1)

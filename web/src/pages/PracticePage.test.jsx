@@ -388,6 +388,25 @@ describe("PracticePage", () => {
     expect(api.nextScenario).not.toHaveBeenCalled();   // 空反馈回 review，不跳下一题
   });
 
+  it("does not auto-advance to next scenario after AI review done (from /practice entry)", async () => {
+    const { api, correctStream } = await import("../api/client.js");
+    setup("/practice");
+    // 等首次 startNewRound 完成、场景加载到 ready
+    await waitFor(() => expect(screen.getByText("You got the wrong drink.")).toBeInTheDocument());
+    await recordUntilEvaluating();
+    const onDone = correctStream.mock.calls[0][1].onDone;
+    await act(async () => {
+      onDone({
+        result: { summary: "不错", nativeVersion: "Could you remake it?", gaps: [], score: 6.0, progress: null },
+        autoSaved: 0,
+        round: 1,
+      });
+    });
+    // 首次进入调过 1 次 nextScenario；onDone 后不应再调——setSearchParams 丢 pathname 会让
+    // practiceId 变空、useEffect 误走"无 practiceId"分支自动开新题
+    expect(api.nextScenario).toHaveBeenCalledTimes(1);
+  });
+
   it("shows review phase even when transcription fails", async () => {
     const { api } = await import("../api/client.js");
     api.transcribeAudio.mockRejectedValue(new Error("asr down"));
