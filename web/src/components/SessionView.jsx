@@ -4,6 +4,7 @@ import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
 import PracticeMedia from "./practice/PracticeMedia.jsx";
 import PracticeScenarioCard from "./practice/PracticeScenarioCard.jsx";
+import FeedbackBar from "./practice/FeedbackBar.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
 
@@ -203,6 +204,22 @@ export default function SessionView({
                   ))}
                 </div>
               )
+            )}
+
+            {!readOnly && (
+              <FeedbackBar
+                key={idx}
+                practiceId={practiceId}
+                attemptIndex={idx}
+                snapshot={{
+                  score: attempt.score,
+                  summary: attempt.summary,
+                  nativeVersion: attempt.nativeVersion,
+                  gaps: attempt.gaps,
+                  transcript: attempt.transcript,
+                  round: idx + 1,
+                }}
+              />
             )}
           </div>
         </>
