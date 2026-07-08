@@ -105,3 +105,32 @@ def test_list_rejects_userid_token_mismatch(client, user_id, auth_headers):
 def test_feedback_rejects_missing_token(client):
     r = client.post("/api/feedbacks", json={"type": "general"})
     assert r.status_code == 401
+
+
+def test_practice_feedback_upserts_same_attempt(client, user_id, auth_headers, practice_id):
+    # 同一 attempt 再提交 = 更新同一条，不新增
+    r1 = _submit_practice(client, user_id, auth_headers, practice_id, comment="第一次")
+    r2 = _submit_practice(client, user_id, auth_headers, practice_id, comment="改成这样", rating="good")
+    assert r1.json()["_id"] == r2.json()["_id"]
+    assert r2.json()["comment"] == "改成这样"
+    assert r2.json()["rating"] == "good"
+    items = client.get(f"/api/feedbacks?userId={user_id}", headers=auth_headers).json()
+    assert len(items) == 1
+
+
+def test_practice_feedback_separate_attempts_are_separate(client, user_id, auth_headers, practice_id):
+    _submit_practice(client, user_id, auth_headers, practice_id, attemptIndex=0)
+    _submit_practice(client, user_id, auth_headers, practice_id, attemptIndex=1)
+    items = client.get(f"/api/feedbacks?userId={user_id}", headers=auth_headers).json()
+    assert len(items) == 2
+
+
+def test_list_filters_by_practice_and_attempt(client, user_id, auth_headers, practice_id):
+    _submit_practice(client, user_id, auth_headers, practice_id, attemptIndex=0)
+    _submit_practice(client, user_id, auth_headers, practice_id, attemptIndex=1)
+    items = client.get(
+        f"/api/feedbacks?userId={user_id}&practiceId={practice_id}&attemptIndex=0",
+        headers=auth_headers,
+    ).json()
+    assert len(items) == 1
+    assert items[0]["attemptIndex"] == 0

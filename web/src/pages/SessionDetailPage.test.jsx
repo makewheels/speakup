@@ -12,6 +12,7 @@ vi.mock("../api/client.js", () => ({
     sharePractice: vi.fn(),
     unsharePractice: vi.fn(),
     submitFeedback: vi.fn(),
+    listMyFeedbacks: vi.fn(),
   },
   chatStream: vi.fn((data, { onChunk, onDone }) => {
     onChunk?.("hi");
@@ -63,9 +64,11 @@ function setup(practiceId = "sess_1") {
 }
 
 describe("SessionDetailPage", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
     vi.clearAllMocks();
+    const { api } = await import("../api/client.js");
+    api.listMyFeedbacks.mockResolvedValue([]);
   });
 
   it("shows the practice feedback bar on the history detail page", async () => {

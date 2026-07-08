@@ -3,6 +3,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from pymongo import ReturnDocument
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
@@ -36,16 +37,7 @@ class FeedbackRequest(BaseModel):
 async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(current_user_id)):
     valid_tags = PRACTICE_TAGS if req.type == "practice" else GENERAL_TAGS
     tags = [t for t in (req.tags or []) if t in valid_tags]
-
-    doc = {
-        "_id": feedback_id(),
-        "userId": token_user_id,
-        "type": req.type,
-        "rating": req.rating,
-        "tags": tags,
-        "comment": (req.comment or "").strip(),
-        "createdAt": datetime.now(timezone.utc),
-    }
+    comment = (req.comment or "").strip()
 
     if req.type == "practice":
         if not req.practiceId:
@@ -55,12 +47,46 @@ async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(cur
         )
         if not practice:
             raise HTTPException(404, "练习不存在")
-        doc["practiceId"] = req.practiceId
-        doc["attemptIndex"] = req.attemptIndex
-        doc["scenarioId"] = practice.get("scenarioId", "")
-        doc["scenarioTitle"] = practice.get("title", "")
-        doc["snapshot"] = req.snapshot or {}
+        # 一个 attempt 只一条反馈：同一 userId+practiceId+attemptIndex 存在则更新，不存在才新建。
+        # 这样下次打开这一轮能看到上次反馈并修改（覆盖更新，不保留历史）。
+        now = datetime.now(timezone.utc)
+        doc = await get_db().feedbacks.find_one_and_update(
+            {"userId": token_user_id, "practiceId": req.practiceId, "attemptIndex": req.attemptIndex},
+            {
+                "$set": {
+                    "type": "practice",
+                    "rating": req.rating,
+                    "tags": tags,
+                    "comment": comment,
+                    "scenarioId": practice.get("scenarioId", ""),
+                    "scenarioTitle": practice.get("title", ""),
+                    "snapshot": req.snapshot or {},
+                    "updatedAt": now,
+                },
+                "$setOnInsert": {
+                    "_id": feedback_id(),
+                    "userId": token_user_id,
+                    "practiceId": req.practiceId,
+                    "attemptIndex": req.attemptIndex,
+                    "createdAt": now,
+                },
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        doc["_id"] = str(doc["_id"])
+        return doc
 
+    # general 反馈不按 attempt 去重，每次新建一条
+    doc = {
+        "_id": feedback_id(),
+        "userId": token_user_id,
+        "type": "general",
+        "rating": req.rating,
+        "tags": tags,
+        "comment": comment,
+        "createdAt": datetime.now(timezone.utc),
+    }
     await get_db().feedbacks.insert_one(doc)
     doc["_id"] = str(doc["_id"])
     return doc
@@ -69,12 +95,19 @@ async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(cur
 @router.get("")
 async def list_my_feedbacks(
     userId: str = Query(...),
+    practiceId: str | None = Query(None),
+    attemptIndex: int | None = Query(None),
     token_user_id: str = Depends(current_user_id),
 ):
-    """当前用户自查自己提过的反馈。产品方查全量用 scripts/export_feedbacks.py。"""
+    """当前用户自查反馈。带 practiceId+attemptIndex 时精确取某一轮的练习反馈（0 或 1 条）。"""
     assert_same_user(userId, token_user_id)
+    query = {"userId": token_user_id}
+    if practiceId is not None:
+        query["practiceId"] = practiceId
+        if attemptIndex is not None:
+            query["attemptIndex"] = attemptIndex
     items = []
-    async for f in get_db().feedbacks.find({"userId": token_user_id}).sort("createdAt", -1):
+    async for f in get_db().feedbacks.find(query).sort("createdAt", -1):
         f["_id"] = str(f["_id"])
         items.append(f)
     return items

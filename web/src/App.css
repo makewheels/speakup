@@ -2701,6 +2701,13 @@ button { font-family: inherit; }
   text-align: center;
 }
 .fb-bar-err { color: #d64545; font-family: var(--ff-cn); font-size: 13px; margin: 6px 0 0; }
+.fb-existing { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.fb-existing-rating { font-size: 20px; line-height: 1.4; }
+.fb-existing-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.fb-existing-tags .fb-tag { cursor: default; }
+.fb-existing-comment { width: 100%; margin: 4px 0 0; font-family: var(--ff-cn); font-size: 13px; color: var(--ink-2); }
+.fb-edit-btn { margin-top: 10px; background: none; border: none; color: var(--accent); font-family: var(--ff-cn); font-size: 13px; cursor: pointer; padding: 0; }
+.fb-edit-btn:hover { text-decoration: underline; }
 
 .feedback-page { max-width: 560px; margin: 0 auto; padding: 8px 0 24px; }
 .feedback-page .page-title { font-family: var(--ff-cn); font-size: 22px; color: var(--ink); margin: 0 0 8px; }
