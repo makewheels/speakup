@@ -11,6 +11,7 @@ vi.mock("../api/client.js", () => ({
     getPractice: vi.fn(),
     sharePractice: vi.fn(),
     unsharePractice: vi.fn(),
+    submitFeedback: vi.fn(),
   },
   chatStream: vi.fn((data, { onChunk, onDone }) => {
     onChunk?.("hi");
@@ -65,6 +66,13 @@ describe("SessionDetailPage", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+  });
+
+  it("shows the practice feedback bar on the history detail page", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue(SESSION);
+    setup();
+    await waitFor(() => expect(screen.getByText("Was this AI feedback helpful?")).toBeInTheDocument());
   });
 
   it("shows loading while fetching", async () => {
