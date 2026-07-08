@@ -1,4 +1,5 @@
 from utils.id_generator import (
+    feedback_id,
     llm_call_id,
     practice_session_id,
     review_item_id,
@@ -13,6 +14,7 @@ def test_prefixes():
     assert review_item_id().startswith("rv_")
     assert scenario_id().startswith("sc_")
     assert llm_call_id().startswith("llm_")
+    assert feedback_id().startswith("fb_")
 
 
 def test_ids_are_unique():
@@ -36,3 +38,5 @@ def test_id_length():
     assert len(review_item_id()) == 26
     # llm_ (4) + 13位时间戳 + 10位hex = 27字符
     assert len(llm_call_id()) == 27
+    # fb_ (3) + 13位时间戳 + 10位hex = 26字符
+    assert len(feedback_id()) == 26

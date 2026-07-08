@@ -3,6 +3,7 @@ import RecordingPlayer from "../RecordingPlayer.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
+import FeedbackBar from "./FeedbackBar.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
 const splitSentences = (s = "") =>
@@ -180,6 +181,19 @@ export default function PracticeFeedbackView({
           </button>
         </div>
       </div>
+
+      <FeedbackBar
+        practiceId={session?._id}
+        attemptIndex={Math.max(0, (round ?? 1) - 1)}
+        snapshot={{
+          score: result.score,
+          summary: result.summary,
+          nativeVersion: result.nativeVersion,
+          gaps: result.gaps,
+          transcript,
+          round,
+        }}
+      />
 
       <div className="actions-row" style={{ marginTop: 8 }}>
         {passed || lastRound ? (

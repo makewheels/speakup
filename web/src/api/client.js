@@ -267,4 +267,8 @@ export const api = {
     request(`/review-items/${id}/review?userId=${userId}`, { method: "POST", body: { remembered } }),
   deleteReviewItem: (id, userId) =>
     request(`/review-items/${id}?userId=${userId}`, { method: "DELETE" }),
+
+  // 用户反馈（结果页对 AI 反馈评价 / 全局建议）
+  submitFeedback: (data) => request("/feedbacks", { method: "POST", body: data }),
+  listMyFeedbacks: (userId) => request(`/feedbacks?userId=${userId}`),
 };

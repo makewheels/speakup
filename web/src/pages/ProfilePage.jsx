@@ -84,6 +84,12 @@ export default function ProfilePage() {
         <Icon name="next" size={16} color="var(--ink-4)" />
       </button>
 
+      <button className="profile-entry" onClick={() => navigate("/me/feedback")}>
+        <Icon name="message" size={18} color="var(--ink-3)" />
+        <span>{t("profile.feedback")}</span>
+        <Icon name="next" size={16} color="var(--ink-4)" />
+      </button>
+
       <button className="su-btn su-btn-danger" onClick={handleLogout}>
         {t("profile.logout")}
       </button>

@@ -218,6 +218,36 @@
     "langZh": "中文",
     "langEn": "English",
     "practicePreference": "练习偏好",
-    "settings": "设置"
+    "settings": "设置",
+    "feedback": "反馈建议"
+  },
+  "feedback": {
+    "practiceQ": "这次 AI 反馈对你有帮助吗？",
+    "good": "有用",
+    "bad": "没用",
+    "tag": {
+      "score_too_strict": "评分太严",
+      "score_too_loose": "评分太松",
+      "gap_wrong": "改进点不准",
+      "native_unnatural": "Native 版本不地道",
+      "transcript_wrong": "转录听错了",
+      "summary_bad": "总结不到位"
+    },
+    "commentPh": "具体哪里不好？（可选）",
+    "submit": "提交",
+    "thanks": "谢谢反馈，帮我们改进",
+    "failed": "提交失败，请稍后再试",
+    "title": "反馈建议",
+    "generalIntro": "觉得哪里不好用，或有建议，告诉我们。",
+    "tagGeneral": {
+      "product": "产品建议",
+      "scenario": "题目问题",
+      "asr": "录音识别",
+      "bug": "Bug",
+      "other": "其他"
+    },
+    "commentPhGeneral": "详细说说…",
+    "submitGeneral": "提交反馈",
+    "submitted": "已收到你的反馈，谢谢！"
   }
 }
