@@ -1,4 +1,5 @@
-from tests.conftest import login_headers
+from pymongo import MongoClient
+from tests.conftest import TEST_DB_NAME, login_headers
 
 
 def _submit_practice(client, user_id, auth_headers, practice_id, **overrides):
@@ -134,3 +135,19 @@ def test_list_filters_by_practice_and_attempt(client, user_id, auth_headers, pra
     ).json()
     assert len(items) == 1
     assert items[0]["attemptIndex"] == 0
+
+
+def test_submit_clears_historical_duplicates(client, user_id, auth_headers, practice_id):
+    # 模拟早期 insert_one 在同一 attempt 留下的多条历史反馈
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+    db.feedbacks.insert_many([
+        {"_id": "fb_old1", "userId": user_id, "type": "practice", "rating": "bad",
+         "practiceId": practice_id, "attemptIndex": 0, "tags": [], "comment": "旧1"},
+        {"_id": "fb_old2", "userId": user_id, "type": "practice", "rating": "bad",
+         "practiceId": practice_id, "attemptIndex": 0, "tags": [], "comment": "旧2"},
+    ])
+    # 再提交一次：upsert 更新一条 + 清理多余，最终只剩一条
+    _submit_practice(client, user_id, auth_headers, practice_id, comment="新的")
+    items = client.get(f"/api/feedbacks?userId={user_id}", headers=auth_headers).json()
+    assert len(items) == 1
+    assert items[0]["comment"] == "新的"
