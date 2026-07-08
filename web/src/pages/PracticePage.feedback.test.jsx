@@ -17,6 +17,8 @@ vi.mock("../api/client.js", () => ({
     addReviewItems: vi.fn(),
     deleteReviewItem: vi.fn(),
     tts: vi.fn(),
+    submitFeedback: vi.fn(),
+    listMyFeedbacks: vi.fn(),
   },
   correctStream: vi.fn(),
   chatStream: vi.fn(),
@@ -140,6 +142,8 @@ describe("PracticePage feedback", () => {
     api.uploadRecording.mockResolvedValue({});
     api.addReviewItems.mockResolvedValue({ ids: ["rv_1"] });
     api.deleteReviewItem.mockResolvedValue({});
+    api.submitFeedback.mockResolvedValue({});
+    api.listMyFeedbacks.mockResolvedValue([]);
     installMediaStubs();
   });
 

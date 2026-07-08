@@ -270,5 +270,10 @@ export const api = {
 
   // 用户反馈（结果页对 AI 反馈评价 / 全局建议）
   submitFeedback: (data) => request("/feedbacks", { method: "POST", body: data }),
-  listMyFeedbacks: (userId) => request(`/feedbacks?userId=${userId}`),
+  listMyFeedbacks: (userId, filter = {}) => {
+    let qs = `userId=${userId}`;
+    if (filter.practiceId != null) qs += `&practiceId=${filter.practiceId}`;
+    if (filter.attemptIndex != null) qs += `&attemptIndex=${filter.attemptIndex}`;
+    return request(`/feedbacks?${qs}`);
+  },
 };
