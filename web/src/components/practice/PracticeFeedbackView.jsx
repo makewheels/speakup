@@ -1,5 +1,5 @@
 import Icon from "../Icon.jsx";
-import RecordingPlayer from "../RecordingPlayer.jsx";
+import RecordingPlayBtn from "../RecordingPlayBtn.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
@@ -62,8 +62,6 @@ export default function PracticeFeedbackView({
       )}
       <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
 
-      {recordingUrl && <RecordingPlayer src={recordingUrl} />}
-
       <ScoreBadge score={result.score} />
 
       {result.summary && <p className="fb-summary-line">{result.summary}</p>}
@@ -90,7 +88,10 @@ export default function PracticeFeedbackView({
 
       {transcript && (
         <div className="fb-transcript-card">
-          <div className="fb-card-label">{t("practice.youSaid")}</div>
+          <div className="fb-card-label">
+            {t("practice.youSaid")}
+            {recordingUrl && <RecordingPlayBtn src={recordingUrl} />}
+          </div>
           <p className="fb-transcript-text">{transcript}</p>
         </div>
       )}

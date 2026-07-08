@@ -1551,6 +1551,8 @@ button { font-family: inherit; }
   font-size: 13px;
   color: var(--ink-2);
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
 }
 .fb-card-label.native { color: var(--accent); display: flex; align-items: center; }
 /* You said —— 与 native version 同字号(19)，无底色，区别只在颜色（黑 vs 蓝） */
