@@ -26,7 +26,7 @@ end-to-end 评估 `server/services/corrector.py` 的 LLM 判题——给 prompt 
 
 ### 2026-06-24 首次基线
 
-跟用 `glm-5.2`，3 trials × 12 条 regression + 1 trial × 14 条 capability：
+使用 `glm-5.2`，3 trials × 12 条 regression + 1 trial × 14 条 capability：
 
 | 集子 | 通过 | 备注 |
 |---|---|---|

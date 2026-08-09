@@ -11,14 +11,14 @@ graph TB
     subgraph "Web 前端 (React 19 + Vite, :5173)"
         Web[App Router + UserContext] --> Pages[Login / Practice / Vocabulary / History / SessionDetail / Profile]
         Pages --> Client[api/client.js<br/>fetch + SSE]
-        Pages --> TTS[utils/tts.js<br/>speechSynthesis]
-        Pages --> SR[Web Speech API 语音识别<br/>MediaRecorder 录音]
+        Pages --> TTS[utils/tts.js<br/>后端 TTS + Audio 播放]
+        Pages --> SR[MediaRecorder 录音<br/>后端 ASR 转写]
     end
 
     Client ==>|/api/*| API
 
     subgraph "Server 后端 (FastAPI, :3001)"
-        API[main.py] --> R[routes: auth / scenarios / correct / sessions / vocabulary]
+        API[main.py] --> R[routes: auth / scenarios / correct / transcribe / tts / sessions / vocabulary]
         R --> Corrector[services/corrector.py<br/>口语评估 + 三轮 progress]
         R --> Scen[services/scenario_service.py<br/>派题 + 定制题后台生成]
         Scen --> Wanx[services/wanx.py 文生图]
@@ -26,8 +26,9 @@ graph TB
         R --> DB[db/connection.py]
     end
 
-    Corrector --> Ark[Volcengine Agent Plan · env CHAT_MODEL]
-    Wanx --> Seedream[Volcengine Agent Plan · env IMAGE_MODEL]
+    Corrector --> DashScope[阿里云百炼 · glm-5.2]
+    R --> Voice[阿里云百炼 · qwen3-asr-flash / qwen3-tts-flash]
+    Wanx -.默认关闭.-> Seedream[火山方舟 · env IMAGE_MODEL]
     OSS --> Aliyun[阿里云 OSS 私有桶<br/>签名 URL 1h]
     DB --> Mongo[(MongoDB speakup-dev)]
 ```
@@ -40,7 +41,9 @@ graph TB
 | `/api/scenarios/next` | GET | 派题：定制题 > 未练公共题 > 轮换 | MongoDB + OSS 签名 |
 | `/api/sessions` | GET/POST | 创建会话（存场景快照）/ 历史列表 | MongoDB |
 | `/api/sessions/{id}/recording` | POST | 上传录音，关联本轮 attempt | OSS |
-| `/api/correct` `/api/correct/stream` | POST | AI 评估（流式 SSE），错点自动进复习 | Agent Plan + MongoDB |
+| `/api/correct` `/api/correct/stream` | POST | AI 评估（流式 SSE），错点自动进复习 | 百炼文本模型 + MongoDB |
+| `/api/transcribe` | POST | 录音转写 | 百炼 Qwen ASR |
+| `/api/tts` | POST | 文本转自然语音并缓存到 OSS | 百炼 Qwen TTS + OSS |
 | `/api/vocabulary` | GET/POST/PUT/DELETE | 错题本 + SM-2 间隔重复 | MongoDB |
 
 ## 数据流（一次练习）
@@ -50,7 +53,7 @@ sequenceDiagram
     participant U as 用户
     participant W as Web
     participant S as Server
-    participant Q as Qwen
+    participant Q as DashScope GLM/Qwen
     U->>W: 进入练习页
     W->>S: GET /scenarios/next → POST /sessions
     S-->>W: 场景（图 + 情境 + 任务）

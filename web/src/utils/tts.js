@@ -1,5 +1,5 @@
-// 朗读：点击时调后端 /api/tts（DashScope CosyVoice，自然音）。
-// 后端按 (practiceId, 文本) hash 把 mp3 存到 practiceSessions/{practiceId}/tts/，
+// 朗读：点击时调后端 /api/tts（DashScope Qwen TTS，自然音）。
+// 后端按 (practiceId, 文本) hash 把 wav 存到 practiceSessions/{practiceId}/tts/，
 // 这样所有 session 资源都在 practiceSessions/ 下；session 内重听同一段命中 OSS 缓存不重花钱。
 import { api } from "../api/client.js";
 
