@@ -13,6 +13,7 @@ from services.corrector import (
     _build_messages,
     _followup_context,
     _get_client,
+    _is_too_short,
     _parse_result,
     correct_text,
     correct_text_stream,
@@ -45,14 +46,29 @@ def _fake_llm(result: CorrectResult):
     return fake_client
 
 
-def test_get_client_disables_thinking_explicitly(monkeypatch):
+def test_get_client_disables_thinking_for_dashscope(monkeypatch):
     fake_chat = MagicMock(return_value="client")
     monkeypatch.setattr("services.corrector._client", None)
     monkeypatch.setattr("services.corrector.CHAT_THINKING", False)
+    monkeypatch.setattr(
+        "services.corrector.CHAT_BASE_URL",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    )
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
     assert _get_client() == "client"
 
+    assert fake_chat.call_args.kwargs["extra_body"] == {"enable_thinking": False}
+
+
+def test_get_client_uses_volcengine_thinking_shape(monkeypatch):
+    fake_chat = MagicMock(return_value="client")
+    monkeypatch.setattr("services.corrector._client", None)
+    monkeypatch.setattr("services.corrector.CHAT_THINKING", False)
+    monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+    monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
+
+    assert _get_client() == "client"
     assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
@@ -67,6 +83,12 @@ def test_short_input_skips_llm_entirely():
 def test_empty_input_skips_llm():
     result = asyncio.run(correct_text(""))
     assert result["gaps"] == []
+
+
+def test_chinese_only_input_must_reach_evaluator_instead_of_short_fast_path():
+    assert _is_too_short("这个我不知道怎么说") is False
+    assert _is_too_short("I 不知道") is False
+    assert _is_too_short("hi") is True
 
 
 def test_valid_json_response_mapped_to_schema():
@@ -98,6 +120,15 @@ def test_scenario_block_included_in_user_message():
     user = messages[-1].content
     assert SCENARIO["story"] in user
     assert SCENARIO["mission"] in user
+
+
+def test_system_prompt_marks_non_english_answer_as_failed_task():
+    messages = _build_messages("我想让他重做拿铁", scenario=SCENARIO)
+    system = messages[0].content
+    assert "主要是中文" in system
+    assert "score 不得高于 2.0" in system
+    assert "忽略大小写" in system
+    assert "所有必要信息" in system
 
 
 def test_no_scenario_no_block():

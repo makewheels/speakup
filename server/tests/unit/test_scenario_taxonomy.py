@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services import scenario_service
+from services import public_scenario_service, scenario_service
 
 
 def test_load_taxonomy_real_file():
@@ -29,6 +29,42 @@ def test_taxonomy_sub_ids_unique():
     assert len(ids) == len(set(ids)), "duplicate sub ids: " + str(
         [i for i in ids if ids.count(i) > 1]
     )
+
+
+def test_existing_examples_are_injected_as_negative_examples():
+    block = public_scenario_service._existing_examples_block([{
+        "title": "误车后窗口改签",
+        "story": "你错过了火车。",
+        "mission": "请工作人员帮你改签。",
+    }])
+    assert "误车后窗口改签" in block
+    assert "不得换词复述" in block
+
+
+def test_near_duplicate_detects_same_title_or_high_text_similarity():
+    existing = [{
+        "title": "火车站改签车票",
+        "story": "你因为堵车错过了火车，下一班很快发车。",
+        "mission": "请售票员帮你改签下一班。",
+    }]
+    assert public_scenario_service._is_near_duplicate({
+        "title": "火车站改签车票",
+        "story": "完全不同的故事",
+        "mission": "完全不同的任务",
+    }, existing)
+    assert not public_scenario_service._is_near_duplicate({
+        "title": "卧铺车厢灯太亮",
+        "story": "临铺旅客深夜仍在开灯视频通话。",
+        "mission": "请他戴耳机并关掉大灯。",
+    }, existing)
+
+
+def test_generated_spec_requires_exactly_two_speakable_points():
+    with pytest.raises(RuntimeError, match="exactly two"):
+        public_scenario_service._validate_spec({
+            "title": "题目", "where": "地点", "story": "情景", "mission": "任务",
+            "points": ["只有一条"],
+        })
 
 
 def _fake_db_with_counts(counts: dict[str, int]):

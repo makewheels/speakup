@@ -53,10 +53,10 @@ routes/scenarios.py: _maybe_topup(userId)  ← fire-and-forget 后台任务
         ↓ undercovered_subs()
         ↓ 读 yaml + 聚合 scenarios 集合 → 找出 actual<target 的 sub
         ↓ 按 (gap 大优先，同 gap 内 shuffle) 排序
-        ↓ 取第 1 个 coord
+        ↓ 按 subId 获取 Mongo 生成租约，锁内重查 actual<target
         ↓
         ↓ topup_public_scenario(coord)
-        ↓ LLM 按坐标编故事 → 万相生图 → 入 scenarios 集合（category 字段标坐标）
+        ↓ 带同坐标已有题反例让 LLM 编故事 → 近重复检查 → 可选生图 → 入库
         ↓
         所有 sub 达 target → undercovered_subs 返回空 → 自动短路停止花钱
 ```
@@ -108,6 +108,7 @@ uv run python scripts/sync_public_scenarios.py --to prod
 3. **改 yaml 时不要碰已有 sub 的 `id` 字段** — 它写进了 scenarios.category.subId，改 ID 会让旧题找不到归属，覆盖统计错乱。要重命名先 inactive 老题、加新 sub。
 4. **加 sub 不影响老题** — yaml 里删一个 sub 不会自动 inactive 老题，需要单独清理。
 5. **dry-run 是便宜的安全检查** — 改 prompt / 加 sub 后必跑一次 dry-run 看文案，再花生图钱。
+6. **不要绕过生成租约** — `actual<target` 的统计不是写入锁；任何新补题入口都必须在同一个 `subId` 租约内重查数量后再生成。
 
 ## 设计选型笔记
 

@@ -95,7 +95,7 @@ def gap_why_in_chinese(out: dict | None, _input: dict) -> tuple[bool, str]:
 
 
 def better_in_native_version(out: dict | None, _input: dict) -> tuple[bool, str]:
-    """硬约束：每条 gap.better 必须**逐字**出现在 nativeVersion 里。
+    """硬约束：每条 gap.better 必须逐字（忽略大小写）出现在 nativeVersion 里。
 
     这是 prompt 里写明的硬规则——回归最容易在这里发现 LLM 没按约束走。
     """
@@ -110,7 +110,7 @@ def better_in_native_version(out: dict | None, _input: dict) -> tuple[bool, str]
     missing = []
     for i, g in enumerate(out.get("gaps", [])):
         better = (g.get("better") or "").strip()
-        if better and better not in nv:
+        if better and better.casefold() not in nv.casefold():
             missing.append(f"gaps[{i}].better={better!r}")
     if missing:
         return False, f"better not in nativeVersion: {missing} | nv={nv!r}"

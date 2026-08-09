@@ -6,8 +6,8 @@
 
 1. 输入手机号登录（MVP，无验证码）
 2. 系统给一张场景图片
-3. 看着图片用英语描述（Chrome 浏览器语音识别）
-4. AI（VLM）看图 + 听你描述，纠正语法/用词、补充你漏掉的细节、推荐更地道的表达
+3. 根据场景任务录一段英语，Qwen-ASR 转成文字
+4. AI 根据任务和你的原话，判断是否办成、纠错并给出更地道的表达
 5. 收藏生词到生词本，间隔复习
 
 ## 技术栈
@@ -17,16 +17,17 @@
 | 前端 | React 19 + Vite 8 |
 | 后端 | FastAPI (Python 3.14) |
 | 数据库 | MongoDB |
-| 图片来源 | loremflickr 按 topic 关键词 |
-| AI 反馈 | DashScope qwen3-vl-plus (VLM) |
-| 部署 | Nginx + PM2, GitHub Actions 自动部署 |
+| 图片来源 | 阿里云 OSS（旧题已生成素材） |
+| AI 反馈/出题 | 阿里云百炼 `glm-5.2` |
+| ASR / TTS | 百炼 `qwen3-asr-flash` / `qwen3-tts-flash` |
+| 部署 | Docker Compose + Caddy，GitHub Actions 自动部署 |
 
 ## 本地开发
 
 ```bash
 # 后端
 cd server
-cp .env.example .env       # 填入 DASHSCOPE_API_KEY
+cp .env.example .env       # 分别填入 CHAT_API_KEY / VOICE_API_KEY
 uv sync
 uv run python main.py      # http://localhost:3001
 
@@ -52,7 +53,8 @@ git push  # 自动触发部署
 
 | 变量 | 说明 |
 |------|------|
-| DASHSCOPE_API_KEY | 阿里云 DashScope |
+| CHAT_API_KEY | 文字 LLM 密钥（生产为百炼） |
+| VOICE_API_KEY | ASR/TTS 密钥（生产为百炼） |
 | MONGO_URI | 本地 localhost / 生产内网地址 |
 | PORT | API 端口，默认 3001 |
 | APP_ENV | development / production |

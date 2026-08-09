@@ -12,9 +12,9 @@ services:
       - APP_LOG_BACKUP_COUNT=${APP_LOG_BACKUP_COUNT:-30}
       - APP_LOG_UTC=${APP_LOG_UTC:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      # 文字/对话 LLM（火山方舟 Agent Plan）
+      # 文字/对话 LLM（阿里云百炼 OpenAI 兼容接口）
       - CHAT_API_KEY=${CHAT_API_KEY}
-      - CHAT_BASE_URL=${CHAT_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}
+      - CHAT_BASE_URL=${CHAT_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
       - CHAT_MODEL=${CHAT_MODEL:-glm-5.2}
       - CHAT_THINKING=${CHAT_THINKING:-false}
       # 图片生成（火山 Seedream，默认关闭省钱）
@@ -23,18 +23,16 @@ services:
       - IMAGE_MODEL=${IMAGE_MODEL:-doubao-seedream-5.0-lite}
       - IMAGE_SIZE=${IMAGE_SIZE:-2560x1440}
       - IMAGE_ENABLED=${IMAGE_ENABLED:-false}
-      # 语音 ASR + TTS（火山 openspeech Agent Plan）
+      # 语音 ASR + TTS（阿里云百炼）
       - VOICE_API_KEY=${VOICE_API_KEY}
-      - VOICE_APP_KEY=${VOICE_APP_KEY:-plan}
-      - VOICE_BASE_URL=${VOICE_BASE_URL:-https://openspeech.bytedance.com/api/v3/plan}
-      - VOICE_WS_BASE_URL=${VOICE_WS_BASE_URL:-wss://openspeech.bytedance.com/api/v3/plan}
-      - VOICE_TTS_URL=${VOICE_TTS_URL:-https://openspeech.bytedance.com/api/v3/plan/tts/unidirectional}
-      - VOICE_ASR_URL=${VOICE_ASR_URL:-wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_nostream}
-      - TTS_RESOURCE_ID=${TTS_RESOURCE_ID:-seed-tts-2.0}
-      - TTS_MODEL=${TTS_MODEL:-seed-tts-2.0}
-      - TTS_VOICE=${TTS_VOICE:-zh_female_vv_uranus_bigtts}
-      - ASR_RESOURCE_ID=${ASR_RESOURCE_ID:-volc.seedasr.sauc.duration}
-      - ASR_MODEL=${ASR_MODEL:-bigmodel}
+      - VOICE_PROVIDER=${VOICE_PROVIDER:-dashscope}
+      - VOICE_BASE_URL=${VOICE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - VOICE_TTS_URL=${VOICE_TTS_URL:-https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation}
+      - VOICE_ASR_URL=${VOICE_ASR_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+      - TTS_MODEL=${TTS_MODEL:-qwen3-tts-flash}
+      - TTS_VOICE=${TTS_VOICE:-Cherry}
+      - TTS_LANGUAGE=${TTS_LANGUAGE:-English}
+      - ASR_MODEL=${ASR_MODEL:-qwen3-asr-flash}
       # 视频生成 helper（未接 UI）
       - VIDEO_API_KEY=${VIDEO_API_KEY}
       - VIDEO_BASE_URL=${VIDEO_BASE_URL:-https://ark.cn-beijing.volces.com/api/plan/v3}

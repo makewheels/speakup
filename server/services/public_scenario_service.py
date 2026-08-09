@@ -3,11 +3,15 @@
 import json
 import random
 import re
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 import yaml
 from langchain_core.messages import HumanMessage, SystemMessage
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from db.connection import get_db
 from services.corrector import _get_client
@@ -22,6 +26,7 @@ from services.scenario_videos import maybe_gen_video
 from utils.id_generator import scenario_id
 
 TAXONOMY_PATH = Path(__file__).parent.parent / "data" / "scenario_taxonomy.yaml"
+GENERATION_LEASE_SECONDS = 10 * 60
 
 PUBLIC_GEN_PROMPT = """你是英语口语教练，给中国成年学习者出题。
 
@@ -137,16 +142,70 @@ async def undercovered_subs(skip_ids: set[str] | None = None) -> list[dict]:
     return out
 
 
-async def _llm_spec_for_coord(coord: dict, link_to: dict | None = None) -> dict:
+def _existing_examples_block(examples: list[dict] | None) -> str:
+    if not examples:
+        return ""
+    rows = []
+    for index, item in enumerate(examples[:8], 1):
+        rows.append(
+            f'{index}. 标题「{item.get("title", "")}」；'
+            f'情景「{item.get("story", "")}」；'
+            f'任务「{item.get("mission", "")}」'
+        )
+    return (
+        "\n\n# 同坐标已有题（新题不得换词复述）\n"
+        + "\n".join(rows)
+        + "\n必须在具体地点、角色关系、核心冲突和说话目标中至少改变两项，"
+          "同时仍严格属于指定子场景。"
+    )
+
+
+def _scenario_similarity(left: dict, right: dict) -> float:
+    def normalized(value: object) -> str:
+        return re.sub(r"[^\w\u3400-\u9fff]+", "", str(value or "").lower())
+
+    left_text = normalized(" ".join(str(left.get(k, "")) for k in ("title", "story", "mission")))
+    right_text = normalized(" ".join(str(right.get(k, "")) for k in ("title", "story", "mission")))
+    if not left_text or not right_text:
+        return 0.0
+    return SequenceMatcher(None, left_text, right_text).ratio()
+
+
+def _is_near_duplicate(spec: dict, existing: list[dict]) -> bool:
+    title = re.sub(r"\W+", "", str(spec.get("title", "")).lower())
+    for item in existing:
+        other_title = re.sub(r"\W+", "", str(item.get("title", "")).lower())
+        if title and title == other_title:
+            return True
+        if _scenario_similarity(spec, item) >= 0.78:
+            return True
+    return False
+
+
+def _validate_spec(spec: dict) -> None:
+    missing = [key for key in ("title", "where", "story", "mission") if not str(spec.get(key, "")).strip()]
+    points = spec.get("points")
+    if missing:
+        raise RuntimeError(f"public scenario missing fields: {', '.join(missing)}")
+    if not isinstance(points, list) or len(points) != 2 or not all(str(p).strip() for p in points):
+        raise RuntimeError("public scenario must contain exactly two non-empty points")
+
+
+async def _llm_spec_for_coord(
+    coord: dict,
+    link_to: dict | None = None,
+    existing_examples: list[dict] | None = None,
+) -> dict:
     """调 LLM 按坐标编故事，返回解析后的 spec dict（不入库不生图）。"""
+    system_prompt = PUBLIC_GEN_PROMPT.format(
+        domain=coord["domainName"],
+        sub=coord["subName"],
+        kind=coord["kind"],
+        difficulty=coord["difficulty"],
+        note=coord["note"],
+    ) + _existing_examples_block(existing_examples)
     messages = [
-        SystemMessage(content=PUBLIC_GEN_PROMPT.format(
-            domain=coord["domainName"],
-            sub=coord["subName"],
-            kind=coord["kind"],
-            difficulty=coord["difficulty"],
-            note=coord["note"],
-        )),
+        SystemMessage(content=system_prompt),
         HumanMessage(content="出一道。"),
     ]
 
@@ -160,7 +219,50 @@ async def _llm_spec_for_coord(coord: dict, link_to: dict | None = None) -> dict:
     )
     if result["error"] or not result["parsed"]:
         raise RuntimeError(f"public scenario gen failed: {result['error']}")
-    return result["parsed"]
+    spec = result["parsed"]
+    _validate_spec(spec)
+    return spec
+
+
+async def _acquire_generation_lease(sub_id: str) -> str | None:
+    """给子场景加跨进程租约，避免多个请求同时看到 actual<target 后超发。"""
+    now = datetime.now(timezone.utc)
+    token = secrets.token_urlsafe(18)
+    try:
+        doc = await get_db().scenarioGenerationLocks.find_one_and_update(
+            {
+                "_id": sub_id,
+                "$or": [
+                    {"expiresAt": {"$lte": now}},
+                    {"expiresAt": {"$exists": False}},
+                ],
+            },
+            {"$set": {"token": token, "expiresAt": now + timedelta(seconds=GENERATION_LEASE_SECONDS)}},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+    except DuplicateKeyError:
+        return None
+    return token if doc and doc.get("token") == token else None
+
+
+async def _release_generation_lease(sub_id: str, token: str) -> None:
+    await get_db().scenarioGenerationLocks.delete_one({"_id": sub_id, "token": token})
+
+
+def _base_doc(coord: dict, spec: dict) -> dict:
+    return {
+        "category": {"domain": coord["domainShort"], "subId": coord["subId"]},
+        "kind": coord["kind"],
+        "title": spec.get("title", ""),
+        "where": spec.get("where", ""),
+        "story": spec.get("story", ""),
+        "mission": spec.get("mission", ""),
+        "points": spec.get("points", []),
+        "difficulty": coord["difficulty"],
+        "imagePrompt": spec.get("imagePrompt", ""),
+        "videoPrompt": spec.get("videoPrompt") or spec.get("imagePrompt", ""),
+    }
 
 
 async def topup_public_scenario(
@@ -175,40 +277,61 @@ async def topup_public_scenario(
     candidates = await undercovered_subs(skip_ids=skip_ids)
     if not candidates:
         return None
-    coord = prioritized_topup_candidates(candidates, level, purpose)[0]
-    sid = scenario_id()
-    link = {"scenarioId": sid, "subId": coord["subId"]}
-    spec = await _llm_spec_for_coord(coord, link_to=link)
-
-    base = {
-        "category": {"domain": coord["domainShort"], "subId": coord["subId"]},
-        "kind": coord["kind"],
-        "title": spec.get("title", ""),
-        "where": spec.get("where", ""),
-        "story": spec.get("story", ""),
-        "mission": spec.get("mission", ""),
-        "points": spec.get("points", []),
-        "difficulty": coord["difficulty"],
-        "imagePrompt": spec.get("imagePrompt", ""),
-        "videoPrompt": spec.get("videoPrompt") or spec.get("imagePrompt", ""),
-    }
+    prioritized = prioritized_topup_candidates(candidates, level, purpose)
     if dry_run:
+        coord = prioritized[0]
+        sid = scenario_id()
+        link = {"scenarioId": sid, "subId": coord["subId"]}
+        spec = await _llm_spec_for_coord(coord, link_to=link)
+        base = _base_doc(coord, spec)
         return {"_dry_run": True, **base, "subName": coord["subName"]}
 
-    image = await maybe_gen_image(sid, spec.get("imagePrompt", ""), link)
-    video = await maybe_gen_video(sid, base["videoPrompt"], link)
-    now = datetime.now(timezone.utc)
+    for coord in prioritized:
+        token = await _acquire_generation_lease(coord["subId"])
+        if not token:
+            continue
+        try:
+            query = {
+                "ownerUserId": None,
+                "status": "active",
+                "category.subId": coord["subId"],
+            }
+            # 锁内重查：undercovered_subs 的计数在等锁期间可能已过期。
+            if await get_db().scenarios.count_documents(query) >= coord["target"]:
+                continue
+            existing = await get_db().scenarios.find(
+                query, {"title": 1, "story": 1, "mission": 1}
+            ).sort("createdAt", -1).to_list(8)
+            sid = scenario_id()
+            link = {"scenarioId": sid, "subId": coord["subId"]}
+            spec = await _llm_spec_for_coord(coord, link_to=link, existing_examples=existing)
+            if _is_near_duplicate(spec, existing):
+                # 仅重试一次，并把被拒绝草稿也放进反例，防止无界重试花钱。
+                spec = await _llm_spec_for_coord(
+                    coord,
+                    link_to=link,
+                    existing_examples=[*existing, spec],
+                )
+            if _is_near_duplicate(spec, existing):
+                raise RuntimeError(f"public scenario remains too similar for {coord['subId']}")
 
-    doc = {
-        "_id": sid,
-        "slug": f"auto-{coord['subId']}-{int(now.timestamp())}",
-        "imageKey": image,
-        "videoKey": video,
-        "videoStatus": "ready" if video else "skipped",
-        "ownerUserId": None,
-        "status": "active",
-        "createdAt": now,
-        **base,
-    }
-    await get_db().scenarios.insert_one(doc)
-    return doc
+            base = _base_doc(coord, spec)
+            image = await maybe_gen_image(sid, spec.get("imagePrompt", ""), link)
+            video = await maybe_gen_video(sid, base["videoPrompt"], link)
+            now = datetime.now(timezone.utc)
+            doc = {
+                "_id": sid,
+                "slug": f"auto-{coord['subId']}-{int(now.timestamp())}",
+                "imageKey": image,
+                "videoKey": video,
+                "videoStatus": "ready" if video else "skipped",
+                "ownerUserId": None,
+                "status": "active",
+                "createdAt": now,
+                **base,
+            }
+            await get_db().scenarios.insert_one(doc)
+            return doc
+        finally:
+            await _release_generation_lease(coord["subId"], token)
+    return None

@@ -7,13 +7,13 @@
 ```mermaid
 flowchart TD
     A[GET /scenarios/next 派题] -->|定制题 > 未练公共题 > 轮换| B[创建 session<br/>存场景快照]
-    B --> C[用户看图+情境+任务<br/>开口说 → Web Speech 转文字]
-    C --> D[POST /correct/stream<br/>ark-code-latest 评估 SSE 流式]
+    B --> C[用户看图+情境+任务<br/>浏览器录音 → Qwen-ASR 转文字]
+    C --> D[POST /correct/stream<br/>glm-5.2 评估 SSE 流式]
     D --> E[反馈：native 版本 + 差距点<br/>错点自动进 vocabulary 复习<br/>可继续追问 AI /correct/chat/stream]
     E -->|verdict != passed 且 < 3 轮| C
     E -->|passed 或 3 轮用完| A
     E -.异步.-> F[录音上传 OSS 关联本轮 attempt]
-    E -.后台.-> G[因材施教：取最弱 3 个表达<br/>Agent Plan 反向出题 + Seedream 配图 → 定制题入库]
+    E -.后台.-> G[因材施教：取最弱 3 个表达<br/>glm-5.2 反向出题 → 定制题入库]
 ```
 
 - 三轮重说：第 2 轮起评估请求自动带上一轮 attempt，模型返回 `progress {verdict: passed/improved/stuck, fixed[], remaining[]}`。
@@ -37,11 +37,11 @@ flowchart TD
 
 | 用途 | 模型 | 接口 | 说明 |
 |------|------|------|------|
-| 口语评估 / 定制出题 / 追问对话 | ark-code-latest（火山方舟 Agent Plan） | OpenAI 协议 (LangChain ChatOpenAI) | 纯文本，评估走 SSE 流式 |
-| 场景配图 | doubao-seedream-5.0-lite（默认关闭 `IMAGE_ENABLED=false`） | Agent Plan images/generations | 统一写实照片风格后缀，默认 `2560x1440` |
-| 语音识别 / 朗读 | doubao-seed-asr-2.0 / doubao-seed-tts-2.0 | openspeech Agent Plan 专属 URL | ASR WebSocket；TTS HTTP POST |
+| 口语评估 / 定制出题 / 追问对话 | glm-5.2（阿里云百炼） | OpenAI 兼容协议 (LangChain ChatOpenAI) | 纯文本，评估走 SSE 流式；不依赖 DeepSeek |
+| 场景配图 | doubao-seedream-5.0-lite（默认关闭 `IMAGE_ENABLED=false`） | 火山方舟 Agent Plan | 原套餐过期期间不自动生新图，旧题图照常使用 |
+| 语音识别 / 朗读 | qwen3-asr-flash / qwen3-tts-flash | 阿里云百炼 HTTP | 浏览器音频先统一转 16k mono WAV；TTS 使用 Cherry 英文声线 |
 
-模型名与接口地址不写死，走 env（按能力解耦、不绑运营商）：文字 `CHAT_API_KEY`/`CHAT_BASE_URL`/`CHAT_MODEL`、图片 `IMAGE_*`、语音 `VOICE_*`（默认值见 `config.py`）。追问对话端点 `POST /api/correct/chat/stream`：拿场景+本轮反馈作上下文，SSE 流式回答，问答存进对应 attempt 的 `chat` 数组。
+模型名与接口地址不写死，走 env（按能力解耦、不绑运营商）：文字 `CHAT_API_KEY`/`CHAT_BASE_URL`/`CHAT_MODEL`、图片 `IMAGE_*`、语音 `VOICE_PROVIDER`/`VOICE_*`（默认值见 `config.py`）。追问对话端点 `POST /api/correct/chat/stream`：拿场景+本轮反馈作上下文，SSE 流式回答，问答存进对应 attempt 的 `chat` 数组。
 
 ## 题库与出图策略
 
