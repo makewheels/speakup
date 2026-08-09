@@ -1,8 +1,4 @@
-import re
-import time
-import json
-import logging
-import asyncio
+import asyncio, json, logging, re, time
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Literal
 
@@ -17,6 +13,7 @@ from services.llm_audit import (
     content_to_text,
     estimate_text_cost,
 )
+from services.text_input import is_too_short as _is_too_short
 
 _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
@@ -57,9 +54,12 @@ _VERDICTS = {"passed", "improved", "stuck"}
 def _get_client() -> ChatOpenAI:
     global _client
     if _client is None:
-        # Agent Plan/GLM defaults to thinking when omitted. For short JSON tasks this can
-        # burn the whole token budget on hidden reasoning and return an empty message.
-        extra_body = {"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}}
+        # 各家 OpenAI 兼容层的 thinking 参数不同，不可以把火山私有格式
+        # 透传给百炼。显式关闭可避免短 JSON 任务耗尽 token 后返空。
+        if "volces.com" in CHAT_BASE_URL:
+            extra_body = {"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}}
+        else:
+            extra_body = {"enable_thinking": CHAT_THINKING}
         _client = ChatOpenAI(
             openai_api_base=CHAT_BASE_URL,
             openai_api_key=CHAT_API_KEY,
@@ -75,8 +75,14 @@ def _get_client() -> ChatOpenAI:
 SYSTEM_PROMPT = """你是英语口语教练。根据场景任务和学习者原话，输出严格 JSON，不要 markdown。
 
 先判断任务是否完成；没完成时第一个 gap 必须是 category=task，并给出完成任务该说的话。
+学习者的任务是练英语口语：如果回答主要是中文或其他非英语，即使中文意思对也视为任务未完成，score 不得高于 2.0，第一个 gap 必须是 task。
 只纠真正错误：任务缺失、语法/时态/单复数/词性/语序、Chinglish、用词错误、搭配错误、重复啰嗦、语体不合适。纯口味替换不要列。
-gaps 最多 4 条；每个 better 必须逐字出现在 nativeVersion 中。nativeVersion 最多 2 句，保留原意；若任务没完成，要补上必要任务话术。
+已经正确、自然的请求可以不列 gap，不要为了“更简洁”而硬改。
+gaps 最多 4 条；nativeVersion 最多 2 句，保留原意；若任务没完成，要补上全部必要任务话术和关键信息。
+
+输出 JSON 前做两次硬检查：
+1. 每个 gap.better 都必须逐字（忽略大小写）出现在 nativeVersion 中；如果没有，重写 nativeVersion 或删除该 gap。
+2. 如果有 task gap，nativeVersion 必须覆盖 scenario mission 和 points 的所有必要信息。
 score 是 IELTS speaking 0-9、0.5 步进。典型中国学习者 5.0-6.5，跑题/太短要低。
 语言：summary 中文≤25字；nativeVersion/original/better/example 英文；why 中文≤30字。
 
@@ -274,7 +280,7 @@ async def correct_text(
     round: int = 1,
     link_to: dict | None = None,
 ) -> dict:
-    if not text or len(text.strip().split()) < 3:
+    if _is_too_short(text):
         return {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
 
     messages = _build_messages(text, scenario, prev_attempt, round)
@@ -314,7 +320,7 @@ async def correct_text_stream(
     - ("done",  {summary, nativeVersion, gaps, progress})
     - ("error", {"message": "..."})
     """
-    if not text or len(text.strip().split()) < 3:
+    if _is_too_short(text):
         yield "done", {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
         return
 

@@ -7,8 +7,7 @@
 
 ```bash
 cd ~/workspace/learning/speakup/server
-source .venv/bin/activate     # 或 uv run python -m evals.run ...
-python -m evals.run --suite regression --trials 3
+uv run python -m evals.run --suite regression --trials 3
 ```
 
 输出：
@@ -66,3 +65,7 @@ evals/
 
 发现 bug → 写成一个 `tasks/regression/*.json`（如果已校准）或 `tasks/capability/*.json`（如果模型还做不到）。
 "failed to detect X" 这类是最值钱的——直接当 regression case。
+
+场景题生成与纠错是两个不同的被测对象。题目确定性 grader 在
+`scenario_quality.py`，完整的分层数据集、LLM judge、用户模拟和线上指标方案见
+`docs/scenario-evaluation.md`。

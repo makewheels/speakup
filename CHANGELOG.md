@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-09 11:11
+
+- **fix(ai/voice)**：火山 Agent Plan 过期后，文字链路迁到阿里云百炼 `glm-5.2`，ASR/TTS 分别迁到 `qwen3-asr-flash` / `qwen3-tts-flash`；百炼与火山的 thinking/语音协议按 provider 适配，部署密钥按文字、语音、图片/视频解耦。
+- **fix(corrector)**：中文/中英混合回答不再被 whitespace 短输入 fast-path 拦截；纯非英语回答强制按未完成任务低分处理，并收紧 `better ⊂ nativeVersion` 与任务信息覆盖约束。
+- **fix(scenarios)**：公共题补齐新增跨进程 Mongo 租约和锁内重查，防止并发超过 taxonomy target；生成 prompt 注入同坐标已有题反例，确定性拒绝近重复并最多重试一次；换题优先避开上一题的子场景。
+- **add(evals/ops)**：新增题目硬规则 grader、8 维 rubric、AI 用户模拟与人工黄金集方案；新增默认 dry-run、可按 run 回滚的超额公共题软归档脚本。
+- **test**：补 provider 协议、中文边界、近重复、换题多样性、题目评测与可逆归档测试；真实百炼 TTS→ASR 闭环及生成题硬门禁验证通过。
+
 ### 2026-06-29 16:45
 
 - **add(server)**：接入火山方舟 Agent Plan 视频任务链路。新增 `VIDEO_ENABLED` 开关、`services/volc_video.py` 异步任务适配器、`scenario_videos.py` 场景视频 OSS 持久化，场景生成时可写入 `videoKey/videoPrompt/videoStatus`；默认关闭，避免自动补题消耗视频额度。

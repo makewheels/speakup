@@ -1,6 +1,6 @@
-"""文本转语音：火山 openspeech Agent Plan 合成英文朗读。
+"""文本转语音：百炼 Qwen-TTS，保留火山 Seed-TTS 回退分支。
 
-朗读音频存 `practiceSessions/{practiceId}/tts/{hash}.mp3`，挂在 session 下。
+朗读音频存 `practiceSessions/{practiceId}/tts/{hash}.{ext}`，挂在 session 下。
 session 内重听同一段仍走 OSS 缓存（按 hash 去重）。
 """
 
@@ -15,19 +15,24 @@ import httpx
 from config import (
     TTS_MODEL,
     TTS_RESOURCE_ID,
+    TTS_LANGUAGE,
     TTS_VOICE,
     VOICE_API_KEY,
     VOICE_APP_KEY,
+    VOICE_PROVIDER,
     VOICE_TTS_URL,
 )
 from services.oss_storage import exists, get_url, upload_bytes
 
 
 def _cache_key(text: str, practice_id: str | None = None) -> str:
-    digest = hashlib.sha1(f"{TTS_RESOURCE_ID}:{TTS_MODEL}:{TTS_VOICE}:{text}".encode()).hexdigest()
+    digest = hashlib.sha1(
+        f"{VOICE_PROVIDER}:{TTS_RESOURCE_ID}:{TTS_MODEL}:{TTS_VOICE}:{text}".encode()
+    ).hexdigest()
+    extension = "wav" if VOICE_PROVIDER == "dashscope" else "mp3"
     if practice_id:
-        return f"practiceSessions/{practice_id}/tts/{digest}.mp3"
-    return f"tts/{digest}.mp3"
+        return f"practiceSessions/{practice_id}/tts/{digest}.{extension}"
+    return f"tts/{digest}.{extension}"
 
 
 def _looks_like_audio(data: bytes) -> bool:
@@ -86,7 +91,7 @@ def _parse_tts_response(resp: httpx.Response) -> bytes:
     return b"".join(chunks)
 
 
-def _synthesize(text: str) -> bytes:
+def _synthesize_volcengine(text: str) -> bytes:
     request_id = str(uuid.uuid4())
     headers = {
         "Authorization": f"Bearer {VOICE_API_KEY}",
@@ -114,6 +119,38 @@ def _synthesize(text: str) -> bytes:
     return audio
 
 
+def _synthesize_dashscope(text: str) -> bytes:
+    headers = {
+        "Authorization": f"Bearer {VOICE_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": TTS_MODEL,
+        "input": {"text": text, "voice": TTS_VOICE, "language_type": TTS_LANGUAGE},
+    }
+    with httpx.Client(timeout=90.0) as client:
+        response = client.post(VOICE_TTS_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        value = response.json()
+        try:
+            audio_url = value["output"]["audio"]["url"]
+        except (KeyError, TypeError) as exc:
+            raise RuntimeError(f"TTS invalid response: {str(value)[:500]}") from exc
+        if not audio_url:
+            raise RuntimeError(f"TTS missing audio URL: {str(value)[:500]}")
+        audio_response = client.get(audio_url)
+        audio_response.raise_for_status()
+        return audio_response.content
+
+
+def _synthesize(text: str) -> bytes:
+    if VOICE_PROVIDER == "dashscope":
+        return _synthesize_dashscope(text)
+    if VOICE_PROVIDER == "volcengine":
+        return _synthesize_volcengine(text)
+    raise RuntimeError(f"unsupported VOICE_PROVIDER: {VOICE_PROVIDER}")
+
+
 async def speak_url(text: str, practice_id: str | None = None) -> str:
     """返回这句话朗读音频的 OSS 签名 URL。命中缓存直接返回，否则合成后存 OSS。"""
     text = (text or "").strip()
@@ -122,5 +159,6 @@ async def speak_url(text: str, practice_id: str | None = None) -> str:
     key = _cache_key(text, practice_id)
     if not await asyncio.to_thread(exists, key):
         audio = await asyncio.to_thread(_synthesize, text)
-        await asyncio.to_thread(upload_bytes, key, audio, "audio/mpeg")
+        content_type = "audio/wav" if VOICE_PROVIDER == "dashscope" else "audio/mpeg"
+        await asyncio.to_thread(upload_bytes, key, audio, content_type)
     return await asyncio.to_thread(get_url, key)

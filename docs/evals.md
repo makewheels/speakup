@@ -10,7 +10,21 @@ end-to-end 评估 `server/services/corrector.py` 的 LLM 判题——给 prompt 
 
 跑法 / 目录结构 / 任务 schema → `server/evals/README.md`。
 
-## 当前基线（2026-06-24 首次跑）
+## 基线记录
+
+### 2026-08-09 百炼 `glm-5.2` 恢复基线
+
+迁移到阿里云百炼并修复中文 fast-path 后，完整 regression 跑 `3 trials × 12`：
+
+| 指标 | 结果 | 说明 |
+|---|---|---|
+| pass@3 | 12/12 = 100% | 所有能力都能稳定触达，不再有完全做不到的 case |
+| pass^3 | 9/12 = 75% | 仍有 3 条随机性失败：过度纠风格、summary 偶发超长、个别 better 没落到 nativeVersion |
+| 纯中文边界 | pass^3 | 从旧 fast-path/假高分改为 task gap + `score<=2.0` |
+
+这是当前发布基线，不应把 `pass@3=100%` 误读成已经稳定；面向用户的主指标仍是 `pass^3`。
+
+### 2026-06-24 首次基线
 
 跟用 `glm-5.2`，3 trials × 12 条 regression + 1 trial × 14 条 capability：
 

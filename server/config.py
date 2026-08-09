@@ -6,9 +6,9 @@ env_file = f".env.{os.getenv('APP_ENV', 'development')}"
 load_dotenv(Path(__file__).parent / env_file)
 load_dotenv(Path(__file__).parent / ".env", override=False)
 
-# 文字/对话 LLM：与运营商解耦，只认 CHAT_*。现接火山方舟 Agent Plan。
+# 文字/对话 LLM：与运营商解耦，只认 CHAT_*。默认走阿里云百炼 OpenAI 兼容接口。
 CHAT_API_KEY = os.getenv("CHAT_API_KEY", "")
-CHAT_BASE_URL = os.getenv("CHAT_BASE_URL", "https://ark.cn-beijing.volces.com/api/plan/v3")
+CHAT_BASE_URL = os.getenv("CHAT_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
 CHAT_MODEL = os.getenv("CHAT_MODEL", "glm-5.2")
 CHAT_THINKING = os.getenv("CHAT_THINKING", "false").lower() in ("1", "true", "yes")
 
@@ -19,17 +19,22 @@ IMAGE_MODEL = os.getenv("IMAGE_MODEL", "doubao-seedream-5.0-lite")
 IMAGE_SIZE = os.getenv("IMAGE_SIZE", "2560x1440")
 IMAGE_ENABLED = os.getenv("IMAGE_ENABLED", "false").lower() in ("1", "true", "yes")
 
-# 语音 ASR + TTS：火山 openspeech Agent Plan 专属入口。
+# 语音 ASR + TTS：默认走阿里云百炼，保留 volcengine 分支便于回退。
 VOICE_API_KEY = os.getenv("VOICE_API_KEY") or CHAT_API_KEY
+VOICE_PROVIDER = os.getenv("VOICE_PROVIDER", "dashscope").strip().lower()
 VOICE_APP_KEY = os.getenv("VOICE_APP_KEY", "plan")
-VOICE_BASE_URL = os.getenv("VOICE_BASE_URL", "https://openspeech.bytedance.com/api/v3/plan")
+VOICE_BASE_URL = os.getenv("VOICE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
 VOICE_WS_BASE_URL = os.getenv("VOICE_WS_BASE_URL", "wss://openspeech.bytedance.com/api/v3/plan")
-VOICE_TTS_URL = os.getenv("VOICE_TTS_URL", f"{VOICE_BASE_URL}/tts/unidirectional")
-VOICE_ASR_URL = os.getenv("VOICE_ASR_URL", f"{VOICE_WS_BASE_URL}/sauc/bigmodel_nostream")
-TTS_MODEL = os.getenv("TTS_MODEL", "seed-tts-2.0")
+VOICE_TTS_URL = os.getenv(
+    "VOICE_TTS_URL",
+    "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
+)
+VOICE_ASR_URL = os.getenv("VOICE_ASR_URL", f"{VOICE_BASE_URL}/chat/completions")
+TTS_MODEL = os.getenv("TTS_MODEL", "qwen3-tts-flash")
 TTS_RESOURCE_ID = os.getenv("TTS_RESOURCE_ID", "seed-tts-2.0")
-TTS_VOICE = os.getenv("TTS_VOICE", "zh_female_vv_uranus_bigtts")
-ASR_MODEL = os.getenv("ASR_MODEL", "bigmodel")
+TTS_VOICE = os.getenv("TTS_VOICE", "Cherry")
+TTS_LANGUAGE = os.getenv("TTS_LANGUAGE", "English")
+ASR_MODEL = os.getenv("ASR_MODEL", "qwen3-asr-flash")
 ASR_RESOURCE_ID = os.getenv("ASR_RESOURCE_ID", "volc.seedasr.sauc.duration")
 
 # 视频生成：当前产品没入口，保留 service/脚本可用配置。Medium 套餐暂不默认 Seedance 2.0。
