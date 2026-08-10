@@ -1,0 +1,95 @@
+{
+  "familyId": "work-disagree-meeting",
+  "coordinate": {
+    "domain": "work",
+    "subId": "work.disagree_meeting",
+    "kind": "opinion",
+    "difficulty": 3
+  },
+  "cases": [
+    {
+      "id": "work-disagree-meeting-positive",
+      "bucket": "positive",
+      "challenge": "不是空泛表达观点，而是在时间、质量之间做真实职场取舍",
+      "candidate": {
+        "title": "不同意周五强行上线",
+        "where": "跨国项目视频会议",
+        "story": "项目经理想在周五上线，但测试还剩两个高风险问题；客户已经公开宣布发布时间。",
+        "mission": "礼貌反对并提出可执行的替代方案",
+        "points": ["说明现在上线的具体风险", "建议缩小范围或推迟关键功能"]
+      },
+      "annotation": {
+        "verdict": "pass",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 5,
+          "task_clarity": 5,
+          "speakability": 5,
+          "specificity": 5,
+          "novelty": 5,
+          "difficulty_fit": 5,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": [],
+        "rationale": "有权力关系、真实风险和替代方案，能练习缓和反对、解释理由与谈判。"
+      }
+    },
+    {
+      "id": "work-disagree-meeting-negative",
+      "bucket": "negative",
+      "challenge": "points 只描述表演动作，没有可直接说出口的信息",
+      "candidate": {
+        "title": "在会议中表达不同意见",
+        "where": "公司会议室",
+        "story": "同事提出一个你不赞同的计划，会议正在等待你的回应。",
+        "mission": "表达你的不同看法",
+        "points": ["语气礼貌而坚定", "说明情况并进行沟通"]
+      },
+      "annotation": {
+        "verdict": "fail",
+        "scores": {
+          "real_world_use": 3,
+          "speaking_motivation": 2,
+          "task_clarity": 3,
+          "speakability": 1,
+          "specificity": 1,
+          "novelty": 1,
+          "difficulty_fit": 2,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": ["speakable_points"],
+        "failureTags": ["abstract_points", "generic"],
+        "rationale": "用户不知道反对什么、为什么反对，也无法把两条 points 直接翻成英语内容。"
+      }
+    },
+    {
+      "id": "work-disagree-meeting-boundary",
+      "bucket": "boundary",
+      "challenge": "需要向直属上级反对绩效排名公开，真实但文化和权力距离较敏感",
+      "candidate": {
+        "title": "反对公开团队排名",
+        "where": "部门例会",
+        "story": "你的外籍主管想把每个人的绩效排名发到群里，认为这样能激励团队。",
+        "mission": "解释顾虑并建议更合适的反馈方式",
+        "points": ["说明公开排名可能伤害合作", "建议改成一对一反馈或匿名汇总"]
+      },
+      "annotation": {
+        "verdict": "borderline",
+        "scores": {
+          "real_world_use": 4,
+          "speaking_motivation": 5,
+          "task_clarity": 5,
+          "speakability": 4,
+          "specificity": 5,
+          "novelty": 5,
+          "difficulty_fit": 4,
+          "cultural_safety": 3
+        },
+        "expectedHardFailures": [],
+        "failureTags": ["cultural_tone_review"],
+        "rationale": "练习价值很高，但题面需要避免暗示某种文化必然更羞辱或更强势，适合人工复核措辞。"
+      }
+    }
+  ]
+}

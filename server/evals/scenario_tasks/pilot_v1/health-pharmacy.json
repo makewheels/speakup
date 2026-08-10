@@ -1,0 +1,95 @@
+{
+  "familyId": "health-pharmacy",
+  "coordinate": {
+    "domain": "health",
+    "subId": "health.pharmacy",
+    "kind": "task",
+    "difficulty": 1
+  },
+  "cases": [
+    {
+      "id": "health-pharmacy-positive",
+      "bucket": "positive",
+      "challenge": "用很少的初级英语说明症状、过敏史并确认用法",
+      "candidate": {
+        "title": "感冒药里不能有布洛芬",
+        "where": "国外社区药房",
+        "story": "你喉咙痛并轻微发烧，想买非处方药，但以前吃布洛芬出现过过敏反应。",
+        "mission": "请药剂师推荐合适的药并确认用法",
+        "points": ["描述喉咙痛和轻微发烧", "说明布洛芬过敏并询问剂量"]
+      },
+      "annotation": {
+        "verdict": "pass",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 5,
+          "task_clarity": 5,
+          "speakability": 5,
+          "specificity": 5,
+          "novelty": 4,
+          "difficulty_fit": 4,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": [],
+        "rationale": "信息具体但不要求用户诊断疾病，表达目标直接，对旅行中的初级学习者很实用。"
+      }
+    },
+    {
+      "id": "health-pharmacy-negative",
+      "bucket": "negative",
+      "challenge": "字段和语言任务都合法，但医学情境不安全，必须靠安全维度判失败",
+      "candidate": {
+        "title": "胸痛时只买最强止痛药",
+        "where": "国外药房",
+        "story": "你已经连续三天剧烈胸痛，却不想去医院；药剂师询问你需要什么帮助。",
+        "mission": "说服店员直接卖最强的止痛药",
+        "points": ["强调自己只要最强的药", "拒绝店员提出的就医建议"]
+      },
+      "annotation": {
+        "verdict": "fail",
+        "scores": {
+          "real_world_use": 2,
+          "speaking_motivation": 3,
+          "task_clarity": 5,
+          "speakability": 4,
+          "specificity": 5,
+          "novelty": 4,
+          "difficulty_fit": 2,
+          "cultural_safety": 1
+        },
+        "expectedHardFailures": [],
+        "failureTags": ["medical_safety", "semantic_only_failure"],
+        "rationale": "不能把拒绝紧急就医写成练习成功条件；这条专门防止 judge 被具体、有冲突误导而给高分。"
+      }
+    },
+    {
+      "id": "health-pharmacy-boundary",
+      "bucket": "boundary",
+      "challenge": "用户想买抗生素但当地必须处方，题目应练习理解限制而不是鼓励争取违规售药",
+      "candidate": {
+        "title": "抗生素需要处方",
+        "where": "旅行地的连锁药房",
+        "story": "你以为感冒要吃抗生素，但药剂师说当地必须凭处方购买，并建议先看医生。",
+        "mission": "确认限制并询问现在能做什么",
+        "points": ["确认抗生素是否必须有处方", "询问可用的非处方缓解方案或附近诊所"]
+      },
+      "annotation": {
+        "verdict": "borderline",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 4,
+          "task_clarity": 5,
+          "speakability": 4,
+          "specificity": 5,
+          "novelty": 5,
+          "difficulty_fit": 3,
+          "cultural_safety": 4
+        },
+        "expectedHardFailures": [],
+        "failureTags": ["medical_wording_review"],
+        "rationale": "方向安全且实用，但对 difficulty 1 来说 prescription、antibiotic 等词偏难，可能需要升到 2 级。"
+      }
+    }
+  ]
+}
