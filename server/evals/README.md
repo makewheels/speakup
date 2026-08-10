@@ -69,3 +69,8 @@ evals/
 场景题生成与纠错是两个不同的被测对象。题目确定性 grader 在
 `scenario_quality.py`，完整的分层数据集、LLM judge、用户模拟和线上指标方案见
 `docs/scenario-evaluation.md`。
+
+题目本身的第一版人工评测集在 `scenario_tasks/pilot_v1/`：8 个口语坐标，每组
+包含正例、反例、边界例，共 24 条。运行 `uv run python -m evals.scenario_dataset`
+校验数据，或用 `evals.scenario_review` 生成可筛选的本地审阅页；格式和命令见
+`scenario_tasks/README.md`。

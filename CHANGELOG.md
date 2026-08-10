@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-10 18:38
+
+- **add(evals)**：新增场景题 Pilot v1 人工评测集，按 8 个真实口语坐标组织 24 条正例、反例和边界例；每条标注 8 维分数、硬规则预期、失败标签与人工理由。
+- **add(evals)**：新增评测集 schema/配比/硬规则一致性校验器和静态 HTML 审阅页，支持按领域与样本类型筛选。
+- **test**：覆盖评测集配比、纯语义失败样本、陈旧标签检测和 24 卡片审阅页渲染。
+
 ### 2026-08-09 11:11
 
 - **fix(ai/voice)**：火山 Agent Plan 过期后，文字链路迁到阿里云百炼 `glm-5.2`，ASR/TTS 分别迁到 `qwen3-asr-flash` / `qwen3-tts-flash`；百炼与火山的 thinking/语音协议按 provider 适配，部署密钥按文字、语音、图片/视频解耦。
