@@ -45,6 +45,10 @@ services:
       - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
       - OSS_ENDPOINT=${OSS_ENDPOINT:-https://oss-cn-beijing.aliyuncs.com}
       - OSS_BUCKET=${OSS_BUCKET_PROD}
+      # Langfuse trace 双写（2026-08-11 接入；留空即整体关闭）
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
     expose:
       - "3001"
     volumes:
