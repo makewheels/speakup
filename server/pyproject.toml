@@ -8,6 +8,8 @@ dependencies = [
     "fastapi>=0.136.3",
     "httpx>=0.28.1",
     "langchain-openai>=1.2.2",
+    # LLM trace 双写（services/llm_trace.py）；代码按 v4 API 写，别降 v3
+    "langfuse>=4",
     "motor>=3.7.1",
     "openai>=2.38.0",
     "oss2>=2.19.1",
@@ -47,6 +49,7 @@ omit = [
     "services/transcriber.py",   # openspeech ASR
     "services/tts.py",           # openspeech TTS
     "services/volc_video.py",    # Agent Plan 视频任务 API
+    "services/llm_trace.py",     # Langfuse SDK 适配层（未配 env 即 no-op）
 ]
 
 [tool.coverage.report]

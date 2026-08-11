@@ -157,6 +157,11 @@ jobs:
           OSS_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}
           OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }}
+          # Langfuse trace 双写（2026-08-11 接入；secrets 留空则整体关闭，不影响主路径）
+          # HOST 用 langfuse-web 的 ClusterIP（speakup 容器经宿主机路由可达）；svc 重建后需更新
+          LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}
           __ENVEOF__
 
       - name: Pull and restart
