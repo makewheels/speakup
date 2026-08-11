@@ -15,11 +15,15 @@
 
 ## 访问
 
-- UI/API 入口：`langfuse-web` svc ClusterIP（svc 重建会变；查询：
+- 公网入口（2026-08-11 起）：`http://<services 机公网 IP>:30030` —— NodePort 30030
+  （values 里 `langfuse.web.service.type/nodePort` 管理），Lighthouse 防火墙已放行 TCP 30030。
+  ⚠️ 明文 HTTP：登录密码和 trace 内容不加密，用户已知晓并接受；要加密就加域名走 caddy（见下）
+- UI/API 集群内入口：`langfuse-web` svc ClusterIP（svc 重建会变；查询：
   `sudo k3s kubectl get svc -n langfuse langfuse-web`）
-- 本机看 UI：`ssh -L 3000:<ClusterIP>:3000 tencent-services` 后开 http://127.0.0.1:3000
-- 公网入口（待办）：DNS 加 `langfuse.a4.fit` A 记录 → services 机公网 IP，然后在 /opt/caddy/Caddyfile
-  仿照 multica.a4.fit 加 `reverse_proxy <ClusterIP>:3000`，改完 `docker exec caddy-caddy-1 caddy reload --config /etc/caddy/Caddyfile`
+- 本机看 UI（不走公网）：`ssh -L 3000:<ClusterIP>:3000 tencent-services` 后开 http://127.0.0.1:3000
+- 若以后要 HTTPS：DNS 加 `langfuse.a4.fit` A 记录 → services 机公网 IP，/opt/caddy/Caddyfile
+  仿照 multica.a4.fit 加 `reverse_proxy <ClusterIP>:3000`，改完 `docker exec caddy-caddy-1 caddy reload --config /etc/caddy/Caddyfile`，
+  并把 values.yaml 的 `nextauth.url` 改成该域名后 helm upgrade
 - 登录：admin@a4.fit / 密码见 `/opt/langfuse/values.yaml` 的 LANGFUSE_INIT_USER_PASSWORD
 - 已关闭公开注册（signUpDisabled）；org=personal，project=speakup
 
