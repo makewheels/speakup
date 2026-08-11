@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 from db.connection import get_db
+from services import llm_trace
 from utils.id_generator import llm_call_id
 
 logger = logging.getLogger(__name__)
@@ -85,11 +86,14 @@ def estimate_video_cost(model: str) -> float:
 
 # ---------- 写库（fire-and-forget 安全包装） ----------
 
-async def _safe_insert(doc: dict) -> None:
+async def _safe_insert(doc: dict, *, _trace: bool = True) -> None:
     try:
         await get_db().llmCalls.insert_one(doc)
     except Exception as e:
         logger.warning("llmCalls 写入失败（不影响主路径）: %s", e)
+    # 双写 Langfuse。audited_invoke 已用 start/finish 精确埋点的文档传 _trace=False 防重
+    if _trace:
+        llm_trace.log_call(doc)
 
 
 # ---------- 公共 API ----------
@@ -141,6 +145,14 @@ async def audited_invoke(
     metadata: dict | None = None
     error: str | None = None
     parsed: dict | None = None
+    tracer = llm_trace.start(
+        kind=kind,
+        link_to=link_to,
+        input={
+            "systemPrompt": messages[0].content if messages else "",
+            "userPrompt": messages[1].content if len(messages) > 1 else "",
+        },
+    )
 
     try:
         resp = await client.ainvoke(messages)
@@ -181,7 +193,8 @@ async def audited_invoke(
         "linkedTo": link_to or {},
         "createdAt": datetime.now(timezone.utc),
     }
-    await _safe_insert(doc)
+    llm_trace.finish(tracer, doc)
+    await _safe_insert(doc, _trace=False)
 
     return {
         "raw": raw,

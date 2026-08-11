@@ -50,6 +50,10 @@ def main() -> int:
 
     print(render_text(reports, k=args.trials))
 
+    # evals 是短进程：退出前把 langfuse trace 队列冲掉（未配 LANGFUSE_* 时 no-op）
+    from services import llm_trace
+    llm_trace.flush()
+
     report_path = Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(render_html(reports, k=args.trials), encoding="utf-8")
