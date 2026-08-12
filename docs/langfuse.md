@@ -42,3 +42,12 @@
   解法：web `NODE_OPTIONS=--max-old-space-size=1536` + limit 2Gi（worker 1024/1.5Gi），已写在 values.yaml
 - chart 默认 clickhouse `replicaCount: 3` + `resourcesPreset: 2xlarge`，单机必须裁成 1 副本 + 显式小资源
 - 服务器 helm 直连 github releases 拉 chart 会挂起（不是 404，是慢到超时）；本机走代理下载再 scp
+- **ClickHouse 内存墙 → trace 全部静默丢失（2026-08-13 修）**：症状是摄入返回 201 但任何读取
+  404/列表接口超时。worker 日志报 `memory limit exceeded ... OvercommitTracker ... WaitForAsyncInsert`，
+  `Max attempts reached, dropped N traces record(s)`。根因：clickhouse limit 1536Mi（max_server_memory
+  ≈0.9×limit≈1.35GiB），async insert 缓冲卡死后 MemoryTracking 虚高到 1.66GiB，OvercommitTracker
+  杀掉一切新查询/插入，读端也被拖死。解法：values.yaml 里 clickhouse `limits.memory: 2560Mi`、
+  `requests.memory: 1Gi` 后 `helm upgrade`（chart tgz 在 /opt/langfuse/，helm 需
+  `KUBECONFIG=/etc/rancher/k3s/k3s.yaml`）。排查入口：`kubectl logs deploy/langfuse-worker` 看
+  ClickhouseWriter.flush 报错；`clickhouse-client` 密码在 secret `langfuse-clickhouse` 的
+  `admin-password`。

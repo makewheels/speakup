@@ -22,11 +22,20 @@ evals/
 ├── graders/
 │   ├── schema.py           # 确定性：JSON/字段/语种/枚举/score 步进/better⊂nativeVersion
 │   └── expectation.py      # 任务级断言：gaps_count / first_gap_category / progress_verdict ...
-├── run.py                  # CLI
+├── run.py                  # CLI：单配置跑基线
+├── compare.py              # CLI：跨模型对比（多 trial、pass@k/pass^k、langfuse model tag）
 ├── report.py               # HTML 报告
 └── tasks/
-    ├── regression/         # 8 条已校准的，应当近 100% 过
-    └── capability/         # （留空）放难任务、新发现的失败案例
+    ├── regression/         # 12 条已校准的，应当近 100% 过
+    └── capability/         # 14 条难任务 / prod 真实失败案例
+```
+
+跨模型对比（key 走环境变量，见 `compare.py` 头注）：
+
+```bash
+uv run python -m evals.compare --models glm-5.2,deepseek-v3.2 \
+  --base-url https://dashscope.aliyuncs.com/compatible-mode/v1 \
+  --api-key-env DASHSCOPE_API_KEY --suite regression --trials 3
 ```
 
 ## 任务文件格式
