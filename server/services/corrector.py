@@ -2,7 +2,7 @@ import asyncio, json, logging, re, time
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Literal
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
@@ -392,108 +392,3 @@ async def correct_text_stream(
         len(full_text),
     )
     asyncio.create_task(audit_safe_insert(audit_doc))
-
-
-# ── 追问对话：用户拿到反馈后，基于本次练习上下文继续问 AI（纯文本流式）──
-
-FOLLOWUP_SYSTEM = """你是这位中国成年学习者的英语口语私教。他刚在一个真实场景里练了口语，你已经给过反馈，现在他想就这次练习继续追问。
-
-像真人教练一样对话：
-- 紧扣这次练习的上下文（场景、他说的话、你给的反馈）。他问"为什么这么改""还能怎么说""帮我多举几个例子""这个词什么意思""换个场合怎么说"都好好答。
-- 讲解用中文，英文表达/例句用英文（可加简短中文解释）。
-- 简洁、直接、给干货；别长篇大论，别堆术语。
-- 多鼓励他开口，可以顺手给一两个新例句或小练习让他模仿。
-- 纯自然对话：**只输出纯文本**，不要任何 markdown 语法——不要 `**加粗**`、不要 `#` 标题、不要 ``` 代码块。要分点就用「·」或直接换行。"""
-
-
-def _followup_context(scenario: dict | None, attempt: dict | None) -> str:
-    """把场景 + 他说的话 + 已给的反馈拼成上下文，作为对话的背景交给模型。"""
-    parts = [_scenario_block(scenario).strip()] if scenario else []
-    if attempt:
-        parts.append(f'他这次说的话："{attempt.get("transcript", "")}"')
-        if attempt.get("nativeVersion"):
-            parts.append(f'你给的 native 版改写："{attempt["nativeVersion"]}"')
-        gaps = attempt.get("gaps") or []
-        if gaps:
-            lines = "\n".join(
-                f'  · [{g.get("category", "")}] {g.get("original", "")} → {g.get("better", "")}（{g.get("why", "")}）'
-                for g in gaps
-            )
-            parts.append(f"你指出的 gaps：\n{lines}")
-        if attempt.get("summary"):
-            parts.append(f'你的小结：{attempt["summary"]}')
-    return "\n".join(p for p in parts if p)
-
-
-def _build_followup_messages(
-    scenario: dict | None, attempt: dict | None, history: list | None, question: str
-) -> list:
-    system = FOLLOWUP_SYSTEM + "\n\n本次练习的上下文：\n" + _followup_context(scenario, attempt)
-    messages: list = [SystemMessage(content=system)]
-    for turn in history or []:
-        role = turn.get("role")
-        content = turn.get("content", "")
-        if not content:
-            continue
-        messages.append(AIMessage(content=content) if role == "assistant" else HumanMessage(content=content))
-    messages.append(HumanMessage(content=question))
-    return messages
-
-
-async def followup_chat_stream(
-    scenario: dict | None,
-    attempt: dict | None,
-    history: list | None,
-    question: str,
-    link_to: dict | None = None,
-) -> AsyncGenerator[tuple[str, dict], None]:
-    """追问对话的流式版本，yield (event_type, data)：
-    - ("chunk", {"text": "..."})  — 增量 token
-    - ("done",  {"text": "完整回答"})
-    - ("error", {"message": "..."})
-    """
-    if not question or not question.strip():
-        yield "error", {"message": "请输入你想问的内容。"}
-        return
-
-    messages = _build_followup_messages(scenario, attempt, history, question)
-    started = time.monotonic()
-    full_text = ""
-    final_metadata: dict | None = None
-    err: str | None = None
-
-    try:
-        async for chunk in _get_client().astream(messages):
-            delta = chunk.content or ""
-            if delta:
-                full_text += delta
-                yield "chunk", {"text": delta}
-            if hasattr(chunk, "response_metadata") and chunk.response_metadata:
-                final_metadata = chunk.response_metadata
-        yield "done", {"text": full_text}
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error("followup_chat_stream error: %s: %s", type(e).__name__, e)
-        err = f"{type(e).__name__}: {e}"
-        msg = "AI 服务超时，请重试。" if "timeout" in type(e).__name__.lower() else f"AI 服务出错（{type(e).__name__}），请重试。"
-        yield "error", {"message": msg}
-
-    duration_ms = int((time.monotonic() - started) * 1000)
-    tokens = (final_metadata or {}).get("token_usage") or (final_metadata or {}).get("usage_metadata") or {}
-    model = (final_metadata or {}).get("model_name") or "?"
-    prompt_tok = int(tokens.get("prompt_tokens") or tokens.get("input_tokens") or 0)
-    completion_tok = int(tokens.get("completion_tokens") or tokens.get("output_tokens") or 0)
-    cost = estimate_text_cost(model, prompt_tok, completion_tok)
-    audit_doc = {
-        "kind": "followup_chat",
-        "model": model,
-        "request": {"systemPrompt": messages[0].content, "userPrompt": question},
-        "response": {"raw": full_text[:8000]},
-        "tokens": {"prompt": prompt_tok, "completion": completion_tok},
-        "cost": float(f"{cost:.6f}"),
-        "durationMs": duration_ms,
-        "error": err,
-        "linkedTo": link_to or {},
-        "createdAt": datetime.now(timezone.utc),
-    }
-    await audit_safe_insert(audit_doc)

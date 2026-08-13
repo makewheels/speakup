@@ -9,16 +9,14 @@ from services.corrector import (
     CorrectResult,
     GapItem,
     ProgressInfo,
-    _build_followup_messages,
     _build_messages,
-    _followup_context,
     _get_client,
     _is_too_short,
     _parse_result,
     correct_text,
     correct_text_stream,
-    followup_chat_stream,
 )
+from services.followup_chat import _build_followup_messages, _followup_context, followup_chat_stream
 
 SCENARIO = {
     "where": "☕️ 咖啡店 · 西雅图",
@@ -397,7 +395,7 @@ async def test_followup_empty_question_yields_error():
 async def test_followup_streams_chunks_then_done():
     chunks = [_stream_chunk("re"), _stream_chunk("make"), _empty_content_chunk()]
     fake = _fake_stream_client(chunks)
-    with patch("services.corrector._get_client", return_value=fake):
+    with patch("services.followup_chat._get_client", return_value=fake):
         events = await _collect_followup("为什么用 remake?")
     chunk_texts = [d["text"] for t, d in events if t == "chunk"]
     done = [d for t, d in events if t == "done"]
@@ -410,7 +408,41 @@ async def test_followup_streams_chunks_then_done():
 async def test_followup_exception_yields_error_event():
     fake = MagicMock()
     fake.astream = MagicMock(side_effect=Exception("connection refused"))
-    with patch("services.corrector._get_client", return_value=fake):
+    with patch("services.followup_chat._get_client", return_value=fake):
         events = await _collect_followup("还能怎么说？")
     assert events[-1][0] == "error"
     assert events[-1][1]["message"]
+    assert fake.astream.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_followup_retries_once_when_stream_fails_before_first_token():
+    async def _success(*args, **kwargs):
+        yield _stream_chunk("retry worked")
+
+    fake = MagicMock()
+    fake.astream = MagicMock(side_effect=[Exception("transient access denied"), _success()])
+    with patch("services.followup_chat._get_client", return_value=fake):
+        events = await _collect_followup("还能怎么说？")
+
+    assert fake.astream.call_count == 2
+    assert events == [
+        ("chunk", {"text": "retry worked"}),
+        ("done", {"text": "retry worked"}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_followup_does_not_retry_after_partial_output():
+    async def _partial_then_error(*args, **kwargs):
+        yield _stream_chunk("partial")
+        raise Exception("connection dropped")
+
+    fake = MagicMock()
+    fake.astream = MagicMock(return_value=_partial_then_error())
+    with patch("services.followup_chat._get_client", return_value=fake):
+        events = await _collect_followup("还能怎么说？")
+
+    assert fake.astream.call_count == 1
+    assert events[0] == ("chunk", {"text": "partial"})
+    assert events[-1][0] == "error"

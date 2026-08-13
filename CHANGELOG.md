@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-14 02:06
+
+- **fix(chat)**：追问对话在尚未输出任何 token 时遇到瞬时模型错误，自动重试一次；已经开始输出时不重试，避免重复回答。
+- **test**：覆盖追问首 token 前重试成功、两次都失败和部分输出后不重试。
+
 ### 2026-08-14 01:51
 
 - **fix(model)**：百炼服务恢复后，生产文字评估从临时 `deepseek-chat` 升级到新横评最佳的 `qwen3.8-max`，同步当前架构文档。
