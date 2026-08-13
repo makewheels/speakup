@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
 from services.scenario_service import (
     FRESH_THRESHOLD,
@@ -13,14 +14,24 @@ from services.scenario_service import (
     next_scenario,
     topup_public_scenario,
 )
+from utils.data_source import normalize_source_type
+from utils.mongo_ids import id_filter
 
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
 
 logger = logging.getLogger(__name__)
 
 
-def _maybe_topup(user_id: str, level: str | None = None, purpose: str | None = None) -> None:
+def _maybe_topup(
+    user_id: str,
+    level: str | None = None,
+    purpose: str | None = None,
+    source_type: str = "human",
+) -> None:
     """取题时静默补题：用户定制题（基于错题本）+ 公共池按 yaml 坐标系补缺。两条独立失败只记日志。"""
+    if source_type == "ai_test":
+        return
+
     async def _run():
         try:
             if await fresh_scenario_count(user_id) < FRESH_THRESHOLD:
@@ -55,7 +66,13 @@ async def get_next(
     scenario = await next_scenario(userId, exclude=exclude, level=level, purpose=purpose)
     if not scenario:
         raise HTTPException(404, "题库为空，请先运行 scripts/generate_scenarios.py")
-    _maybe_topup(userId, level=level, purpose=purpose)
+    user = await get_db().users.find_one(id_filter(token_user_id), {"sourceType": 1})
+    _maybe_topup(
+        userId,
+        level=level,
+        purpose=purpose,
+        source_type=normalize_source_type((user or {}).get("sourceType")),
+    )
     return {
         "scenarioId": scenario["_id"],
         "kind": scenario.get("kind", "task"),

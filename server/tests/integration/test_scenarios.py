@@ -22,6 +22,26 @@ def test_next_returns_public_scenario(client, user_id, auth_headers, scenario_id
     assert data["videoUrl"]  # videoKey 现签出 URL
 
 
+def test_ai_test_next_skips_background_topup(client, scenario_id):
+    login = client.post(
+        "/api/auth/login",
+        json={"phone": "13900009994", "sourceType": "ai_test"},
+    ).json()
+    headers = {"Authorization": f"Bearer {login['token']}"}
+
+    with (
+        patch("routes.scenarios.generate_custom_scenario", new=AsyncMock()) as custom,
+        patch("routes.scenarios.topup_public_scenario", new=AsyncMock()) as public,
+    ):
+        resp = client.get(
+            f"/api/scenarios/next?userId={login['userId']}", headers=headers
+        )
+
+    assert resp.status_code == 200
+    custom.assert_not_awaited()
+    public.assert_not_awaited()
+
+
 def test_next_empty_library_404(client, user_id, auth_headers):
     resp = client.get(f"/api/scenarios/next?userId={user_id}", headers=auth_headers)
     assert resp.status_code == 404

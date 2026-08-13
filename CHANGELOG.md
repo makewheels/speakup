@@ -8,9 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
-### 2026-08-14 01:10
+### 2026-08-14 01:20
 
 - **add(data)**：用户首次创建时记录 `sourceType=human|ai_test`，练习、复习项、定制题及 LLM 审计记录同步冗余来源；历史缺字段按 `human` 兼容，生产统计可直接排除自动体验数据。
+- **fix(data)**：产品/结果反馈继承同一来源，反馈导出默认排除自动体验；`ai_test` 账号取题时跳过后台补题，避免自动体验污染共享题库。
 - **fix(docs)**：部署与架构文档同步当前生产模型链路：文字评估为 DeepSeek 官方 `deepseek-chat`，语音为百炼 Qwen ASR/TTS。
 - **test**：覆盖 AI 测试用户来源不可被普通登录改写，以及练习、复习项的来源继承。
 

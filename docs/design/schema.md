@@ -131,6 +131,27 @@
 - `scenarios`: `{slug}` 唯一索引（脚本幂等）
 - `practiceSessions`: `{userId, createdAt}` 复合索引（历史列表）
 
+## feedbacks（产品与结果反馈）
+
+```json
+{
+  "_id":          "fb_1781276...",
+  "userId":       "u_1781276...",
+  "sourceType":   "human | ai_test",  // 从用户或所属练习冗余
+  "type":         "practice | general",
+  "rating":       "good | bad | null",
+  "tags":         ["gap_wrong"],
+  "comment":      "...",
+  "practiceId":   "ps_...",           // practice 类型才有
+  "attemptIndex": 0,                    // practice 类型才有
+  "createdAt":    datetime,
+  "updatedAt":    datetime
+}
+```
+
+`scripts.export_feedbacks` 默认用 `{sourceType: {$ne: "ai_test"}}` 只导出真实用户反馈；
+仅在排查自动体验时显式传 `--include-ai-test`。
+
 ## llmCalls（LLM/图片调用审计日志）
 
 每次调文字模型 / 图片 / 视频都写一行，记 prompt + response + tokens + 估算成本，挂到对应业务实体（scenarioId / sessionId / userId）。诊断"为什么这道题烂 / 为什么 corrector 没抓到 thief"用。
