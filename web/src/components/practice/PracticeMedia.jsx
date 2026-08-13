@@ -1,8 +1,10 @@
 import { useState } from "react";
 
 export default function PracticeMedia({ imageUrl = "", videoUrl = "", className = "su-img" }) {
+  const [failedImageUrl, setFailedImageUrl] = useState("");
   const [failedVideoUrl, setFailedVideoUrl] = useState("");
   const [loadedVideoUrl, setLoadedVideoUrl] = useState("");
+  const showImage = imageUrl && failedImageUrl !== imageUrl;
   const showVideo = videoUrl && failedVideoUrl !== videoUrl;
   const loading = showVideo && loadedVideoUrl !== videoUrl;
 
@@ -11,7 +13,7 @@ export default function PracticeMedia({ imageUrl = "", videoUrl = "", className 
       <div className={className}>
         <video
           src={videoUrl}
-          poster={imageUrl || undefined}
+          poster={showImage ? imageUrl : undefined}
           aria-label="scene video"
           muted
           autoPlay
@@ -25,9 +27,11 @@ export default function PracticeMedia({ imageUrl = "", videoUrl = "", className 
     );
   }
 
+  if (!showImage) return null;
+
   return (
     <div className={className}>
-      {imageUrl && <img src={imageUrl} alt="scene" />}
+      <img src={imageUrl} alt="scene" onError={() => setFailedImageUrl(imageUrl)} />
     </div>
   );
 }
