@@ -32,7 +32,9 @@ export default function PracticeActiveView({
   stopRecording,
   streamingLen,
   t,
+  transcriptionError,
   transcript,
+  setTranscript,
 }) {
   return (
     <div className="practice-page">
@@ -64,7 +66,7 @@ export default function PracticeActiveView({
 
       <p className="su-prompt">{prompts[phase]}</p>
 
-      {(phase === "recording" || phase === "transcribing" || phase === "review" || phase === "evaluating") && (
+      {(phase === "recording" || phase === "transcribing" || phase === "evaluating") && (
         <div className={"su-transcript" + (!transcript ? " empty" : "")}>
           {transcript ||
             (phase === "recording"
@@ -74,6 +76,24 @@ export default function PracticeActiveView({
               : t("practice.yourWordsHere"))}
           {phase === "recording" && <span className="live-dot" />}
         </div>
+      )}
+
+      {phase === "review" && (
+        <>
+          <textarea
+            aria-label={t("practice.transcriptInputLabel")}
+            className="su-transcript su-transcript-input"
+            onChange={(event) => setTranscript(event.target.value)}
+            placeholder={t("practice.transcriptPlaceholder")}
+            rows={4}
+            value={transcript}
+          />
+          {transcriptionError && (
+            <p className="su-transcript-fallback" role="status">
+              {t("practice.manualTranscriptHint")}
+            </p>
+          )}
+        </>
       )}
 
       {phase === "recording" && (

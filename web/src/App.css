@@ -399,6 +399,23 @@ button { font-family: inherit; }
   font-size: 14px;
 }
 
+.su-transcript-input {
+  box-sizing: border-box;
+  display: block;
+  min-height: 112px;
+  resize: vertical;
+}
+
+.su-transcript-fallback {
+  color: var(--warn);
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 8px auto 0;
+  max-width: 640px;
+  text-align: center;
+}
+
 .su-transcript .live-dot {
   display: inline-block;
   width: 6px;

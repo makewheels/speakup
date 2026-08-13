@@ -38,6 +38,7 @@ export default function PracticePage() {
   const [practicePrefs, setPracticePrefs] = useState(() => getPracticePreferences(user.userId));
   const [needsPrefs, setNeedsPrefs] = useState(() => !practiceId && !hasPracticePreferences(user.userId));
   const [transcript, setTranscript] = useState("");
+  const [transcriptionError, setTranscriptionError] = useState(false);
   const [elapsed, setElapsed] = useState("0:00");
   const [result, setResult] = useState(null);
   const [autoSaved, setAutoSaved] = useState(0);
@@ -79,6 +80,7 @@ export default function PracticePage() {
     setPhase("loading");
     setResult(null);
     setTranscript("");
+    setTranscriptionError(false);
     setAutoSaved(0);
     setRound(1);
     setHintGaps([]);
@@ -185,6 +187,7 @@ export default function PracticePage() {
     setHintGaps((result?.gaps ?? []).filter((g) => g.better));
     setResult(null);
     setTranscript("");
+    setTranscriptionError(false);
     setAutoSaved(0);
     setRound((r) => Math.min(r + 1, MAX_ROUNDS));
     setSavedMap({});
@@ -263,6 +266,7 @@ export default function PracticePage() {
     secondsRef.current = 0;
     setElapsed("0:00");
     setTranscript("");
+    setTranscriptionError(false);
     setResult(null);
     setAutoSaved(0);
     setPhase("recording");
@@ -285,13 +289,15 @@ export default function PracticePage() {
         try {
           const { text: txt } = await api.transcribeAudio(user.userId, blob, session?._id);
           setTranscript(txt || "");
+          setTranscriptionError(false);
           if ((txt || "").trim()) {
             evaluate(txt);
           } else {
             setPhase("review");
           }
         } catch (err) {
-          alert(t("practice.transcriptionFailed", { msg: err.message }));
+          console.warn("Cloud transcription unavailable:", err);
+          setTranscriptionError(true);
           setPhase("review");
         }
       };
@@ -478,7 +484,9 @@ export default function PracticePage() {
       stopRecording={stopRecording}
       streamingLen={streamingLen}
       t={t}
+      transcriptionError={transcriptionError}
       transcript={transcript}
+      setTranscript={setTranscript}
     />
   );
 }

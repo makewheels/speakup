@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-14 01:30
+
+- **fix(voice)**：云端 ASR 不可用时进入可编辑转写态，用户可手动输入后继续 AI 评估；云端 TTS 不可用时自动降级到浏览器英文朗读，同一页面会停止重复请求已确认不可用的后端。
+- **change(ui)**：转写失败后的复核态改为可编辑文本框，不再用空文本和禁用按钮把用户卡死。
+- **test**：覆盖 ASR 失败后的手动转写闭环和 TTS 浏览器降级、停止与缓存行为。
+
 ### 2026-08-14 01:20
 
 - **add(data)**：用户首次创建时记录 `sourceType=human|ai_test`，练习、复习项、定制题及 LLM 审计记录同步冗余来源；历史缺字段按 `human` 兼容，生产统计可直接排除自动体验数据。

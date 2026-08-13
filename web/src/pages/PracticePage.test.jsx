@@ -407,10 +407,9 @@ describe("PracticePage", () => {
     expect(api.nextScenario).toHaveBeenCalledTimes(1);
   });
 
-  it("shows review phase even when transcription fails", async () => {
-    const { api } = await import("../api/client.js");
+  it("allows manual transcript and review when cloud transcription fails", async () => {
+    const { api, correctStream } = await import("../api/client.js");
     api.transcribeAudio.mockRejectedValue(new Error("asr down"));
-    vi.spyOn(window, "alert").mockImplementation(() => {});
     setup("/practice/sess_abc");
     await waitFor(() => screen.getByText("Tap once to record"));
     await userEvent.click(document.querySelector(".su-rec"));
@@ -418,7 +417,16 @@ describe("PracticePage", () => {
     await userEvent.click(document.querySelector(".su-rec"));
 
     await waitFor(() => expect(screen.getByText("Review now")).toBeInTheDocument());
-    expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Transcription failed"));
+    expect(screen.getByText(/Cloud transcription is temporarily unavailable/)).toBeInTheDocument();
+    const input = screen.getByLabelText("Your transcript");
+    await userEvent.type(input, "Could you remake my hot latte?");
+    const review = screen.getByText("Review now").closest("button");
+    expect(review).toBeEnabled();
+    await userEvent.click(review);
+    expect(correctStream).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Could you remake my hot latte?" }),
+      expect.any(Object),
+    );
   });
 
   it("Review now is disabled when transcript is empty", async () => {
