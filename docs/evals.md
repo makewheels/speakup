@@ -12,6 +12,27 @@ end-to-end 评估 `server/services/corrector.py` 的 LLM 判题——给 prompt 
 
 ## 基线记录
 
+### 2026-08-14 新模型横评（regression 12）
+
+先从当前账号实时模型列表选取新候选，做 1 trial 初筛：
+
+| 模型 | pass@1 | 平均延迟 | 结果 |
+|---|---|---|---|
+| qwen3.8-max | **11/12** | 3.2s | 进入稳定性复试 |
+| qwen3.7-plus | **11/12** | 4.2s | 进入稳定性复试 |
+| glm-5.2 | **12/12** | 4.3s | 作为旧基线进入复试 |
+| deepseek-v4-pro | 9/12 | 2.3s | 未进入复试 |
+| kimi/kimi-k3 | 1/12 | 0.4s | 当前账号未开通对应产品，非质量得分 |
+| MiniMax/MiniMax-M3 | 1/12 | 0.4s | 当前账号未开通对应产品，非质量得分 |
+
+前三名再跑 3 trials，用 pass^3 选生产模型：
+
+| 模型 | pass@3 | pass^3 | 平均分 | 平均延迟 | 结论 |
+|---|---|---|---|---|---|
+| **qwen3.8-max** | **12/12** | **10/12** | 5.27 | **3.1s** | ✅ 稳定率与速度都最好，切为生产 |
+| qwen3.7-plus | 12/12 | 9/12 | 4.80 | 4.5s | 🟡 性价比候选 |
+| glm-5.2 | 12/12 | 6/12 | 4.66 | 4.5s | ❌ 本轮稳定性低 |
+
 ### 2026-08-13 百炼 5 模型横评（regression 12 × 3 trials）
 
 用 `evals.compare` 跑的新口径基线。背景：生产 CHAT 临时切在 DeepSeek 官方（百炼 key 曾 401），
@@ -23,11 +44,11 @@ end-to-end 评估 `server/services/corrector.py` 的 LLM 判题——给 prompt 
 | qwen3-max | 10/12 | 7/12 | 4.14 | 5.0s | 🟡 次选，贵且慢一些 |
 | glm-4.7 | 10/12 | 6/12 | 4.56 | 3.6s | 🟡 便宜档可用 |
 | kimi-k2.6 | 10/12 | 5/12 | 4.50 | 5.1s | 🟡 百炼上延迟正常（旧火山 plan 的 270s/条是 provider 问题） |
-| **deepseek-v3.2**（≈当前生产 deepseek-chat） | 8/12 | 5/12 | 3.52 | 5.0s | ❌ 核心能力塌陷 |
+| **deepseek-v3.2**（≈当时生产 deepseek-chat） | 8/12 | 5/12 | 3.52 | 5.0s | ❌ 核心能力塌陷 |
 
 deepseek-v3.2 的失败集中在核心纠错能力：`grammar-past-tense-go` 0/3（挑不出 go→went）、
-`vocab-borrow-vs-lend` 0/3、`boundary-chinese-only` 0/3——**当前生产模型处于质量回退状态，
-百炼 key 恢复后应切回 glm-5.2**。
+`vocab-borrow-vs-lend` 0/3、`boundary-chinese-only` 0/3。当时生产模型处于质量回退状态，
+百炼 Key 恢复后已用更新候选重跑横评，结果见上。
 
 各模型盲区不一致，值得一看的交叉点：glm-5.2 独挂 `chinglish-redundant-me`（0/3，其他模型能过），
 deepseek/qwen 挂 borrow/lend 而 glm/kimi 稳过；`scoring-anchor-low` 对全员最难（灰区评分锚点

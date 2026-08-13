@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-14 01:51
+
+- **fix(model)**：百炼服务恢复后，生产文字评估从临时 `deepseek-chat` 升级到新横评最佳的 `qwen3.8-max`，同步当前架构文档。
+- **test(evals)**：初筛 6 个当前模型，再对前 3 名跑 regression 12 × 3 trials；`qwen3.8-max` 取得 pass@3 12/12、pass^3 10/12、平均延迟 3.1s。
+
 ### 2026-08-14 01:45
 
 - **chore(deploy)**：为 CI/CD 增加手动触发入口，支持仅轮换 GitHub Secrets 时不改代码也能启动一次全新部署。

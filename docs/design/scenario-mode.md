@@ -8,12 +8,12 @@
 flowchart TD
     A[GET /scenarios/next 派题] -->|定制题 > 未练公共题 > 轮换| B[创建 session<br/>存场景快照]
     B --> C[用户看图+情境+任务<br/>浏览器录音 → Qwen-ASR 转文字<br/>失败时手动补录转写]
-    C --> D[POST /correct/stream<br/>deepseek-chat 评估 SSE 流式]
+    C --> D[POST /correct/stream<br/>qwen3.8-max 评估 SSE 流式]
     D --> E[反馈：native 版本 + 差距点<br/>错点自动进 vocabulary 复习<br/>可继续追问 AI /correct/chat/stream]
     E -->|verdict != passed 且 < 3 轮| C
     E -->|passed 或 3 轮用完| A
     E -.异步.-> F[录音上传 OSS 关联本轮 attempt]
-    E -.后台.-> G[因材施教：取最弱 3 个表达<br/>deepseek-chat 反向出题 → 定制题入库]
+    E -.后台.-> G[因材施教：取最弱 3 个表达<br/>qwen3.8-max 反向出题 → 定制题入库]
 ```
 
 - 三轮重说：第 2 轮起评估请求自动带上一轮 attempt，模型返回 `progress {verdict: passed/improved/stuck, fixed[], remaining[]}`。
@@ -37,7 +37,7 @@ flowchart TD
 
 | 用途 | 模型 | 接口 | 说明 |
 |------|------|------|------|
-| 口语评估 / 定制出题 / 追问对话 | deepseek-chat（DeepSeek 官方接口） | OpenAI 兼容协议 (LangChain ChatOpenAI) | 当前生产临时配置；评估走 SSE 流式 |
+| 口语评估 / 定制出题 / 追问对话 | qwen3.8-max（阿里云百炼） | OpenAI 兼容协议 (LangChain ChatOpenAI) | 当前生产配置；评估走 SSE 流式 |
 | 场景配图 | doubao-seedream-5.0-lite（默认关闭 `IMAGE_ENABLED=false`） | 火山方舟 Agent Plan | 原套餐过期期间不自动生新图，旧题图照常使用 |
 | 语音识别 / 朗读 | qwen3-asr-flash / qwen3-tts-flash | 阿里云百炼 HTTP | 浏览器音频先统一转 16k mono WAV；云 ASR 失败时可手动补录转写，云 TTS 失败时用浏览器朗读 |
 

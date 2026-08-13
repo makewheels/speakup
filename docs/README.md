@@ -26,7 +26,7 @@ graph TB
         R --> DB[db/connection.py]
     end
 
-    Corrector --> DeepSeek[DeepSeek 官方 · deepseek-chat]
+    Corrector --> ChatModel[百炼 · qwen3.8-max]
     R --> Voice[阿里云百炼 · qwen3-asr-flash / qwen3-tts-flash]
     Wanx -.默认关闭.-> Seedream[火山方舟 · env IMAGE_MODEL]
     OSS --> Aliyun[阿里云 OSS 私有桶<br/>签名 URL 1h]

@@ -18,7 +18,7 @@
 | 后端 | FastAPI (Python 3.14) |
 | 数据库 | MongoDB |
 | 图片来源 | 阿里云 OSS（旧题已生成素材） |
-| AI 反馈/出题 | DeepSeek 官方接口 `deepseek-chat`（当前生产） |
+| AI 反馈/出题 | 阿里云百炼 `qwen3.8-max`（当前生产） |
 | ASR / TTS | 百炼 `qwen3-asr-flash` / `qwen3-tts-flash` |
 | 部署 | Docker Compose + Caddy，GitHub Actions 自动部署 |
 
@@ -53,7 +53,7 @@ git push  # 自动触发部署
 
 | 变量 | 说明 |
 |------|------|
-| CHAT_API_KEY | 文字 LLM 密钥（生产为 DeepSeek 官方接口） |
+| CHAT_API_KEY | 文字 LLM 密钥（生产为阿里云百炼） |
 | VOICE_API_KEY | ASR/TTS 密钥（生产为百炼） |
 | MONGO_URI | 本地 localhost / 生产内网地址 |
 | PORT | API 端口，默认 3001 |
