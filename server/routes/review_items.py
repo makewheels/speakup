@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import get_url as oss_signed_url
+from utils.data_source import normalize_source_type
 from utils.id_generator import review_item_id
 from utils.mongo_ids import id_filter, id_values
 
@@ -22,6 +23,8 @@ class ReviewRequest(BaseModel):
 @router.post("")
 async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_user_id)):
     assert_same_user(req.userId, token_user_id)
+    user = await get_db().users.find_one(id_filter(token_user_id), {"sourceType": 1})
+    source_type = normalize_source_type((user or {}).get("sourceType"))
     now = datetime.now(timezone.utc)
     added = 0
     ids = []  # 与 req.items 顺序对应：每条返回新建或已存在的 reviewItem id，方便前端「取消收录」
@@ -36,6 +39,7 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
         await get_db().reviewItems.insert_one({
             "_id": rid,
             "userId": req.userId,
+            "sourceType": source_type,
             "expression": it["expression"],
             "original": it.get("original", ""),
             "note": it.get("note", ""),

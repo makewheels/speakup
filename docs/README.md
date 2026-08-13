@@ -26,7 +26,7 @@ graph TB
         R --> DB[db/connection.py]
     end
 
-    Corrector --> DashScope[阿里云百炼 · glm-5.2]
+    Corrector --> DeepSeek[DeepSeek 官方 · deepseek-chat]
     R --> Voice[阿里云百炼 · qwen3-asr-flash / qwen3-tts-flash]
     Wanx -.默认关闭.-> Seedream[火山方舟 · env IMAGE_MODEL]
     OSS --> Aliyun[阿里云 OSS 私有桶<br/>签名 URL 1h]
@@ -53,7 +53,7 @@ sequenceDiagram
     participant U as 用户
     participant W as Web
     participant S as Server
-    participant Q as DashScope GLM/Qwen
+    participant Q as DeepSeek / DashScope
     U->>W: 进入练习页
     W->>S: GET /scenarios/next → POST /sessions
     S-->>W: 场景（图 + 情境 + 任务）

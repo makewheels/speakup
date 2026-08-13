@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
+from utils.data_source import normalize_source_type
 from utils.id_generator import practice_session_id
 from utils.mongo_ids import id_filter
 
@@ -43,10 +44,13 @@ async def create_practice(req: CreatePracticeRequest, token_user_id: str = Depen
     scenario = await get_db().scenarios.find_one({"_id": req.scenarioId})
     if not scenario:
         raise HTTPException(404, "场景不存在")
+    user = await get_db().users.find_one(id_filter(token_user_id), {"sourceType": 1})
+    source_type = normalize_source_type((user or {}).get("sourceType"))
 
     doc = {
         "_id": practice_session_id(),
         "userId": req.userId,
+        "sourceType": source_type,
         "scenarioId": req.scenarioId,
         "kind": scenario.get("kind", "task"),
         "title": scenario.get("title", ""),       # 历史列表标题用

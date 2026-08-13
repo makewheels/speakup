@@ -53,7 +53,7 @@ def _mock_correct_stream(result=FAKE_AI_RESULT, chunks=None):
 
 
 def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_id):
-    with _mock_correct():
+    with _mock_correct() as mock:
         resp = client.post(
             "/api/correct",
             json={
@@ -71,6 +71,7 @@ def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_
     assert len(data["gaps"]) == 2
     g = data["gaps"][0]
     assert set(g.keys()) >= {"original", "better", "why", "category", "saveToReview"}
+    assert mock.await_args.kwargs["link_to"]["sourceType"] == "human"
 
 
 def test_correct_rejects_unusable_ai_feedback_without_persisting_attempt(client, user_id, auth_headers, practice_id):

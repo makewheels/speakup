@@ -12,8 +12,8 @@
 | 后端 | FastAPI + uv | Python 3.14, 异步 |
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
 | 场景配图 | 火山方舟 Agent Plan Seedream（env `IMAGE_*`）| 题库预生成 + 定制题后台生成，存 OSS。**成本高，`IMAGE_ENABLED=false` 默认关闭**，新题按无图渲染 |
-| 语音 ASR + TTS | 火山 openspeech Agent Plan（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
-| AI 评估 | 火山方舟 Agent Plan（env `CHAT_*`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
+| 语音 ASR + TTS | 阿里云百炼 Qwen（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
+| AI 评估 | DeepSeek 官方接口（env `CHAT_*`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
 | 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR `b4/speakup`→SSH compose up；caddy 走 docker.io，靠生产机 docker daemon 配置的镜像加速器拉；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
 
 ## 项目结构
@@ -78,7 +78,8 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 ## 注意事项
 
 - **UI 文案走 i18n（zh-CN / en）**：新增/修改 UI 文案必须走 `web/src/i18n/` 字典；默认跟随浏览器语言，用户可在 Profile → 设置切换；选择存 localStorage，不入库（属个人偏好）。代码注释仍用中文。AI 输出（gaps/nativeVersion/summary）保持中文不动——这是另一坨工作，跟 corrector prompt 和场景库捆绑，需要另起 PR。
-- 语音识别仅 Chrome (Web Speech API)
+- 语音识别走全平台 MediaRecorder + 后端百炼 Qwen ASR
+- AI/自动化生产体验必须先用 `POST /api/auth/login` 创建 `sourceType=ai_test` 的专用账号，再用该账号走页面；不得用普通 `human` 账号产生测试数据
 - `.env` 文件不在版本控制中
 - pnpm 全局 store: `~/Library/pnpm/store/v10`
 - uv 全局 cache: `~/.cache/uv`

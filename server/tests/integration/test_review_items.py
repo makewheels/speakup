@@ -26,6 +26,21 @@ def test_add_returns_count(client, user_id, auth_headers):
     assert len(body["ids"]) == 1 and body["ids"][0]  # 回传 id 供前端「取消收录」
 
 
+def test_add_inherits_ai_test_source(client):
+    login = client.post(
+        "/api/auth/login",
+        json={"phone": "13900009996", "sourceType": "ai_test"},
+    ).json()
+    headers = {"Authorization": f"Bearer {login['token']}"}
+    response = _add(client, login["userId"], headers)
+    items = client.get(
+        f"/api/review-items/?userId={login['userId']}", headers=headers
+    ).json()
+
+    assert response.status_code == 200
+    assert items[0]["sourceType"] == "ai_test"
+
+
 def test_add_dedups_same_expression_for_same_user(client, user_id, auth_headers):
     r1 = _add(client, user_id, auth_headers, expression="x")
     r2 = _add(client, user_id, auth_headers, expression="x", original="different original")
