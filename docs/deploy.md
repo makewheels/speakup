@@ -11,11 +11,11 @@ GitHub Actions → 构建 Docker 镜像 → 推 ACR (b4/speakup)
 <生产域名> → /opt/caddy 网关 (Caddy, 80/443) → speakup:3001 (docker network: edge)
 speakup:3001  → MongoDB (内网, MONGO_URI)
                                  → 阿里云 OSS speakup-prod 桶
-                                 → 阿里云百炼 glm-5.2 / Qwen ASR / Qwen TTS
+                                 → DeepSeek deepseek-chat / 百炼 Qwen ASR / Qwen TTS
                                  → 火山方舟 Seedream（配图，默认关闭）
 ```
 
-AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`，配图使用 `IMAGE_*`。当前生产文字模型是百炼 `glm-5.2`，ASR/TTS 分别为 `qwen3-asr-flash` / `qwen3-tts-flash`；配图因原套餐失效设置 `IMAGE_ENABLED=false`，已有题图不受影响。
+AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`，配图使用 `IMAGE_*`。当前生产文字模型是 DeepSeek 官方接口的 `deepseek-chat`，ASR/TTS 分别为百炼 `qwen3-asr-flash` / `qwen3-tts-flash`；配图因原套餐失效设置 `IMAGE_ENABLED=false`，已有题图不受影响。实际值以 `.github/workflows/ci-cd.yml` 写入的生产环境为准。
 
 **多服务部署的核心约定**（这台机以后会跑多个服务）：
 

@@ -33,6 +33,7 @@ from typing import Any, Callable
 
 from db.connection import get_db
 from services import llm_trace
+from utils.data_source import normalize_source_type
 from utils.id_generator import llm_call_id
 
 logger = logging.getLogger(__name__)
@@ -177,6 +178,7 @@ async def audited_invoke(
     doc = {
         "_id": llm_call_id(),
         "kind": kind,
+        "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
         "request": {
             "systemPrompt": messages[0].content if messages else "",
@@ -221,6 +223,7 @@ async def log_image_call(
     doc = {
         "_id": llm_call_id(),
         "kind": "image",
+        "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
         "request": {"prompt": (prompt or "")[:2000]},
         "response": {"sizeBytes": size_bytes},
@@ -247,6 +250,7 @@ async def log_video_call(
     doc = {
         "_id": llm_call_id(),
         "kind": "video",
+        "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
         "request": {"prompt": (prompt or "")[:2000], "taskId": metadata.get("taskId", "")},
         "response": {"sizeBytes": metadata.get("sizeBytes", 0)},

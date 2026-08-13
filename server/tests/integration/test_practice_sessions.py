@@ -18,7 +18,22 @@ def test_create_practice_snapshots_scenario(client, user_id, auth_headers, scena
     assert p["videoKey"] == "scenarios/sc_test_coffee/cover.mp4"
     assert p["videoUrl"]  # videoKey 现签出 URL
     assert p["attempts"] == []
+    assert p["sourceType"] == "human"
     assert "createdAt" in p and p["createdAt"]
+
+
+def test_create_practice_inherits_ai_test_source(client, scenario_id):
+    login = client.post(
+        "/api/auth/login",
+        json={"phone": "13900009997", "sourceType": "ai_test"},
+    ).json()
+    resp = client.post(
+        "/api/practice-sessions",
+        json={"userId": login["userId"], "scenarioId": scenario_id},
+        headers={"Authorization": f"Bearer {login['token']}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["sourceType"] == "ai_test"
 
 
 def test_create_practice_unknown_scenario_404(client, user_id, auth_headers):

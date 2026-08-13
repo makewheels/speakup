@@ -24,6 +24,7 @@ from services.scenario_images import maybe_gen_image
 from services.scenario_preferences import normalized_level, normalized_purpose, pick_public
 from services.scenario_videos import maybe_gen_video
 from services.wanx import wanx_generate
+from utils.data_source import normalize_source_type
 from utils.id_generator import scenario_id
 
 MAX_PENDING_CUSTOM = 2  # 每个用户最多攒 2 道没练过的定制题，攒够就不再生成
@@ -166,7 +167,9 @@ async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
         HumanMessage(content="出一道题。"),
     ]
     sid = scenario_id()  # 提前生成 sid 让 audit + image 都能挂上
-    link = {"scenarioId": sid, "userId": user_id}
+    user = await get_db().users.find_one({"_id": user_id}, {"sourceType": 1})
+    source_type = normalize_source_type((user or {}).get("sourceType"))
+    link = {"scenarioId": sid, "userId": user_id, "sourceType": source_type}
 
     def _parse(raw: str) -> dict:
         cleaned = re.sub(r"```(json)?", "", raw)
@@ -200,6 +203,7 @@ async def _build_scenario_doc(user_id: str, specs: list[dict]) -> dict:
         "videoPrompt": video_prompt,
         "videoStatus": "ready" if video_key else "skipped",
         "ownerUserId": user_id,
+        "sourceType": source_type,
         "targetWords": words,
         "status": "active",
         "createdAt": now,

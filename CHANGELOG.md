@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-14 01:10
+
+- **add(data)**：用户首次创建时记录 `sourceType=human|ai_test`，练习、复习项、定制题及 LLM 审计记录同步冗余来源；历史缺字段按 `human` 兼容，生产统计可直接排除自动体验数据。
+- **fix(docs)**：部署与架构文档同步当前生产模型链路：文字评估为 DeepSeek 官方 `deepseek-chat`，语音为百炼 Qwen ASR/TTS。
+- **test**：覆盖 AI 测试用户来源不可被普通登录改写，以及练习、复习项的来源继承。
+
 ### 2026-08-13 00:52
 
 - **add(evals)**：新增 `evals/compare.py` 跨模型对比 CLI——模型 spec 参数化（`name[@base_url[@KEY_ENV]]`，key 只走环境变量）、多 trial 按 pass@k/pass^k 判、HTML 矩阵报告 + JSON 存档、`--ping` 探活；harness 收敛 client 换单例逻辑为 `use_client` 上下文管理器，eval 调用在 langfuse 侧追加 `model:<名字>` tag，可按模型过滤 trace。退役一次性脚本 `scripts/compare_models.py` / `ping_models.py` / `merge_compare_reports.py`。

@@ -7,9 +7,13 @@
   "_id":       "u_1781276...",
   "phone":     "13800001234",
   "nickname":  "用户名",
+  "sourceType": "human | ai_test",  // 数据来源；普通用户默认 human，自动体验专用账号为 ai_test
   "createdAt": datetime
 }
 ```
+
+`sourceType` 在用户首次创建时确定，后续普通登录不改写。历史缺字段用户按 `human` 处理。
+生产分析排除自动体验数据时使用 `{sourceType: {$ne: "ai_test"}}`，以兼容历史记录。
 
 ## authSessions（登录会话）
 
@@ -43,6 +47,7 @@
   "videoPrompt": "5-second silent video of the same scene, ...",
   "videoStatus": "ready | skipped | failed | pending",
   "ownerUserId": null,                     // null=公共题；u_xxx=只派给该用户的定制题
+  "sourceType":  "human | ai_test",       // 仅定制题写入，从 owner 用户冗余；公共题可缺省
   "category":    { "domain": "travel", "subId": "travel.airport_checkin" },  // 公共题：从 server/data/scenario_taxonomy.yaml 落 (domainShort, subId)；定制题不写
   "targetWords": ["could you take a look"], // 定制题：必须逼用户用上的弱点表达
   "status":      "active | archived",
@@ -58,6 +63,7 @@
 {
   "_id":         "ps_1781276...",
   "userId":      "u_1781276...",
+  "sourceType":  "human | ai_test",             // 从 users 冗余，便于生产数据直接过滤
   "scenarioId":  "sc_...",
   "kind":        "task",
   "title":       "咖啡店给错咖啡",          // 历史列表标题
@@ -105,6 +111,7 @@
 {
   "_id":           "rv_1781276...",
   "userId":        "u_1781276...",
+  "sourceType":    "human | ai_test",           // 从 users 冗余
   "expression":    "Could you take a look?",   // 地道说法（来自 gap.better），词/短语/句式皆可
   "original":      "you see this",             // 用户原来的说法
   "note":          "更礼貌的请求",
@@ -132,6 +139,7 @@
 {
   "_id":         "llm_1781276...",
   "kind":        "scenario_gen_public",  // scenario_gen_public / scenario_gen_custom / correct / correct_retry / correct_stream / image / video
+  "sourceType":  "human | ai_test",      // 用户链路继承来源；公共/历史链路默认 human
   "model":       "qwen3.7-plus",          // 真实用的模型名（来自 response_metadata，不是配置里写的）
   "request": {
     "systemPrompt": "...",
