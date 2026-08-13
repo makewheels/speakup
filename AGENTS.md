@@ -79,6 +79,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 
 - **UI 文案走 i18n（zh-CN / en）**：新增/修改 UI 文案必须走 `web/src/i18n/` 字典；默认跟随浏览器语言，用户可在 Profile → 设置切换；选择存 localStorage，不入库（属个人偏好）。代码注释仍用中文。AI 输出（gaps/nativeVersion/summary）保持中文不动——这是另一坨工作，跟 corrector prompt 和场景库捆绑，需要另起 PR。
 - 语音识别走全平台 MediaRecorder + 后端百炼 Qwen ASR
+- 云 ASR 失败时前端允许手动补录转写继续评估；云 TTS 失败时降级浏览器 `speechSynthesis`。这是可用性兜底，运维验收仍须分别实测 `/api/transcribe` 与 `/api/tts`
 - AI/自动化生产体验必须先用 `POST /api/auth/login` 创建 `sourceType=ai_test` 的专用账号，再用该账号走页面；不得用普通 `human` 账号产生测试数据
 - `.env` 文件不在版本控制中
 - pnpm 全局 store: `~/Library/pnpm/store/v10`

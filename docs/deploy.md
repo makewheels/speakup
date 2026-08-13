@@ -17,6 +17,8 @@ speakup:3001  → MongoDB (内网, MONGO_URI)
 
 AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`，配图使用 `IMAGE_*`。当前生产文字模型是 DeepSeek 官方接口的 `deepseek-chat`，ASR/TTS 分别为百炼 `qwen3-asr-flash` / `qwen3-tts-flash`；配图因原套餐失效设置 `IMAGE_ENABLED=false`，已有题图不受影响。实际值以 `.github/workflows/ci-cd.yml` 写入的生产环境为准。
 
+语音容错：云 ASR 失败时前端保留录音并进入可编辑转写框，用户手动输入后仍可完成评估；云 TTS 失败时自动改用浏览器 `speechSynthesis`。这保证主练习链路可降级完成，但不等于云语音服务健康。恢复完整云语音前需用北京地域、已开通对应语音模型的常规百炼 API Key 更新 `DASHSCOPE_API_KEY`，再分别实测 `/api/transcribe` 与 `/api/tts`，不能只看 `/api/health`。
+
 **多服务部署的核心约定**（这台机以后会跑多个服务）：
 
 - `/opt/caddy/` 是**唯一**占 80/443 的网关，独立 compose，独立 Caddyfile，由人工/单独的 caddy 仓库维护
