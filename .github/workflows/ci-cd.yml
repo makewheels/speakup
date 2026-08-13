@@ -123,12 +123,9 @@ jobs:
           cat <<__ENVEOF__ | \
             ssh -o ServerAliveInterval=30 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "cat > ${{ env.SERVER_DIR }}/.env"
-          # 2026-08-11 百炼 key 401 失效，临时切 DeepSeek 官方。旧值备份：
-          # CHAT_API_KEY=DASHSCOPE_API_KEY / CHAT_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1 / CHAT_MODEL=glm-5.2
-          # 百炼 key 修好后改回这三行即可（注意 VOICE_* 仍依赖百炼 key，目前是坏的）
-          CHAT_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
-          CHAT_BASE_URL=https://api.deepseek.com/v1
-          CHAT_MODEL=deepseek-chat
+          CHAT_API_KEY=${{ secrets.DASHSCOPE_API_KEY }}
+          CHAT_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+          CHAT_MODEL=qwen3.8-max
           CHAT_THINKING=false
           IMAGE_API_KEY=${{ secrets.VOLC_API_KEY }}
           IMAGE_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3
