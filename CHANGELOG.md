@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-13 00:52
+
+- **add(evals)**：新增 `evals/compare.py` 跨模型对比 CLI——模型 spec 参数化（`name[@base_url[@KEY_ENV]]`，key 只走环境变量）、多 trial 按 pass@k/pass^k 判、HTML 矩阵报告 + JSON 存档、`--ping` 探活；harness 收敛 client 换单例逻辑为 `use_client` 上下文管理器，eval 调用在 langfuse 侧追加 `model:<名字>` tag，可按模型过滤 trace。退役一次性脚本 `scripts/compare_models.py` / `ping_models.py` / `merge_compare_reports.py`。
+- **add(ci)**：新增手动触发的评测 workflow（`.github/workflows/evals.yml`），百炼 key 跑 regression 集，HTML 报告传 artifact；可选配 `LANGFUSE_PUBLIC_HOST` secret 让 CI 运行也上报 trace。
+- **fix(infra)**：修复 langfuse trace 全部静默丢失——ClickHouse limit 1536Mi 触顶，OvercommitTracker 杀掉一切写入/读取（worker 日志 `dropped N traces record(s)`）；clickhouse 内存上调至 2560Mi 并 helm upgrade，写入读取已恢复（详见 docs/langfuse.md 踩坑记录）。
+- **docs(evals)**：补 2026-08-13 百炼 5 模型横评基线（glm-5.2 / glm-4.7 / deepseek-v3.2 / qwen3-max / kimi-k2.6 × regression 12 × 3 trials）；deepseek-v3.2 核心纠错能力塌陷（pass^3 5/12），当前生产临时模型处于质量回退状态，百炼 key 恢复后建议切回 glm-5.2。
+- **test**：补 compare 的 spec 解析与报告渲染单测。
+
 ### 2026-08-10 18:38
 
 - **add(evals)**：新增场景题 Pilot v1 人工评测集，按 8 个真实口语坐标组织 24 条正例、反例和边界例；每条标注 8 维分数、硬规则预期、失败标签与人工理由。

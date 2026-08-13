@@ -13,6 +13,7 @@ import asyncio
 import json
 import time
 import traceback
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -81,9 +82,34 @@ def load_tasks(root: Path, suite: str) -> list[Task]:
     return tasks
 
 
-async def run_one_trial(task: Task, trial_index: int) -> TrialResult:
-    """跑一次 corrector，捕异常不让单条挂掉整批。"""
+@contextmanager
+def use_client(client: Any):
+    """把 corrector 的全局客户端临时换成指定 client（跨模型对比用），退出时恢复原值。
+
+    只在 evals 内用：生产路径永远走配置单例。corrector._get_client 是惰性求值，
+    换单例对块内所有并发调用生效（客户端本身无状态，可共享）。
+    """
+    import services.corrector as corrector_mod
+
+    old = corrector_mod._client
+    corrector_mod._client = client
+    try:
+        yield
+    finally:
+        corrector_mod._client = old
+
+
+async def run_one_trial(task: Task, trial_index: int,
+                        model_label: str | None = None) -> TrialResult:
+    """跑一次 corrector，捕异常不让单条挂掉整批。
+
+    model_label 会进 link_to，langfuse 侧按 model:<label> tag 过滤。
+    """
     from services.corrector import correct_text  # 延迟 import：让 evals 包本身不依赖 server 启动
+
+    link_to = {"eval_task": task.id, "eval_trial": trial_index}
+    if model_label:
+        link_to["eval_model"] = model_label
 
     started = time.monotonic()
     try:
@@ -92,7 +118,7 @@ async def run_one_trial(task: Task, trial_index: int) -> TrialResult:
             scenario=task.input.get("scenario"),
             prev_attempt=task.input.get("prev_attempt"),
             round=task.input.get("round", 1),
-            link_to={"eval_task": task.id, "eval_trial": trial_index},
+            link_to=link_to,
         )
         duration = int((time.monotonic() - started) * 1000)
         return TrialResult(trial_index=trial_index, duration_ms=duration, llm_output=result)
@@ -143,13 +169,14 @@ def apply_graders(trial: TrialResult, task: Task) -> None:
         trial.grader_results.append({"grader": f"expect:{kind}", "passed": passed, "reason": reason})
 
 
-async def run_task(task: Task, trials: int, concurrency: int = 3) -> TaskReport:
+async def run_task(task: Task, trials: int, concurrency: int = 3,
+                   model_label: str | None = None) -> TaskReport:
     """同一任务跑 N 次，每次独立 trial。"""
     sem = asyncio.Semaphore(concurrency)
 
     async def bounded(i: int) -> TrialResult:
         async with sem:
-            return await run_one_trial(task, i)
+            return await run_one_trial(task, i, model_label=model_label)
 
     trial_results = await asyncio.gather(*(bounded(i) for i in range(trials)))
     for tr in trial_results:
@@ -157,13 +184,15 @@ async def run_task(task: Task, trials: int, concurrency: int = 3) -> TaskReport:
     return TaskReport(task=task, trials=list(trial_results))
 
 
-async def run_suite(tasks: list[Task], trials: int, concurrency: int) -> list[TaskReport]:
+async def run_suite(tasks: list[Task], trials: int, concurrency: int,
+                    model_label: str | None = None) -> list[TaskReport]:
     """所有任务并发跑（受外层 concurrency 控制 task 之间并行；每个 task 内部再控 trial 并行）。"""
     # 任务级并行（小一些，避免 LLM 限流），trial 级在 run_task 内部再控
     task_sem = asyncio.Semaphore(max(1, concurrency // 2))
 
     async def bounded_task(t: Task) -> TaskReport:
         async with task_sem:
-            return await run_task(t, trials=trials, concurrency=concurrency)
+            return await run_task(t, trials=trials, concurrency=concurrency,
+                                  model_label=model_label)
 
     return list(await asyncio.gather(*(bounded_task(t) for t in tasks)))

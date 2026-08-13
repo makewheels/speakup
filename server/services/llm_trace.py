@@ -65,6 +65,8 @@ def _link_attrs(link_to: dict | None) -> tuple[dict, dict]:
     if lt.get("eval_task"):
         kw["environment"] = "eval"
         kw["tags"] = ["eval", f"task:{lt['eval_task']}"]
+        if lt.get("eval_model"):
+            kw["tags"].append(f"model:{lt['eval_model']}")
     return kw, lt
 
 
