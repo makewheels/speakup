@@ -7,7 +7,8 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
-from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream, followup_chat_stream
+from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream
+from services.followup_chat import followup_chat_stream
 from utils.data_source import normalize_source_type
 from utils.id_generator import review_item_id
 from utils.mongo_ids import id_filter
