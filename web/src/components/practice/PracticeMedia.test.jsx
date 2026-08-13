@@ -59,4 +59,26 @@ describe("PracticeMedia", () => {
       "https://oss.example/cover.jpg",
     );
   });
+
+  it("does not reserve an empty media square when the scenario has no media", () => {
+    const { container } = render(<PracticeMedia />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("removes the media area when the only image fails", () => {
+    const { container } = render(<PracticeMedia imageUrl="https://oss.example/missing.jpg" />);
+
+    fireEvent.error(screen.getByAltText("scene"));
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("removes the media area when a video without a poster fails", () => {
+    const { container } = render(<PracticeMedia videoUrl="https://oss.example/missing.mp4" />);
+
+    fireEvent.error(screen.getByLabelText("scene video"));
+
+    expect(container).toBeEmptyDOMElement();
+  });
 });
