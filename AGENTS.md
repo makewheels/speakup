@@ -13,7 +13,7 @@
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
 | 场景配图 | 火山方舟 Agent Plan Seedream（env `IMAGE_*`）| 题库预生成 + 定制题后台生成，存 OSS。**成本高，`IMAGE_ENABLED=false` 默认关闭**，新题按无图渲染 |
 | 语音 ASR + TTS | 阿里云百炼 Qwen（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
-| AI 评估 | 阿里云百炼 `qwen3.8-max`（env `CHAT_*`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
+| AI 评估 | DeepSeek 官方 `deepseek-v4-flash`（env `CHAT_*`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
 | 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR `b4/speakup`→SSH compose up；caddy 走 docker.io，靠生产机 docker daemon 配置的镜像加速器拉；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
 
 ## 项目结构

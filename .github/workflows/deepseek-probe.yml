@@ -1,0 +1,41 @@
+name: DeepSeek Probe (temporary)
+
+# 临时探测 workflow：用生产 DEEPSEEK_API_KEY 验证 DeepSeek 模型可用性。
+# key 只存在于 runner 环境，不进日志、报告或 artifact。
+# 验证完成后删除本文件（见 PR 描述）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "逗号分隔的模型名，如 deepseek-v4-flash,deepseek-chat"
+        default: "deepseek-v4-flash"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with: { enable-cache: true }
+      - name: Sync deps
+        working-directory: server
+        run: uv sync --frozen
+      - name: List models available on this key
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          curl -fsS https://api.deepseek.com/models \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" | jq -r '.data[].id' \
+            || curl -fsS https://api.deepseek.com/v1/models \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" | jq -r '.data[].id'
+      - name: Ping models (same client path as corrector)
+        working-directory: server
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          CHAT_THINKING: "false"
+        run: >
+          uv run python -m evals.compare --ping
+          --models "${{ inputs.models }}"
+          --base-url https://api.deepseek.com/v1
+          --api-key-env DEEPSEEK_API_KEY

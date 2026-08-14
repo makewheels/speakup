@@ -8,6 +8,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-14 15:25
+
+- **change(model)**：生产文字评估从百炼 `qwen3.8-max` 切到 DeepSeek 官方 `deepseek-v4-flash`（当前版本 DeepSeek-V4-Flash-0731，2026-07-31 重新后训练）；旧名 `deepseek-chat` 已于 2026-07-24 退役，不再使用。
+- **add(evals)**：新增临时 DeepSeek probe workflow（`deepseek-probe.yml`），用生产 key 手动验证模型列表/探活，验证完成后移除。
+- **chore(cost)**：llm_audit 定价表补 `deepseek-v4-flash`（按官方 $0.14/$0.28 每百万 tokens 估算）。
+- **fix(docs)**：架构/部署/场景/评测文档同步当前生产模型链路；regression 基线待在新模型上重跑重建。
+
 ### 2026-08-14 02:17
 
 - **fix(media)**：场景没有图片/视频，或唯一媒体加载失败时，不再显示巨大空白方块，直接让用户看场景任务卡。
