@@ -123,9 +123,12 @@ jobs:
           cat <<__ENVEOF__ | \
             ssh -o ServerAliveInterval=30 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "cat > ${{ env.SERVER_DIR }}/.env"
-          CHAT_API_KEY=${{ secrets.DASHSCOPE_API_KEY }}
-          CHAT_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-          CHAT_MODEL=qwen3.8-max
+          # [2026-08-14 切换] 原因：DeepSeek 于 2026-07-31 对 V4-Flash 重新后训练（版本 DeepSeek-V4-Flash-0731），
+          # 按用户决定切回 DeepSeek 官方；旧名 deepseek-chat 已于 2026-07-24 退役，改用官方模型名 deepseek-v4-flash。
+          # 修改前值：CHAT_API_KEY=secrets.DASHSCOPE_API_KEY（百炼）/ CHAT_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1 / CHAT_MODEL=qwen3.8-max（详见 git 历史）
+          CHAT_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
+          CHAT_BASE_URL=https://api.deepseek.com/v1
+          CHAT_MODEL=deepseek-v4-flash
           CHAT_THINKING=false
           IMAGE_API_KEY=${{ secrets.VOLC_API_KEY }}
           IMAGE_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3

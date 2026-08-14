@@ -12,6 +12,12 @@ end-to-end 评估 `server/services/corrector.py` 的 LLM 判题——给 prompt 
 
 ## 基线记录
 
+### 2026-08-14 生产切到 deepseek-v4-flash（0731）
+
+DeepSeek 于 2026-07-31 对 V4-Flash 重新后训练（版本 DeepSeek-V4-Flash-0731，API 模型名仍为
+`deepseek-v4-flash`；旧名 `deepseek-chat` 已于 2026-07-24 退役）。按用户决定，生产从
+`qwen3.8-max` 切回该模型，未做新一轮 regression 横评——regression 基线待在该模型上重跑重建。
+
 ### 2026-08-14 新模型横评（regression 12）
 
 先从当前账号实时模型列表选取新候选，做 1 trial 初筛：

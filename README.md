@@ -18,7 +18,7 @@
 | 后端 | FastAPI (Python 3.14) |
 | 数据库 | MongoDB |
 | 图片来源 | 阿里云 OSS（旧题已生成素材） |
-| AI 反馈/出题 | 阿里云百炼 `qwen3.8-max`（当前生产） |
+| AI 反馈/出题 | DeepSeek 官方 `deepseek-v4-flash`（当前生产） |
 | ASR / TTS | 百炼 `qwen3-asr-flash` / `qwen3-tts-flash` |
 | 部署 | Docker Compose + Caddy，GitHub Actions 自动部署 |
 
