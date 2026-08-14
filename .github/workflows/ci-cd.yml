@@ -162,6 +162,7 @@ jobs:
           OSS_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}
           OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }}
           # Langfuse trace 双写（2026-08-11 接入；secrets 留空则整体关闭，不影响主路径）
+          # 生产上报走 speakup-prod project；开发/评测走 speakup（见 evals.yml 的 DEV key）
           # HOST 用 langfuse-web 的 ClusterIP（speakup 容器经宿主机路由可达）；svc 重建后需更新
           LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }}
           LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}
