@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-14 15:57
+
+- **chore(evals)**：DeepSeek probe 验证完成（key 可用、`deepseek-v4-flash` 探活通过），移除临时 `deepseek-probe.yml`。
+
 ### 2026-08-14 15:25
 
 - **change(model)**：生产文字评估从百炼 `qwen3.8-max` 切到 DeepSeek 官方 `deepseek-v4-flash`（当前版本 DeepSeek-V4-Flash-0731，2026-07-31 重新后训练）；旧名 `deepseek-chat` 已于 2026-07-24 退役，不再使用。
