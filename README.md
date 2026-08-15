@@ -27,9 +27,10 @@
 ```bash
 # 后端
 cd server
-cp .env.example .env       # 分别填入 CHAT_API_KEY / VOICE_API_KEY
 uv sync
-uv run python main.py      # http://localhost:3001
+# 先按 infra 运维文档设置 INFISICAL_API_URL，并完成 infisical login
+infisical run --env=dev --path=/ --recursive -- \
+  uv run python main.py    # http://localhost:3001
 
 # 前端
 cd web
@@ -45,11 +46,11 @@ push 到 master → GitHub Actions 自动部署到生产环境。
 git push  # 自动触发部署
 ```
 
-部署目标主机 / 凭据见本地 `AGENTS.md`（gitignored）。
+生产部署使用 GitHub OIDC 按需读取 Infisical；GitHub Actions 不保存业务密码。
 
 ## 环境变量
 
-服务端通过 `.env.{APP_ENV}` 区分环境，不提交到 Git。模板见 `server/.env.example`。
+服务端通过 `APP_ENV` 区分环境。真实值由 Infisical 注入，变量说明模板见 `server/.env.example`。
 
 | 变量 | 说明 |
 |------|------|

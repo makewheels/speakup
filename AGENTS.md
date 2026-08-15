@@ -14,7 +14,7 @@
 | 场景配图 | 火山方舟 Agent Plan Seedream（env `IMAGE_*`）| 题库预生成 + 定制题后台生成，存 OSS。**成本高，`IMAGE_ENABLED=false` 默认关闭**，新题按无图渲染 |
 | 语音 ASR + TTS | 阿里云百炼 Qwen（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
 | AI 评估 | DeepSeek 官方 `deepseek-v4-flash`（env `CHAT_*`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
-| 部署 | Docker + ACR + Caddy | GitHub Actions push→构建→推 ACR `b4/speakup`→SSH compose up；caddy 走 docker.io，靠生产机 docker daemon 配置的镜像加速器拉；生产域名走 GitHub Secret `DOMAIN`，Caddy 自动 HTTPS |
+| 部署 | Docker + ACR + Caddy | GitHub Actions 通过 OIDC 从 Infisical 取配置，push→构建→推 ACR `b4/speakup`→SSH compose up；生产域名和凭据均不进 GitHub Secrets |
 
 ## 项目结构
 
@@ -91,7 +91,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 ## 已知不足（待迭代）
 
 - 登录：手机号直接注册无验证，无 token（MVP 自用阶段）
-- production HTTPS 依赖 Caddy + Let's Encrypt（域名见 GitHub Secret `DOMAIN`）；腾讯云 443 端口的 TLS 阻断问题(旧生产被迫走 8443)是否影响新机待部署后实测
+- production HTTPS 依赖 Caddy + Let's Encrypt（域名由 Infisical 注入）；腾讯云 443 端口的 TLS 阻断问题(旧生产被迫走 8443)是否影响新机待部署后实测
 - 内网 DB 连接依赖 Lighthouse 同 VPC（已确认 services→DB 机的 27017 通）
 
 ---
@@ -106,13 +106,13 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 
 | 类型 | 位置 |
 |------|------|
-| 生产 SSH host / user / 内网 IP | GitHub Secrets：`DEPLOY_HOST` `DEPLOY_USER` `MONGO_URI` 等 |
-| 文字 LLM Key（火山方舟） | GitHub Secrets `CHAT_API_KEY` + 本地 `server/.env` |
-| Agent Plan Key（文字/图片/语音/视频） | GitHub Secrets `CHAT_API_KEY`（CI 同时写入 prod 的 `CHAT_API_KEY`/`IMAGE_API_KEY`/`VOICE_API_KEY`/`VIDEO_API_KEY`）+ 本地 `server/.env` |
-| MongoDB 连接串 | GitHub Secrets `MONGO_URI` + 线上 `/opt/speakup/server/.env` |
-| SSH 私钥 | 本机 `~/Downloads/qcloud_lighthouse_beijing`（不入库）+ GitHub Secrets `SSH_PRIVATE_KEY` |
+| 生产 SSH host / user / 内网 IP | Infisical `speakup/prod/deployment` 与 `speakup/prod/db` |
+| 文字 / 图片 / 语音 / 视频 LLM Key | Infisical `speakup/<env>/llm`；跨项目共用值从 `common` 后加载覆盖 |
+| MongoDB 连接串 | Infisical `speakup/<env>/db` |
+| OSS / Langfuse | Infisical `speakup/<env>/oss`、`speakup/<env>/langfuse` |
+| SSH 与 ACR 凭据 | Infisical `speakup/prod/deployment`；仅在流水线临时目录中落盘 |
 
-`gh secret list` 可以看到都设了哪些 secrets。
+GitHub 仓库只保留非敏感的 Infisical endpoint/audience Actions Variables；`gh secret list` 应为空。
 
 ## 部署运维
 
@@ -124,12 +124,12 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
   - 加新服务：业务 compose 接 edge network → Caddyfile 加一段 reverse_proxy → caddy reload
 - `docker compose -f /opt/speakup/docker-compose.yml logs -f` 看业务日志；`/opt/caddy/...` 看网关日志
 - 回滚：旧 `:latest` 每次部署转 `:previous`，`docker tag :previous :latest && docker compose up -d` 回退一步
-- 镜像仓库：阿里云 ACR 个人版 cn-beijing，路径 `registry.cn-beijing.aliyuncs.com/b4/speakup`，登录用主账号固定密码（GitHub Secret `ACR_AK_ID`/`ACR_AK_SECRET`）。caddy 等公共镜像走 docker.io（生产机 daemon 配 `registry-mirrors` 加速）
+- 镜像仓库：阿里云 ACR 个人版 cn-beijing，路径 `registry.cn-beijing.aliyuncs.com/b4/speakup`，登录凭据从 Infisical 临时注入。caddy 等公共镜像走 docker.io（生产机 daemon 配 `registry-mirrors` 加速）
 
 ## HTTPS
 
 - 当前实测：services 机的 443 端口正常通，Caddy 自动 Let's Encrypt（旧机有过 443 阻断走 8443 的历史，新机没复现）
-- 域名走 GitHub Secret `DOMAIN`，由 `/opt/caddy/Caddyfile` 配置（不入库）
+- 域名从 Infisical 注入，由 `/opt/caddy/Caddyfile` 配置（不入库）
 
 ## 凭据旋转 checklist
 
@@ -142,6 +142,6 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 
 旋转步骤：
 
-- MongoDB 密码：连进 mongo `db.changeUserPassword(...)` → 同步改 `server/.env` 和 GitHub Secret `MONGO_URI`
-- Agent Plan key：火山方舟控制台轮换个人版 API Key → 同步 `server/.env` 和 GitHub Secret `CHAT_API_KEY`
-- SSH key：本地 `ssh-keygen` → 腾讯 Lighthouse 上传 → 删除旧 key → 更新 GitHub Secret `SSH_PRIVATE_KEY`
+- MongoDB 密码：连进 mongo `db.changeUserPassword(...)` → 更新 Infisical `speakup/<env>/db` → 跑流水线验证
+- Agent Plan key：在供应商控制台轮换 → 更新 Infisical `speakup/<env>/llm` → 跑相应环境验证
+- SSH key：生成专用 CI key → 腾讯 Lighthouse 更新公钥 → 更新 Infisical `speakup/prod/deployment` → 成功后移除旧公钥
