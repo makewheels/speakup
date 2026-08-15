@@ -106,7 +106,26 @@ JSON schema:
 }
 
 category 只能是 task / grammar / naturalness / vocabulary / register。
-saveToReview：值得反复记忆的表达填 true，一次性任务话术或风格差异填 false。"""
+saveToReview：值得反复记忆的表达填 true，一次性任务话术或风格差异填 false。
+
+完整示例（场景：在咖啡店点单；学习者说："I want a coffee, big cup"）：
+{
+  "summary": "任务办成，表达不够自然",
+  "nativeVersion": "I'd like a large coffee, please.",
+  "score": 5.5,
+  "gaps": [
+    {
+      "title": "更礼貌的点单句式",
+      "original": "I want a coffee, big cup",
+      "better": "I'd like a large coffee, please",
+      "example": "I'd like a latte to go, please.",
+      "why": "I'd like 比 I want 礼貌；杯型放名词前",
+      "category": "naturalness",
+      "saveToReview": true
+    }
+  ],
+  "progress": null
+}"""
 
 RETRY_PROMPT = """
 
@@ -138,6 +157,9 @@ _EMPTY = {
     "gaps": [],
     "progress": None,
 }
+
+# 解析失败兜底文案（correct_text 的自动重试依据它判断）
+_PARSE_FAIL = {**_EMPTY, "summary": "AI feedback could not be parsed. Try again."}
 
 
 def _scenario_block(scenario: dict | None) -> str:
@@ -265,7 +287,7 @@ def _parse_result(raw: str) -> dict:
         result = CorrectResult.model_validate(_coerce_result(_loads_model_json(raw)))
     except Exception:
         logger.warning("corrector parse failed; raw_len=%d raw_start=%r", len(raw), raw[:200])
-        return {**_EMPTY, "summary": "AI feedback could not be parsed. Try again."}
+        return dict(_PARSE_FAIL)
     return result.model_dump()
 
 
@@ -305,7 +327,22 @@ async def correct_text(
     if result["error"]:
         logger.error("correct_text error: %s", result["error"])
         return {**_EMPTY, "summary": "AI service error. Please try again."}
-    return result["parsed"] or _EMPTY
+    parsed = result["parsed"] or _EMPTY
+    if not _is_usable(parsed):
+        # 解析失败/输出为空时自动补救一轮：明确要求只输出 JSON，避免用户白录一遍
+        retry_kind = "correct_repair" if round == 1 else "correct_retry_repair"
+        retry = await audited_invoke(
+            _get_client(),
+            messages + [HumanMessage(content="上一次的输出不可用。请严格只输出符合 schema 的 JSON，不要任何其他文字。")],
+            kind=retry_kind,
+            link_to=link_to,
+            parser=_parse,
+        )
+        retry_parsed = retry["parsed"] or _EMPTY
+        if not retry["error"] and _is_usable(retry_parsed):
+            logger.info("correct_text repair retry succeeded kind=%s", retry_kind)
+            parsed = retry_parsed
+    return parsed
 
 
 async def correct_text_stream(
@@ -351,7 +388,7 @@ async def correct_text_stream(
             except Exception as e:
                 logger.warning("correct_text_stream fallback failed: %s", e)
         if parsed is None:
-            parsed = {**_EMPTY, "summary": "AI feedback could not be parsed. Try again."}
+            parsed = dict(_PARSE_FAIL)
         yield "done", parsed
     except Exception as e:
         logger.error("correct_text_stream error: %s: %s", type(e).__name__, e)
