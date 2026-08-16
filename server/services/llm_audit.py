@@ -121,6 +121,18 @@ def content_to_text(content: Any) -> str:
     return str(content)
 
 
+def extract_usage(metadata: dict | None, usage: dict | None = None) -> tuple[str, int, int]:
+    """提取 (model, prompt_tokens, completion_tokens)。
+    流式开 stream_usage=True 时，langchain 把 usage 放 chunk 顶层 usage_metadata
+    （input_tokens/output_tokens 键）；非流式在 response_metadata.token_usage。
+    两者都传时优先 usage。都没开则返回 0。"""
+    tokens = usage or (metadata or {}).get("token_usage") or (metadata or {}).get("usage_metadata") or {}
+    model = (metadata or {}).get("model_name") or "?"
+    prompt_tok = int(tokens.get("prompt_tokens") or tokens.get("input_tokens") or 0)
+    completion_tok = int(tokens.get("completion_tokens") or tokens.get("output_tokens") or 0)
+    return model, prompt_tok, completion_tok
+
+
 # LangChain message.type → OpenAI 风格 role（审计按发送原文记录，role 只做归一）
 _ROLE_BY_TYPE = {"human": "user", "ai": "assistant", "system": "system", "tool": "tool"}
 

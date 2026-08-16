@@ -68,23 +68,19 @@ def parse_specs(raw: str, default_base_url: str, default_key_env: str) -> list[M
 def build_client(spec: ModelSpec) -> Any:
     from langchain_openai import ChatOpenAI
 
-    from config import CHAT_THINKING
+    from services.corrector import thinking_extra_body
 
     key = os.environ.get(spec.key_env, "")
     if not key:
         raise SystemExit(f"✗ 环境变量 {spec.key_env} 未设置（模型 {spec.model} 需要）")
     # thinking 参数口径与 services.corrector._get_client 保持一致
-    if "volces.com" in spec.base_url:
-        extra_body = {"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}}
-    else:
-        extra_body = {"enable_thinking": CHAT_THINKING}
     return ChatOpenAI(
         openai_api_base=spec.base_url,
         openai_api_key=key,
         model=spec.model,
         temperature=0.3,
         max_tokens=2000,
-        extra_body=extra_body,
+        extra_body=thinking_extra_body(spec.base_url),
         timeout=120,
     )
 

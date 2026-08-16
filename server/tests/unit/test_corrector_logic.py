@@ -70,6 +70,20 @@ def test_get_client_uses_volcengine_thinking_shape(monkeypatch):
     assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
+def test_get_client_uses_deepseek_thinking_shape(monkeypatch):
+    """DeepSeek 官方 API 不认 enable_thinking，必须用 thinking.type，
+    否则思考模型先吐几千字 reasoning，用户端干等几十秒。"""
+    fake_chat = MagicMock(return_value="client")
+    monkeypatch.setattr("services.corrector._client", None)
+    monkeypatch.setattr("services.corrector.CHAT_THINKING", False)
+    monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://api.deepseek.com/v1")
+    monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
+
+    assert _get_client() == "client"
+    assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert fake_chat.call_args.kwargs["stream_usage"] is True
+
+
 def test_short_input_skips_llm_entirely():
     """Less than 3 words → fast path, no LLM call, no gaps."""
     result = asyncio.run(correct_text("hi"))
@@ -244,15 +258,18 @@ def test_progress_model_defaults():
 
 # ── correct_text_stream 単元测试 ────────────────────────────────────────────
 
-def _stream_chunk(text: str):
+def _stream_chunk(text: str, response_metadata: dict | None = None):
     chunk = MagicMock()
     chunk.content = text
+    chunk.response_metadata = response_metadata or {}
+    chunk.usage_metadata = None  # 真实 chunk 无 usage 时就是 None，避免 MagicMock 误判
     return chunk
 
 
 def _empty_content_chunk():
     chunk = MagicMock()
     chunk.content = ""
+    chunk.usage_metadata = None
     return chunk
 
 
@@ -295,6 +312,36 @@ async def test_stream_emits_chunk_events_then_done():
     assert "".join(chunk_texts) == raw
     assert len(done_events) == 1
     assert done_events[0]["summary"] == "nice"
+
+
+@pytest.mark.asyncio
+async def test_stream_emits_usage_event_before_done():
+    """stream_usage=True 时，finish_reason chunk 带顶层 usage_metadata（input_tokens/output_tokens）
+    → 在 done 之前 yield usage 事件，供前端展示本次 token 消耗。"""
+    import json
+    payload = {"summary": "nice", "nativeVersion": "A cat sleeps.", "gaps": []}
+    # 实测 langchain-openai 1.2.2 + DeepSeek 的 finish chunk 形态
+    finish = _stream_chunk("", {"model_name": "deepseek-v4-flash", "finish_reason": "stop"})
+    finish.usage_metadata = {"input_tokens": 321, "output_tokens": 65, "total_tokens": 386}
+    chunks = [_stream_chunk(json.dumps(payload)), finish]
+    fake = _fake_stream_client(chunks)
+    with patch("services.corrector._get_client", return_value=fake):
+        events = await _collect("There is a cat on the sofa", SCENARIO)
+    types = [t for t, _ in events]
+    assert types == ["chunk", "usage", "done"]
+    usage = [d for t, d in events if t == "usage"][0]
+    assert usage == {"model": "deepseek-v4-flash", "promptTokens": 321, "completionTokens": 65}
+
+
+@pytest.mark.asyncio
+async def test_stream_no_usage_event_when_metadata_missing():
+    """末尾 chunk 不带 usage（上游没开 include_usage）→ 不 yield usage 事件，行为向后兼容。"""
+    import json
+    payload = {"summary": "ok", "nativeVersion": "x", "gaps": []}
+    fake = _fake_stream_client([_stream_chunk(json.dumps(payload))])
+    with patch("services.corrector._get_client", return_value=fake):
+        events = await _collect("There is a cat sleeping here")
+    assert [t for t, _ in events] == ["chunk", "done"]
 
 
 @pytest.mark.asyncio

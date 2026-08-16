@@ -13,6 +13,7 @@ from services.llm_audit import (
     client_params,
     content_to_text,
     estimate_text_cost,
+    extract_usage,
     serialize_messages,
 )
 from services.text_input import is_too_short as _is_too_short
@@ -53,22 +54,28 @@ _CATEGORIES = {"task", "grammar", "naturalness", "vocabulary", "register"}
 _VERDICTS = {"passed", "improved", "stuck"}
 
 
+def thinking_extra_body(base_url: str) -> dict:
+    """各家 OpenAI 兼容层的 thinking 参数不同，不可以把火山/DeepSeek 私有格式
+    透传给百炼。显式关闭可避免短 JSON 任务耗尽 token 后返空。
+    DeepSeek 官方 API 不认百炼的 enable_thinking，必须用 thinking.type，
+    否则思考模型会先吐几千字 reasoning_content，用户端干等几十秒。"""
+    if "volces.com" in base_url or "deepseek.com" in base_url:
+        return {"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}}
+    return {"enable_thinking": CHAT_THINKING}
+
+
 def _get_client() -> ChatOpenAI:
     global _client
     if _client is None:
-        # 各家 OpenAI 兼容层的 thinking 参数不同，不可以把火山私有格式
-        # 透传给百炼。显式关闭可避免短 JSON 任务耗尽 token 后返空。
-        if "volces.com" in CHAT_BASE_URL:
-            extra_body = {"thinking": {"type": "enabled" if CHAT_THINKING else "disabled"}}
-        else:
-            extra_body = {"enable_thinking": CHAT_THINKING}
         _client = ChatOpenAI(
             openai_api_base=CHAT_BASE_URL,
             openai_api_key=CHAT_API_KEY,
             model=CHAT_MODEL,
             temperature=0.3,
             max_tokens=2000,
-            extra_body=extra_body,
+            extra_body=thinking_extra_body(CHAT_BASE_URL),
+            # 流式也回传 token 用量（SSE 末尾 chunk 带 usage），否则审计里 token 恒为 0
+            stream_usage=True,
             timeout=_API_TIMEOUT,
         )
     return _client
@@ -369,16 +376,26 @@ async def correct_text_stream(
     final_metadata: dict | None = None
     err: str | None = None
     parsed: dict | None = None
+    model = "?"
+    prompt_tok = 0
+    completion_tok = 0
 
+    final_usage: dict | None = None
     try:
         async for chunk in _get_client().astream(messages):
             delta = content_to_text(chunk.content)
             if delta:
                 full_text += delta
                 yield "chunk", {"text": delta}
-            # 流末尾的 chunk 可能带 usage_metadata
+            # finish_reason chunk 带 model_name；开 stream_usage 时 usage 在 chunk 顶层
             if hasattr(chunk, "response_metadata") and chunk.response_metadata:
                 final_metadata = chunk.response_metadata
+            if getattr(chunk, "usage_metadata", None):
+                final_usage = chunk.usage_metadata
+
+        model, prompt_tok, completion_tok = extract_usage(final_metadata, final_usage)
+        if prompt_tok or completion_tok:
+            yield "usage", {"model": model, "promptTokens": prompt_tok, "completionTokens": completion_tok}
 
         parsed = _parse_result(full_text) if full_text.strip() else None
         # 流式返空（生产偶发空 content）→ 降级非流式重取，避免结果页只剩用户原话
@@ -400,10 +417,6 @@ async def correct_text_stream(
 
     # 流式结束后异步写 audit（不在 yield 链路上做，免得阻塞前端）
     duration_ms = int((time.monotonic() - started) * 1000)
-    tokens = (final_metadata or {}).get("token_usage") or (final_metadata or {}).get("usage_metadata") or {}
-    model = (final_metadata or {}).get("model_name") or "?"
-    prompt_tok = int(tokens.get("prompt_tokens") or tokens.get("input_tokens") or 0)
-    completion_tok = int(tokens.get("completion_tokens") or tokens.get("output_tokens") or 0)
     cost = estimate_text_cost(model, prompt_tok, completion_tok)
     audit_doc = {
         "kind": "correct_stream" if round == 1 else "correct_retry_stream",
