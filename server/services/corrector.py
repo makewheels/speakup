@@ -10,8 +10,10 @@ from config import CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL, CHAT_THINKING
 from services.llm_audit import (
     _safe_insert as audit_safe_insert,
     audited_invoke,
+    client_params,
     content_to_text,
     estimate_text_cost,
+    serialize_messages,
 )
 from services.text_input import is_too_short as _is_too_short
 
@@ -408,9 +410,11 @@ async def correct_text_stream(
         "model": model,
         "request": {
             "systemPrompt": messages[0].content,
-            "userPrompt": messages[1].content,
+            "userPrompt": messages[1].content if len(messages) > 1 else "",
+            "messages": serialize_messages(messages),  # 完整消息列表，一字不少
+            "params": client_params(_get_client()),
         },
-        "response": {"raw": full_text[:8000], "parsed": parsed},
+        "response": {"raw": full_text, "parsed": parsed},  # 完整响应，不截断
         "tokens": {"prompt": prompt_tok, "completion": completion_tok},
         "cost": float(f"{cost:.6f}"),
         "durationMs": duration_ms,

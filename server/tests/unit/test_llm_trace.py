@@ -137,3 +137,28 @@ def test_audited_invoke_style_precise_span(monkeypatch):
     llm_trace.finish(tracer, _doc())
     assert tracer.gen.updated["usage_details"]["total"] == 15
     assert tracer.gen.ended
+
+
+def test_log_call_full_messages_format(monkeypatch):
+    """新格式 request（含完整 messages+params）：input 记录全量消息与参数，一字不少。"""
+    captured: dict = {}
+    monkeypatch.setitem(sys.modules, "langfuse", _fake_langfuse_module(captured))
+    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-test")
+
+    full_messages = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "hello"},  # 多轮历史也必须保留
+        {"role": "user", "content": "第二问"},
+    ]
+    doc = _doc(request={
+        "systemPrompt": "sys",
+        "userPrompt": "hi",
+        "messages": full_messages,
+        "params": {"model_name": "glm-5.2", "temperature": 0.3},
+    })
+    llm_trace.log_call(doc)
+
+    recorded_input = captured["last_start"]["input"]
+    assert recorded_input["messages"] == full_messages
+    assert recorded_input["params"] == {"model_name": "glm-5.2", "temperature": 0.3}

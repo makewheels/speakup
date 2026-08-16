@@ -120,6 +120,30 @@ def content_to_text(content: Any) -> str:
         return str(content.get("text") or content.get("content") or json.dumps(content, ensure_ascii=False))
     return str(content)
 
+
+# LangChain message.type → OpenAI 风格 role（审计按发送原文记录，role 只做归一）
+_ROLE_BY_TYPE = {"human": "user", "ai": "assistant", "system": "system", "tool": "tool"}
+
+
+def serialize_messages(messages: list) -> list[dict]:
+    """完整消息列表 → 可入库的 [{"role", "content"}]——发给 LLM 的原文，一条不丢。"""
+    out: list[dict] = []
+    for m in messages or []:
+        mtype = getattr(m, "type", None) or (m.get("role") if isinstance(m, dict) else None) or "unknown"
+        content = m.content if hasattr(m, "content") else (m.get("content") if isinstance(m, dict) else str(m))
+        out.append({"role": _ROLE_BY_TYPE.get(mtype, mtype), "content": content})
+    return out
+
+
+def client_params(client: Any) -> dict:
+    """提取客户端生成参数（model/temperature/max_tokens/extra_body）——防御式读取。"""
+    params: dict[str, Any] = {}
+    for attr in ("model_name", "temperature", "max_tokens", "extra_body", "model_kwargs"):
+        value = getattr(client, attr, None)
+        if value not in (None, "", {}):
+            params[attr] = value
+    return params
+
 async def audited_invoke(
     client: Any,
     messages: list,
@@ -147,13 +171,13 @@ async def audited_invoke(
     metadata: dict | None = None
     error: str | None = None
     parsed: dict | None = None
+    # 完整请求记录：全量 messages（一条不丢）+ 生成参数——systemPrompt/userPrompt 保留兼容旧读取方
+    full_messages = serialize_messages(messages)
+    params = client_params(client)
     tracer = llm_trace.start(
         kind=kind,
         link_to=link_to,
-        input={
-            "systemPrompt": messages[0].content if messages else "",
-            "userPrompt": messages[1].content if len(messages) > 1 else "",
-        },
+        input={"messages": full_messages, "params": params},
     )
 
     try:
@@ -184,9 +208,11 @@ async def audited_invoke(
         "request": {
             "systemPrompt": messages[0].content if messages else "",
             "userPrompt": messages[1].content if len(messages) > 1 else "",
+            "messages": full_messages,   # 完整消息列表（含多轮历史），一字不少
+            "params": params,            # 生成参数（temperature/max_tokens/extra_body 等）
         },
         "response": {
-            "raw": (raw or "")[:8000],   # cap 8K 字符防爆库
+            "raw": raw or "",            # 完整响应，不截断
             "parsed": parsed,
         },
         "tokens": {"prompt": prompt_tok, "completion": completion_tok},
@@ -226,7 +252,7 @@ async def log_image_call(
         "kind": "image",
         "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
-        "request": {"prompt": (prompt or "")[:2000]},
+        "request": {"prompt": prompt or ""},  # 完整 prompt，不截断
         "response": {"sizeBytes": size_bytes},
         "tokens": {},
         "cost": round(cost, 6),
@@ -253,7 +279,7 @@ async def log_video_call(
         "kind": "video",
         "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
-        "request": {"prompt": (prompt or "")[:2000], "taskId": metadata.get("taskId", "")},
+        "request": {"prompt": prompt or "", "taskId": metadata.get("taskId", "")},  # 完整 prompt，不截断
         "response": {"sizeBytes": metadata.get("sizeBytes", 0)},
         "tokens": {},
         "cost": round(cost, 6),
