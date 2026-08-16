@@ -14,6 +14,7 @@ from services.llm_audit import (
     client_params,
     content_to_text,
     estimate_text_cost,
+    extract_usage,
     serialize_messages,
 )
 
@@ -80,7 +81,11 @@ async def followup_chat_stream(
     full_text = ""
     final_metadata: dict | None = None
     err: str | None = None
+    model = "?"
+    prompt_tok = 0
+    completion_tok = 0
 
+    final_usage: dict | None = None
     try:
         for stream_attempt in range(2):
             try:
@@ -91,6 +96,8 @@ async def followup_chat_stream(
                         yield "chunk", {"text": delta}
                     if hasattr(chunk, "response_metadata") and chunk.response_metadata:
                         final_metadata = chunk.response_metadata
+                    if getattr(chunk, "usage_metadata", None):
+                        final_usage = chunk.usage_metadata
                 break
             except Exception:
                 if stream_attempt == 0 and not full_text:
@@ -98,6 +105,9 @@ async def followup_chat_stream(
                     await asyncio.sleep(0.25)
                     continue
                 raise
+        model, prompt_tok, completion_tok = extract_usage(final_metadata, final_usage)
+        if prompt_tok or completion_tok:
+            yield "usage", {"model": model, "promptTokens": prompt_tok, "completionTokens": completion_tok}
         yield "done", {"text": full_text}
     except Exception as e:
         logger.error("followup_chat_stream error: %s: %s", type(e).__name__, e)
@@ -106,10 +116,6 @@ async def followup_chat_stream(
         yield "error", {"message": msg}
 
     duration_ms = int((time.monotonic() - started) * 1000)
-    tokens = (final_metadata or {}).get("token_usage") or (final_metadata or {}).get("usage_metadata") or {}
-    model = (final_metadata or {}).get("model_name") or "?"
-    prompt_tok = int(tokens.get("prompt_tokens") or tokens.get("input_tokens") or 0)
-    completion_tok = int(tokens.get("completion_tokens") or tokens.get("output_tokens") or 0)
     cost = estimate_text_cost(model, prompt_tok, completion_tok)
     await audit_safe_insert({
         "kind": "followup_chat",
