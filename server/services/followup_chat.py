@@ -11,8 +11,10 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from services.corrector import _get_client, _scenario_block
 from services.llm_audit import (
     _safe_insert as audit_safe_insert,
+    client_params,
     content_to_text,
     estimate_text_cost,
+    serialize_messages,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,8 +114,13 @@ async def followup_chat_stream(
     await audit_safe_insert({
         "kind": "followup_chat",
         "model": model,
-        "request": {"systemPrompt": messages[0].content, "userPrompt": question},
-        "response": {"raw": full_text[:8000]},
+        "request": {
+            "systemPrompt": messages[0].content,
+            "userPrompt": question,
+            "messages": serialize_messages(messages),  # 完整消息列表（含多轮历史），一字不少
+            "params": client_params(_get_client()),
+        },
+        "response": {"raw": full_text},  # 完整响应，不截断
         "tokens": {"prompt": prompt_tok, "completion": completion_tok},
         "cost": float(f"{cost:.6f}"),
         "durationMs": duration_ms,

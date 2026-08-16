@@ -148,13 +148,21 @@ def log_call(doc: dict) -> None:
     """
     kind = doc.get("kind") or "llm_call"
     req = doc.get("request") or {}
+    if req.get("messages"):
+        # 新格式：完整 messages + 生成参数，一字不少
+        input_payload: Any = {
+            "messages": req["messages"],
+            "params": req.get("params") or None,
+        }
+    else:
+        input_payload = {k: v for k, v in {
+            "systemPrompt": req.get("systemPrompt"),
+            "userPrompt": req.get("userPrompt") or req.get("prompt"),
+        }.items() if v}
     tracer = start(
         kind=kind,
         link_to=doc.get("linkedTo"),
-        input={k: v for k, v in {
-            "systemPrompt": req.get("systemPrompt"),
-            "userPrompt": req.get("userPrompt") or req.get("prompt"),
-        }.items() if v},
+        input=input_payload,
     )
     finish(tracer, doc)
 
