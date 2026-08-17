@@ -110,7 +110,10 @@ def test_eval_link_goes_to_eval_env(monkeypatch):
     monkeypatch.setitem(sys.modules, "langfuse", _fake_langfuse_module(captured))
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk-test")
 
-    llm_trace.log_call(_doc(linkedTo={"eval_task": "01-x", "eval_trial": "0"}, error="boom", response={"raw": "", "parsed": None}))
+    llm_trace.log_call(_doc(
+        linkedTo={"eval_task": "01-x", "eval_trial": "0"},
+        error="boom", response={"raw": "", "parsed": None},
+    ))
 
     assert captured["propagate"]["environment"] == "eval"
     assert captured["propagate"]["tags"] == ["eval", "task:01-x"]

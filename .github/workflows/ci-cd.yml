@@ -35,6 +35,9 @@ jobs:
       - name: Code quality gates
         working-directory: server
         run: uv run python scripts/check_code_quality.py
+      - name: Ruff lint
+        working-directory: server
+        run: uv run ruff check
       - name: Run pytest
         working-directory: server
         run: uv run pytest -v

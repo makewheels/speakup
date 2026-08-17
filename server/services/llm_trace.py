@@ -115,7 +115,10 @@ def _apply_doc(gen: Any, doc: dict) -> None:
     gen.update(
         model=model if model and model != "?" else None,
         output=resp.get("parsed") if resp.get("parsed") is not None else (resp.get("raw") or None),
-        usage_details={"input": prompt_tok, "output": completion_tok, "total": prompt_tok + completion_tok} if (prompt_tok or completion_tok) else None,
+        usage_details=(
+            {"input": prompt_tok, "output": completion_tok, "total": prompt_tok + completion_tok}
+            if (prompt_tok or completion_tok) else None
+        ),
         cost_details={"total": doc["cost"]} if doc.get("cost") else None,
         level="ERROR" if doc.get("error") else "DEFAULT",
         status_message=doc.get("error") or None,

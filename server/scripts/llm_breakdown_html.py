@@ -42,7 +42,7 @@ def _highlight_inputs(prompt_text: str, coord: dict) -> str:
     return out
 
 
-def _render_html(coord: dict, system_prompt: str, user_prompt: str,
+def _render_html(coord: dict, system_prompt: str, user_prompt: str,  # noqa: PLR0913
                  raw_response: str, parsed: dict, token_usage: dict) -> str:
     sys_html = _highlight_inputs(system_prompt, coord)
     coord_table = "".join(

@@ -222,8 +222,8 @@ def render_html(results: dict[str, list], k: int, meta: str) -> str:
             model_blocks.append(
                 f"<details><summary><span><b>{html.escape(label)}</b></span>"
                 f"<span>{n_passed}/{len(r.trials)} "
-                f"<span class='badge {'pass' if r.pass_pow_k == 1.0 else ('partial' if r.pass_at_k == 1.0 else 'fail')}'>"
-                f"{'PASS' if r.pass_pow_k == 1.0 else ('FLAKY' if r.pass_at_k == 1.0 else 'FAIL')}</span></span></summary>"
+                f"<span class='badge {'pass' if r.pass_pow_k == 1.0 else ('partial' if r.pass_at_k == 1.0 else 'fail')}'>"  # noqa: E501
+                f"{'PASS' if r.pass_pow_k == 1.0 else ('FLAKY' if r.pass_at_k == 1.0 else 'FAIL')}</span></span></summary>"  # noqa: E501
                 f"<div class='task-body'>{''.join(trials_html)}</div></details>"
             )
         detail_blocks.append(

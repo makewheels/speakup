@@ -64,7 +64,7 @@ def _build_followup_messages(
     return messages
 
 
-async def followup_chat_stream(
+async def followup_chat_stream(  # noqa: C901
     scenario: dict | None,
     attempt: dict | None,
     history: list | None,

@@ -149,7 +149,8 @@ async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(curre
             elif event_type == "done":
                 result = data
         if not result or not _has_usable_feedback(result):
-            yield f"data: {json.dumps({'type': 'error', 'message': (result or {}).get('summary') or 'AI 没有返回可用反馈，请重试'})}\n\n"
+            message = (result or {}).get('summary') or 'AI 没有返回可用反馈，请重试'
+            yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
             return
         auto_saved = await _save_attempt_and_review(req, result, round_no, source_type)
         yield f"data: {json.dumps({'type': 'done', 'result': result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
@@ -172,7 +173,7 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat/stream")
-async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(current_user_id)):
+async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(current_user_id)):  # noqa: C901
     """用户拿到反馈后，基于本次练习上下文继续追问 AI（SSE 纯文本流）。
     把问答历史存进对应 attempt 的 chat 数组，刷新/历史页可回看。
     """

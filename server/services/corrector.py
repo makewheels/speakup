@@ -357,7 +357,7 @@ async def correct_text(
     return parsed
 
 
-async def correct_text_stream(
+async def correct_text_stream(  # noqa: C901
     text: str,
     scenario: dict | None = None,
     prev_attempt: dict | None = None,

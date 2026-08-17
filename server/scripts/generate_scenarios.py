@@ -75,7 +75,8 @@ SCENARIOS = [
             "如果老板说再考虑，争取一个明确的答复时间",
         ],
         "imagePrompt": f"a modern office meeting room, two chairs facing each other across a small table, "
-                       f"a laptop and a notepad on the table, professional natural daylight, one-on-one meeting, {STYLE}",
+                       f"a laptop and a notepad on the table, professional natural daylight, one-on-one meeting, "
+                       f"{STYLE}",
     },
     {
         "slug": "assign-tasks", "kind": "task", "title": "给实习生布置任务",
@@ -116,7 +117,8 @@ SCENARIOS = [
             "你最喜欢它哪一点",
         ],
         "imagePrompt": f"a person being interviewed on a lively city street, a microphone with a small logo cube "
-                       f"held toward the camera, blurred pedestrians and shops behind, vlog street interview vibe, {STYLE}",
+                       f"held toward the camera, blurred pedestrians and shops behind, vlog street interview vibe, "
+                       f"{STYLE}",
     },
     {
         "slug": "phone-habits", "kind": "chat", "title": "聊聊你怎么用手机",
@@ -219,7 +221,8 @@ async def main(dry_run: bool) -> None:
     if dry_run:
         for s in SCENARIOS:
             pts = "\n".join(f"    · {p}" for p in s["points"])
-            print(f"[{s['kind']}] {s['title']} · {s['where']}（难度{s['difficulty']}）\n  任务: {s['mission']}\n{pts}\n")
+            print(f"[{s['kind']}] {s['title']} · {s['where']}（难度{s['difficulty']}）\n"
+                  f"  任务: {s['mission']}\n{pts}\n")
         print(f"共 {len(SCENARIOS)} 个场景")
         return
 
