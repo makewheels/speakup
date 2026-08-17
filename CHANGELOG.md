@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-17 21:06
+
+- **docs(langfuse)**：同步 8-14 v4 升级后的部署现状——管理员凭据文件、独立 ClickHouse StatefulSet、auto-update 机制、新项目 ID 与评测配置（已在服务器逐条验证）
+
 ### 2026-08-17 20:59
 
 - **chore(docs)**：AGENTS.md 注意事项加「开工先 pull」硬规矩——开分支前必须 checkout master && git pull，不得基于过时本地 master 开分支或合并

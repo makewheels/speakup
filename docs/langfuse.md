@@ -3,15 +3,15 @@
 2026-08-11 部署，为 speakup（及后续 video-2022）提供 LLM trace / 评测观测。
 
 > 安全约定：主机 IP、密钥**不入库**。主机看本机 `~/.ssh/config` 的 `tencent-services` 别名；
-> 密钥在服务器 `/opt/langfuse/values.yaml`（600 root）。
+> 组件/项目密钥在服务器 `/opt/langfuse/values.yaml`（600 root），管理员登录凭据在 `/opt/langfuse/admin-credential.json`（600 root）。
 
 ## 部署形态
 
 - 位置：services 机（Tencent Lighthouse）的 **k3s**，`langfuse` namespace
-- 安装：helm chart `langfuse` 1.5.41（app 3.224.1），values 在 **`/opt/langfuse/values.yaml`**（600 root，含全部密钥）
-- 组件：web / worker / postgresql / clickhouse(单副本) / valkey / minio / zookeeper，资源按 8G 共享机裁剪过
-- 存储：k3s local-path（pg 4Gi + clickhouse 10Gi + minio 10Gi + zk 2Gi + valkey 2Gi）
-- 升级：重新 helm upgrade 同 values 即可；chart tgz 从 github releases 拉（服务器直连慢，本机走代理下载后 scp 上去）
+- 安装：helm chart `langfuse` 1.5.41，web/worker 运行 `latest`（当前 app `4.10.0`），values 在 **`/opt/langfuse/values.yaml`**（600 root，含组件与项目密钥）
+- 组件：web / worker / postgresql / valkey / minio，另有独立 ClickHouse `26.4.5.143` StatefulSet，资源按 8G 共享机裁剪过
+- 存储：k3s local-path（pg 4Gi + clickhouse 30Gi + minio 10Gi + valkey 2Gi）；升级前备份在 `/opt/langfuse/backups/2026-08-14-pre-v4`
+- 升级：`langfuse-auto-update` 每天 03:17 顺序滚动 web/worker 的 `latest` 镜像，允许跨主版本；Helm chart 和有状态组件需分开管理
 
 ## 访问
 
@@ -24,8 +24,11 @@
 - 若以后要 HTTPS：DNS 加 `langfuse.a4.fit` A 记录 → services 机公网 IP，/opt/caddy/Caddyfile
   仿照 multica.a4.fit 加 `reverse_proxy <ClusterIP>:3000`，改完 `docker exec caddy-caddy-1 caddy reload --config /etc/caddy/Caddyfile`，
   并把 values.yaml 的 `nextauth.url` 改成该域名后 helm upgrade
-- 登录：admin@a4.fit / 密码见 `/opt/langfuse/values.yaml` 的 LANGFUSE_INIT_USER_PASSWORD
-- 已关闭公开注册（signUpDisabled）；org=personal，project=speakup
+- 登录：admin@a4.fit / 密码见 root `0600` 的 `/opt/langfuse/admin-credential.json`
+- 已关闭公开注册（signUpDisabled）；org=`personal`
+- 当前 SpeakUp 项目显示名为 `speakup`，项目 ID 为 `cmsrtdtfl00izw5075d19048y`；这是 Langfuse 自动生成的 ID
+- 旧项目 ID `speakup`（删除前显示名 `speakup-legacy-20260814`）已完成数据库、ClickHouse 和 S3 清理，当前 Langfuse 仅有 `speakup` 和 `video-2022` 两个可用项目
+- 密码认证以有效邮箱为登录标识；显示名不能替代邮箱，裸用户名 `admin` 无法用于原生登录
 
 ## speakup 埋点
 
@@ -36,18 +39,25 @@
 - eval 调用（link_to 带 eval_task）进 **environment=eval**，和线上流量隔开
 - 本地跑 evals 要上报：先 ssh -L 转发，再 server/.env 配 `LANGFUSE_HOST=http://127.0.0.1:3000` + 两个 key
 
+## 评测配置
+
+- 默认 Judge 模型：`dashscope/glm-5.2`，`providerOptions.enable_thinking=false`
+- Evaluation rule：`Correctness`，作用于新写入的 `GENERATION` observation，状态为 `active`
+- 数据集：`speakup/evals/regression-v1`（12 条）和 `speakup/evals/capability-v1`（14 条）
+- 管理页面：`/project/cmsrtdtfl00izw5075d19048y/evals`
+- 项目迁移只复制数据集和可执行配置；旧 legacy 项目后续已删除
+
 ## 踩坑记录
 
 - **web pod init 阶段 V8 堆 OOM（CrashLoopBackOff）**：默认 limit 1Gi 不够，Node 默认堆 512MB。
   解法：web `NODE_OPTIONS=--max-old-space-size=1536` + limit 2Gi（worker 1024/1.5Gi），已写在 values.yaml
-- chart 默认 clickhouse `replicaCount: 3` + `resourcesPreset: 2xlarge`，单机必须裁成 1 副本 + 显式小资源
+- v4 要求较新 ClickHouse；chart 内置旧版组件已改为独立单副本 `langfuse-clickhouse-external`，其 desired state 在基础设施仓库管理
+- 当前 MinIO 的 S3 `DeleteObjects` 与 v4 SDK 默认 CRC32 不兼容；values 必须保留 `LANGFUSE_S3_DELETE_OBJECTS_CHECKSUM_ALGORITHM=MD5`
 - 服务器 helm 直连 github releases 拉 chart 会挂起（不是 404，是慢到超时）；本机走代理下载再 scp
 - **ClickHouse 内存墙 → trace 全部静默丢失（2026-08-13 修）**：症状是摄入返回 201 但任何读取
   404/列表接口超时。worker 日志报 `memory limit exceeded ... OvercommitTracker ... WaitForAsyncInsert`，
-  `Max attempts reached, dropped N traces record(s)`。根因：clickhouse limit 1536Mi（max_server_memory
+  `Max attempts reached, dropped N traces record(s)`。当时根因：clickhouse limit 1536Mi（max_server_memory
   ≈0.9×limit≈1.35GiB），async insert 缓冲卡死后 MemoryTracking 虚高到 1.66GiB，OvercommitTracker
   杀掉一切新查询/插入，读端也被拖死。解法：values.yaml 里 clickhouse `limits.memory: 2560Mi`、
-  `requests.memory: 1Gi` 后 `helm upgrade`（chart tgz 在 /opt/langfuse/，helm 需
-  `KUBECONFIG=/etc/rancher/k3s/k3s.yaml`）。排查入口：`kubectl logs deploy/langfuse-worker` 看
-  ClickhouseWriter.flush 报错；`clickhouse-client` 密码在 secret `langfuse-clickhouse` 的
-  `admin-password`。
+  `requests.memory: 1Gi` 后恢复。当前外置 ClickHouse 延续 `2560Mi` limit；排查入口仍是
+  `kubectl logs deploy/langfuse-worker`，凭据位于 secret `langfuse-clickhouse-external`，不要输出明文。
