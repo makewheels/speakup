@@ -229,8 +229,7 @@ export default function PracticePage() {
           if (r) setRound(r);
           setChat([]);
           setPhase("feedback");
-          // 结果页从顶部 AI 回复开始展示，Next 推到屏外防误触（对齐 retrySame）
-          window.scrollTo(0, 0);
+          // 结果页的滚动定位由 PracticeFeedbackView 挂载时锚到雅思分数（Next 天然在屏外防误触）
           setFeedbackActionsDisabled(true);
           setTimeout(() => setFeedbackActionsDisabled(false), 1500);
           // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）

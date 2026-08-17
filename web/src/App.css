@@ -1692,8 +1692,8 @@ button { font-family: inherit; }
   border-radius: 12px;
   padding: 12px 14px;
   resize: none;
-  min-height: 72px;
-  max-height: 160px;
+  min-height: 96px;
+  max-height: 200px;
 }
 .fb-chat-input textarea:focus {
   outline: none;

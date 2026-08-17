@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import Icon from "../Icon.jsx";
 import RecordingPlayBtn from "../RecordingPlayBtn.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
@@ -51,6 +52,15 @@ export default function PracticeFeedbackView({
   const passed = progress?.verdict === "passed";
   const lastRound = round >= maxRounds;
 
+  // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看
+  const scoreAnchorRef = useRef(null);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      scoreAnchorRef.current?.scrollIntoView?.({ block: "start" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
     <div className="practice-page fb-page fade-in">
       {(session?.videoUrl || session?.imageUrl) && (
@@ -62,7 +72,9 @@ export default function PracticeFeedbackView({
       )}
       <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
 
-      <ScoreBadge score={result.score} />
+      <div ref={scoreAnchorRef}>
+        <ScoreBadge score={result.score} />
+      </div>
 
       {result.summary && <p className="fb-summary-line">{result.summary}</p>}
 

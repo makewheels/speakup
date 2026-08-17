@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-17 20:43
+
+- **change(web)**：体验走查修复——gap 卡片「为什么」改为「解释」；术语统一为「复习」（原「错题本」）；出题页去掉多余的「不用长按」提示；英文场景卡标签 Scene→Scenario；追问教练输入框加高（72→96px）
+- **fix(web)**：结果页进入后自动定位到雅思分数（题目卡片留在上方可回看），不再从大图顶部开始
+- **test**：新增结果页滚动锚定测试
+
 ### 2026-08-14 15:57
 
 - **chore(evals)**：DeepSeek probe 验证完成（key 可用、`deepseek-v4-flash` 探活通过），移除临时 `deepseek-probe.yml`。

@@ -119,7 +119,6 @@ export default function PracticeActiveView({
             <Icon name="mic" size={32} color="#fff" />
           </button>
           <div className="su-rec-label">{t("practice.tapToStart")}</div>
-          <div className="su-rec-hint">{t("practice.tapHint")}</div>
           {phase === "ready" && session?.scenarioId && (
             <button
               className="su-skip"
