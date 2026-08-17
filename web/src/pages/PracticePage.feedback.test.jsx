@@ -170,6 +170,37 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
   });
 
+  it("结果页挂载后锚定到雅思分数（题目卡片留在上方可回看）", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        {
+          round: 1,
+          transcript: "Can you redo my latte",
+          summary: "整体不错",
+          nativeVersion: "Could you remake my latte?",
+          score: 6.5,
+          gaps: [],
+          progress: null,
+        },
+      ],
+    });
+    // jsdom 没有 scrollIntoView，打桩后验证锚点元素
+    const scrollSpy = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollSpy;
+    try {
+      setup("/practice/sess_abc?result=1");
+      await waitFor(() => expect(screen.getByText("6.5")).toBeInTheDocument());
+      await waitFor(() => expect(scrollSpy).toHaveBeenCalledWith({ block: "start" }));
+      // 被滚到的元素应包含分数本体
+      expect(scrollSpy.mock.instances[0].querySelector(".fb-score")).toBeTruthy();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
   it("追问：发送问题后流式回答渲染、并以本练习上下文调用 chatStream", async () => {
     const { api, chatStream } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({

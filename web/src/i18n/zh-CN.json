@@ -36,7 +36,7 @@
     "loading": "加载场景中…",
     "listening": "正在听…",
     "transcribing": "上传转写中…",
-    "review": "需要的话先修改转写，再提交评估。",
+    "review": "转写有误可以先改，再提交评估。",
     "evaluating": "AI 正在评估你的回答…",
     "place": "地点",
     "scene": "情境",
@@ -45,7 +45,6 @@
     "tryToUse": "试着用上：",
     "tapToStart": "点一下开始录音",
     "tapToStop": "点一下停止",
-    "tapHint": "不用长按，点一下就行",
     "stopHint": "说完后点一下停止，会自动评估",
     "tryAnother": "换一个场景",
     "transcribingShort": "转写中…",
@@ -74,7 +73,7 @@
     "removeTitle": "点击从复习中移除",
     "gapYouSaid": "你说",
     "gapSayThis": "试试这样",
-    "gapWhy": "为什么",
+    "gapWhy": "解释",
     "autoSaved": "已加入复习 {n} 条 · 在任意卡片点「已加入」可移除",
     "soundedNative": "这次听起来 native ✓",
     "usedThisTime": "✅ 这次用上了",
@@ -95,7 +94,7 @@
     "emptyFeedback": "AI 没有返回可用反馈，请重试。",
     "micFailed": "无法访问麦克风：{msg}",
     "removeFailed": "取消收录失败：{msg}",
-    "addFailed": "加入错题本失败：{msg}"
+    "addFailed": "加入复习失败：{msg}"
   },
   "practicePrefs": {
     "settingsSub": "修改后立即生效，下一道场景会按新的偏好匹配。",
@@ -113,7 +112,7 @@
       "beginner": "短句也能完成任务",
       "daily": "常用表达，难度适中",
       "advanced": "更自然、更完整",
-      "challenge": "高压场景，逼近真实"
+      "challenge": "高压场景，贴近真实"
     },
     "purpose": {
       "travel": "出国旅行",
