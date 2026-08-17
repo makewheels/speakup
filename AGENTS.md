@@ -85,6 +85,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 - pnpm 全局 store: `~/Library/pnpm/store/v10`
 - uv 全局 cache: `~/.cache/uv`
 - **不要重复启动 dev server**：前端默认跑在 :5173，启动前先 `lsof -ti :5173` 检查是否已有进程；有则直接用，不要再 `pnpm run dev`
+- **开工先 pull**：开分支前必须 `git checkout master && git pull`（CONTRIBUTING 标准流程第 1 步），不得基于过时本地 master 开分支或合并；多 agent/多机协作时本地 master 经常是旧的
 - 部署详情见 `docs/deploy.md`（回滚、多服务约定、运维命令）
 - 开发流程 / 测试分层 / CHANGELOG 格式 / PR 约定 见 [CONTRIBUTING.md](CONTRIBUTING.md)（人 + agent 共用）
 

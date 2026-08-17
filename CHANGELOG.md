@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-17 20:59
+
+- **chore(docs)**：AGENTS.md 注意事项加「开工先 pull」硬规矩——开分支前必须 checkout master && git pull，不得基于过时本地 master 开分支或合并
+
 ### 2026-08-17 20:50
 
 - **add(docs)**：新增混合练习设计稿 `docs/design/mixed-practice.md`——练习流新旧题混排 + 错题练到 6.5 收纳（retired）；只设计不实现，分 P1/P2/P3 三期
