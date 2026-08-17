@@ -115,7 +115,10 @@ JSON schema:
 }
 
 category 只能是 task / grammar / naturalness / vocabulary / register。
-saveToReview：值得反复记忆的表达填 true，一次性任务话术或风格差异填 false。
+saveToReview 从严判断，宁缺毋滥（复习项太多会淹没重点）：
+- true：可跨场景复用的高频表达、地道搭配、句式（换个场景也用得上）。
+- false：只适用本题的一次性任务话术（具体物品、数字、时间、借口）；过于基础的词汇；纯风格差异（两种说法都对）；单点语法修正（冠词、介词、单复数、时态变形）。
+每次反馈最多 2 条 true。
 
 完整示例（场景：在咖啡店点单；学习者说："I want a coffee, big cup"）：
 {
