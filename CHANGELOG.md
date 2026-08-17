@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-17 20:50
+
+- **add(docs)**：新增混合练习设计稿 `docs/design/mixed-practice.md`——练习流新旧题混排 + 错题练到 6.5 收纳（retired）；只设计不实现，分 P1/P2/P3 三期
+
 ### 2026-08-17 20:47
 
 - **change(corrector)**：收紧 saveToReview 判断标准——加负面清单（一次性任务话术、基础词汇、纯风格差异、单点语法修正不收录）+ 每次反馈最多 2 条，降低低价值复习项入库
