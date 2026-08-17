@@ -130,7 +130,10 @@ async def probe_asr():
     start = {
         "user": {"uid": "probe"},
         "audio": {"format": "mp3", "codec": "raw", "rate": 16000, "bits": 16, "channel": 1, "language": "en-US"},
-        "request": {"model_name": "bigmodel", "enable_itn": True, "enable_punc": True, "enable_lid": False, "result_type": "full"},
+        "request": {
+            "model_name": "bigmodel", "enable_itn": True, "enable_punc": True,
+            "enable_lid": False, "result_type": "full",
+        },
     }
     silent = bytes.fromhex("fffb9064000003480100000348010000034801000003480100000348010000034801") * 80
     headers = {
@@ -180,7 +183,7 @@ async def probe_video_create():
                 "content": [
                     {
                         "type": "text",
-                        "text": "5-second silent video of a suitcase on an airport check-in scale, wide documentary shot, no text",
+                        "text": "5-second silent video of a suitcase on an airport check-in scale, wide documentary shot, no text",  # noqa: E501
                     },
                 ],
             },

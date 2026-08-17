@@ -119,7 +119,7 @@ def _validate_scores(case: dict[str, Any], errors: list[str]) -> None:
         errors.append(f"{case_id}: scores must be integer 1..5, invalid={invalid}")
 
 
-def validate_dataset(families: list[dict[str, Any]]) -> list[str]:
+def validate_dataset(families: list[dict[str, Any]]) -> list[str]:  # noqa: C901
     errors: list[str] = []
     family_ids = [family.get("familyId") for family in families]
     if len(family_ids) != len(set(family_ids)):

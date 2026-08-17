@@ -1,7 +1,7 @@
 from tests.conftest import login_headers
 
 
-def _add(
+def _add(  # noqa: PLR0913
     client,
     user_id,
     auth_headers,
