@@ -51,8 +51,10 @@ def _grader_comment(trial: Any) -> str:
 
 
 def _publish_task(client: Any, item: Any, report: Any, run_name: str,
-                  run_desc: str, trials_k: int) -> bool:
+                  trials_k: int) -> bool:
     """单 task 的回写：每 trial 一条 eval-pass；代表 trial 挂 run item + pass@k/pass^k。"""
+    suite = report.task.source_path.parent.name if report.task.source_path else "?"
+    run_desc = f"speakup evals {suite} trials={trials_k}"
     for trial in report.trials:
         if trial.trace_id is None:
             continue
@@ -106,13 +108,12 @@ def publish(suite: str, run_name: str, reports: list[TaskReport], trials_k: int)
     item_by_input = {_input_key(i.input): i for i in dataset.items}
 
     n_items = 0
-    run_desc = f"speakup evals {suite} trials={trials_k}"
     for report in reports:
         item = item_by_input.get(_input_key(report.task.input))
         if item is None:
             logger.warning("langfuse 回写：task %s 无匹配 dataset item，跳过", report.task.id)
             continue
-        if _publish_task(client, item, report, run_name, run_desc, trials_k):
+        if _publish_task(client, item, report, run_name, trials_k):
             n_items += 1
 
     logger.info("langfuse 回写完成：run=%s items=%d", run_name, n_items)
