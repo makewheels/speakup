@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-18 16:20
+
+- **change(feedback)**：结果页反馈文字输入框**常驻可见**——不再需要先点 👎 才能写字，👍 / 👎 两种评价都可以带文字提交（后端本就支持，此前前端把 👍 的文字丢了）；👎 的原因标签保留
+- **docs**：新增 `docs/业务/2-用户反馈.md`（两个反馈入口 / 数据 / API 的当前实现文档）；i18n 输入框占位文案改为通用的「想补充点什么？（可选）」
+
 ### 2026-08-18 16:06
 
 - **docs**：文档与目录结构整改——根 README 项目结构/页面与路由清单更新到现状（移除已不存在的 Vocabulary/generate 等）；AGENTS.md 代码地图修正（pages/routes 清单、deploy.md 位置、Caddyfile 实际不入库、补 fb_ ID 前缀）；`docs/README.md` 文档地图补齐 deploy/evals/langfuse/scenario-evaluation/evals README/design 画布入口，API 表对齐代码（`/api/practice-sessions`、share、coach 追问、feedbacks、health）
