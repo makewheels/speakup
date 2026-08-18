@@ -24,35 +24,43 @@ speakup/
 │   └── src/
 │       ├── api/client.js            # fetch 封装
 │       ├── context/UserContext.jsx   # 登录状态 (localStorage)
-│       ├── pages/                    # Login, Practice, Vocabulary, History, SessionDetail, Profile
+│       ├── pages/                    # Login, Practice, Feedback, Review, History, SessionDetail, Profile, Share 等
 │       └── components/layout/        # 底部导航
 ├── server/                    # FastAPI 后端 (uv)
 │   ├── main.py                      # 入口, lifespan 初始化
 │   ├── config.py                    # 按 APP_ENV 加载 .env
 │   ├── db/connection.py             # Motor async MongoDB
 │   ├── services/
-│   │   ├── corrector.py             # Qwen 按场景评估口语（三轮 progress 对比）
+│   │   ├── corrector.py             # LLM 按场景评估口语（三轮 progress 对比）
 │   │   ├── scenario_service.py      # 派题 + 因材施教定制题后台生成
 │   │   ├── wanx.py                  # 场景文生图（默认 Seedream；文件名沿用历史）
-│   │   └── oss_storage.py           # 阿里云 OSS 底层封装（私有桶，只存 key 读时现签）
-│   ├── routes/                      # auth, scenarios, correct, practice_sessions, review_items
+│   │   ├── oss_storage.py           # 阿里云 OSS 底层封装（私有桶，只存 key 读时现签）
+│   │   └── ...                      # 另有 transcriber / tts / translator / followup_chat / scenario_images 等
+│   ├── routes/                      # auth, scenarios, correct, practice_sessions, review_items, feedbacks, transcribe, tts
 │   ├── utils/
-│   │   └── id_generator.py          # 业务 _id 前缀：u_ / ps_ / rv_ / sc_ / llm_
+│   │   └── id_generator.py          # 业务 _id 前缀：u_ / ps_ / rv_ / sc_ / llm_ / fb_
 │   └── tests/
 │       ├── conftest.py              # 测试 DB 初始化 + cost guard fixture
 │       ├── unit/                    # 纯逻辑单元测试，全 mock，毫秒级
 │       └── integration/             # 走 HTTP + 真实 test DB，秒级
-├── docs/design/             # 设计文档（改动涉及 schema/存储/ID 时同步更新）
-│   ├── spec.md              # 产品功能文档（定位/产品本质/用户旅程/逐页 UI 规格）
-│   ├── ids.md               # ID 规范
-│   ├── schema.md            # MongoDB 集合 schema
-│   ├── scenario-mode.md     # 场景模式总览（流程/模型/存储/后台任务）
-│   └── storage.md           # OSS 路径设计
-│   └── deploy.md            # 部署指南
+├── docs/                    # 文档（地图与维护约定见 docs/README.md）
+│   ├── 业务/                # 「当前已实现」行为的分模块文档（如 1-错题本与复习.md）
+│   ├── deploy.md            # 部署指南（架构/首次部署/回滚/运维命令）
+│   ├── evals.md             # 评测方法与历次基线记录
+│   ├── langfuse.md          # Langfuse 自托管部署与埋点
+│   ├── scenario-evaluation.md # 题目评测方案（8 维/模拟器/发布门禁）
+│   └── design/              # 设计稿 + 数据模型（改动涉及 schema/存储/ID 时同步更新）
+│       ├── spec.md          # 产品功能文档（定位/用户旅程/逐页 UI 规格）
+│       ├── schema.md        # MongoDB 集合 schema（数据模型事实源）
+│       ├── ids.md           # ID 规范
+│       ├── storage.md       # OSS 路径设计
+│       ├── scenario-mode.md # 场景模式总览（流程/模型/存储/后台任务）
+│       ├── scenario-taxonomy.md # 公共题分类与 LLM 批量生成流程
+│       └── mixed-practice.md    # 混合练习设计稿（部分已实现，见文首状态）
+├── design/                  # UI 设计稿画布原型（SpeakUp.html，非运行代码）
 ├── Dockerfile               # 多阶段构建（pnpm 前端 + uv 后端）
-├── docker-compose.yml       # speakup + Caddy 自动 HTTPS
-├── Caddyfile                # 自动证书 + 反代配置
-└── .github/workflows/ci-cd.yml
+├── docker-compose.yml       # 生产业务服务（Caddy 网关在服务器 /opt/caddy，不入库）
+└── .github/workflows/       # ci-cd.yml（构建部署）+ evals.yml（手动触发评测）
 ```
 
 ## 环境隔离

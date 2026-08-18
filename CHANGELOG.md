@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-18 16:06
+
+- **docs**：文档与目录结构整改——根 README 项目结构/页面与路由清单更新到现状（移除已不存在的 Vocabulary/generate 等）；AGENTS.md 代码地图修正（pages/routes 清单、deploy.md 位置、Caddyfile 实际不入库、补 fb_ ID 前缀）；`docs/README.md` 文档地图补齐 deploy/evals/langfuse/scenario-evaluation/evals README/design 画布入口，API 表对齐代码（`/api/practice-sessions`、share、coach 追问、feedbacks、health）
+- **add(docs)**：根目录 `design/`（UI 设计稿画布原型）新增 README 并纳入文档地图（此前无任何入口指向）
+- **fix(docs)**：CONTRIBUTING 分支命名改为 `<type>-<slug>` 不含斜杠（与 CI 镜像文件名约束和历史分支一致）；langfuse.md 生产 `LANGFUSE_*` 来源更正为 Infisical（非 GitHub Secrets）；evals README 去掉硬编码本机路径
+
 ### 2026-08-18 15:31
 
 - **add(review)**：错题本拆分两类（`kind: mistake|note`）——错题（gap 收录，用户错误说法仅留档）与**好表达笔记**；复习页卡片视图加「全部 / 错题 / 笔记」过滤 chips（带计数）+ 卡片正面类别标签，列表视图按「错题 · N」「笔记 · N」分组。历史数据无 kind 按错题归一；记过笔记的表达又说错自动升级为错题
