@@ -2960,6 +2960,7 @@ button { font-family: inherit; }
   padding: 10px 12px;
   resize: vertical;
   box-sizing: border-box;
+  margin-bottom: 10px;
 }
 .fb-bar-done {
   margin: 20px 0 4px;

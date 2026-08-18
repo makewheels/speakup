@@ -290,7 +290,7 @@ describe("SessionDetailPage", () => {
       expect(screen.getByText("Ask the coach")).toBeInTheDocument(),
     );
 
-    const input = screen.getByRole("textbox");
+    const input = screen.getByPlaceholderText(/Ask about this feedback/);
     await userEvent.type(input, "Why this change?");
     // 输入框旁的发送按钮（只含图标，无文字）
     const sendBtn = input.parentElement.querySelector("button");
@@ -316,7 +316,7 @@ describe("SessionDetailPage", () => {
     setup();
     await waitFor(() => expect(screen.getByText("Ask the coach")).toBeInTheDocument());
 
-    const input = screen.getByRole("textbox");
+    const input = screen.getByPlaceholderText(/Ask about this feedback/);
     await userEvent.type(input, "More examples?{Enter}");
 
     await waitFor(() => expect(chatStream).toHaveBeenCalled());
@@ -346,15 +346,15 @@ describe("SessionDetailPage", () => {
     );
 
     // 最新一轮有输入框
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ask about this feedback/)).toBeInTheDocument();
 
-    // 切到旧轮 → 只读 chat，无输入框
+    // 切到旧轮 → coach 追问只读、无追问输入框（反馈条仍在，可对该轮反馈）
     const tab1 = screen.getAllByText("Attempt 1").find((el) => el.tagName === "BUTTON");
     await userEvent.click(tab1);
     await waitFor(() => {
       expect(screen.getByText("old question")).toBeInTheDocument();
       expect(screen.getByText("old answer")).toBeInTheDocument();
     });
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Ask about this feedback/)).not.toBeInTheDocument();
   });
 });
