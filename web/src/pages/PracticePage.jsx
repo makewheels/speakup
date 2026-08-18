@@ -50,6 +50,8 @@ export default function PracticePage() {
   const [chat, setChat] = useState([]);          // 追问对话 [{role, content}]
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const [paused, setPaused] = useState(false);           // 录音暂停中
+  const [pauseSupported, setPauseSupported] = useState(false); // 浏览器 MediaRecorder 是否支持 pause
 
   const chatControllerRef = useRef(null);
 
@@ -63,6 +65,8 @@ export default function PracticePage() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef(null);
   const stoppingRef = useRef(false);
+  const pausedRef = useRef(false);     // interval 回调里读，避免闭包拿旧 state
+  const discardRef = useRef(false);    // 重录丢弃本次录音：onstop 里据此跳过转写/评估
 
   const hasUsableFeedback = (res) =>
     Boolean((res?.nativeVersion || "").trim() || (res?.gaps ?? []).length > 0);
@@ -267,6 +271,9 @@ export default function PracticePage() {
     setTranscriptionError(false);
     setResult(null);
     setAutoSaved(0);
+    setPaused(false);
+    pausedRef.current = false;
+    discardRef.current = false;
     setPhase("recording");
 
     // 全平台统一走 MediaRecorder + 后端 DashScope Qwen ASR。
@@ -275,14 +282,22 @@ export default function PracticePage() {
       const preferred = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
       const mimeType = preferred.find((tt) => MediaRecorder.isTypeSupported(tt));
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      setPauseSupported(typeof recorder.pause === "function");
       const chunks = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
       recorder.onstop = async () => {
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-        audioChunksRef.current = blob;
-        setRecordingUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
         stream.getTracks().forEach((tr) => tr.stop());
         clearInterval(timerRef.current);
+        setPaused(false);
+        pausedRef.current = false;
+        if (discardRef.current) {
+          // 「重录」触发的停止：关掉麦克风即可，不转写不评估，录音直接丢弃
+          discardRef.current = false;
+          return;
+        }
+        audioChunksRef.current = blob;
+        setRecordingUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
         setPhase("transcribing");
         try {
           const { text: txt } = await api.transcribeAudio(user.userId, blob, session?._id);
@@ -310,6 +325,7 @@ export default function PracticePage() {
     }
 
     timerRef.current = setInterval(() => {
+      if (pausedRef.current) return; // 暂停期间计时冻结
       secondsRef.current += 1;
       const mm = Math.floor(secondsRef.current / 60);
       const ss = (secondsRef.current % 60).toString().padStart(2, "0");
@@ -322,7 +338,8 @@ export default function PracticePage() {
     const recorder = mediaRecorderRef.current;
     if (!recorder || stoppingRef.current) return;
     stoppingRef.current = true;
-    recorder.requestData?.();
+    // 暂停态调 requestData 会抛 InvalidStateError——暂停时的数据本就已 flush，跳过即可
+    try { recorder.requestData?.(); } catch { /* paused state: data already flushed */ }
     setTimeout(() => {
       if (mediaRecorderRef.current === recorder && recorder.state !== "inactive") {
         recorder.stop();
@@ -331,6 +348,43 @@ export default function PracticePage() {
       stoppingRef.current = false;
     }, 450);
     // setPhase 由 MediaRecorder.onstop 控制：transcribing → review
+  };
+
+  // 暂停 / 继续：MediaRecorder 原生支持，暂停段不进音频时间轴（拼出来仍是连续一段）
+  const pauseResumeRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+    try {
+      if (recorder.state === "paused") {
+        recorder.resume();
+        pausedRef.current = false;
+        setPaused(false);
+      } else {
+        recorder.pause();
+        pausedRef.current = true;
+        setPaused(true);
+      }
+    } catch (err) {
+      console.warn("MediaRecorder pause/resume failed:", err);
+    }
+  };
+
+  // 重录：丢弃本次录音回到 ready，不转写不评估（onstop 里由 discardRef 短路）
+  const discardRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+    discardRef.current = true;
+    audioChunksRef.current = null;
+    mediaRecorderRef.current = null;
+    try { recorder.stop(); } catch { /* 已在停止中就算了 */ }
+    clearInterval(timerRef.current);
+    pausedRef.current = false;
+    setPaused(false);
+    secondsRef.current = 0;
+    setElapsed("0:00");
+    setTranscript("");
+    setPhase("ready");
+    window.scrollTo(0, 0);
   };
 
   const handleRecordPressStart = (action) => {
@@ -464,6 +518,7 @@ export default function PracticePage() {
 
   return (
     <PracticeActiveView
+      discardRecording={discardRecording}
       elapsed={elapsed}
       evalAnchorRef={evalAnchorRef}
       evalElapsed={evalElapsed}
@@ -472,6 +527,9 @@ export default function PracticePage() {
       handleRecordPressEnd={handleRecordPressEnd}
       handleRecordPressStart={handleRecordPressStart}
       hintGaps={hintGaps}
+      pauseResumeRecording={pauseResumeRecording}
+      pauseSupported={pauseSupported}
+      paused={paused}
       phase={phase}
       prompts={PROMPTS}
       scenario={scenario}

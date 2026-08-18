@@ -347,6 +347,38 @@ button { font-family: inherit; }
   50%      { box-shadow: 0 0 0 14px oklch(0.52 0.135 25 / 0); }
 }
 
+/* 录音中：暂停(左) + 完成(中大) + 重录(右) 一行 */
+.su-rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+}
+
+.su-rec-side {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--bg-elev);
+  color: var(--ink-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.su-rec-side:active { transform: scale(0.93); }
+
+/* 暂停态：大按钮灰色、停掉呼吸动画 */
+.su-rec.recording.paused {
+  background: var(--ink-3);
+  animation: none;
+}
+
 .su-rec-label {
   font-family: var(--ff-cn);
   font-size: 14px;
@@ -446,6 +478,8 @@ button { font-family: inherit; }
   color: var(--warn);
   letter-spacing: 0.04em;
 }
+
+.su-rec-meta .rec-dot.paused { color: var(--ink-3); }
 
 .su-rec-meta .elapsed {
   font-family: var(--ff-mono);

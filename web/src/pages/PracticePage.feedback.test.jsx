@@ -99,6 +99,8 @@ class FakeMediaRecorder {
     this.state = "recording";
     this.ondataavailable?.({ data: { size: 10 } });
   }
+  pause() { this.state = "paused"; }
+  resume() { this.state = "recording"; }
   requestData() {
     this.ondataavailable?.({ data: { size: 10 } });
   }

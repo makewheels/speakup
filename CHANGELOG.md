@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-18 10:48
+
+- **add(practice)**：录音支持暂停/继续 + 重录——录音中一行三按钮：左 `⏸ 暂停`（暂停后变 `▶ 继续`，计时冻结；MediaRecorder 原生 pause/resume，暂停段不进音频时间轴）、中间大按钮保持 `⏹ 完成`（说完→转写→自动评估，肌肉记忆不变）、右 `🗑 重录`（丢弃本段回到待录音，不转写不评估、麦克风释放）
+- **change(web)**：暂停态视觉——大按钮转灰停呼吸动画、`● 录音中` 变 `⏸ 已暂停`；浏览器不支持 `MediaRecorder.pause` 时自动隐藏暂停按钮（重录不受影响）
+- **fix(web)**：暂停态点完成不再因 `requestData()` 抛 InvalidStateError 卡死（暂停时数据已 flush，跳过即可）
+- **test**：新增暂停/继续切换、重录不触发转写评估、暂停后仍可完成提交、录音中三按钮渲染 4 条前端测试
+- **docs**：spec.md 练习主页「录音中」状态同步三按钮交互
+
 ### 2026-08-18 10:28
 
 - **change(practice)**：同一题重说不封顶——移除 `MAX_ROUNDS=2`，重试按钮常驻（passed 后也在），按钮显示即将开始的第几次尝试（「再说一遍（第 N 次）」）；去掉「本场景已练完」提示
