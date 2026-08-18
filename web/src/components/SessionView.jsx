@@ -143,6 +143,15 @@ export default function SessionView({
               </div>
             )}
 
+            {attempt.standardAnswer && (
+              <div className="fb-native-card fb-standard-card">
+                <div className="fb-card-label standard">{t("practice.standardAnswer")}{canSpeak && <SpeakBtn text={attempt.standardAnswer} practiceId={practiceId} />}</div>
+                {splitSentences(attempt.standardAnswer).map((s, k) => (
+                  <p key={k} className="fb-native-text">{s}</p>
+                ))}
+              </div>
+            )}
+
             {attempt.gaps?.length > 0 && (
               <div className="fb-gaps-section">
                 <div className="fb-section-label">{t("practice.gapsTitle", { n: attempt.gaps.length })}</div>

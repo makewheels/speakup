@@ -32,7 +32,6 @@ export default function PracticeFeedbackView({
   chat,
   chatBusy,
   chatInput,
-  maxRounds,
   recordingUrl,
   result,
   retrySame,
@@ -50,7 +49,6 @@ export default function PracticeFeedbackView({
   const gaps = result.gaps ?? [];
   const progress = result.progress;
   const passed = progress?.verdict === "passed";
-  const lastRound = round >= maxRounds;
 
   // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看
   const scoreAnchorRef = useRef(null);
@@ -115,6 +113,18 @@ export default function PracticeFeedbackView({
             <SpeakBtns text={result.nativeVersion} practiceId={session?._id} />
           </div>
           {splitSentences(result.nativeVersion).map((s, i) => (
+            <p key={i} className="fb-native-text">{s}</p>
+          ))}
+        </div>
+      )}
+
+      {result.standardAnswer && (
+        <div className="fb-native-card fb-standard-card">
+          <div className="fb-card-label standard">
+            {t("practice.standardAnswer")}
+            <SpeakBtns text={result.standardAnswer} practiceId={session?._id} />
+          </div>
+          {splitSentences(result.standardAnswer).map((s, i) => (
             <p key={i} className="fb-native-text">{s}</p>
           ))}
         </div>
@@ -208,25 +218,15 @@ export default function PracticeFeedbackView({
         }}
       />
 
+      {/* 重说不封顶：重试按钮常驻，带上即将开始的第 N 次尝试；不想再说就点下一个 */}
       <div className="actions-row" style={{ marginTop: 8 }}>
-        {passed || lastRound ? (
-          <button className="su-btn su-btn-primary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
-            {t("practice.nextScenario")}&nbsp;<Icon name="next" size={16} />
-          </button>
-        ) : (
-          <>
-            <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
-              <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain")}
-            </button>
-            <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
-              {t("practice.next")}&nbsp;<Icon name="next" size={16} />
-            </button>
-          </>
-        )}
+        <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
+          <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain", { n: (round ?? 1) + 1 })}
+        </button>
+        <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
+          {t(passed ? "practice.nextScenario" : "practice.next")}&nbsp;<Icon name="next" size={16} />
+        </button>
       </div>
-      {!passed && lastRound && (
-        <p className="fb-rounds-out">{t("practice.roundsOut")}</p>
-      )}
     </div>
   );
 }

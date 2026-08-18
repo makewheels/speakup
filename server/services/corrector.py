@@ -22,8 +22,6 @@ _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
 logger = logging.getLogger(__name__)
 
-MAX_ROUNDS = 2
-
 
 class GapItem(BaseModel):
     title: str = ""
@@ -45,6 +43,7 @@ class ProgressInfo(BaseModel):
 class CorrectResult(BaseModel):
     summary: str = ""
     nativeVersion: str = ""
+    standardAnswer: str = ""  # 标准答案：脱离学习者原话，native 完成场景任务的完整说法
     score: float | None = None  # 雅思口语级别 0~9，0.5 进制
     gaps: list[GapItem] = Field(default_factory=list)
     progress: ProgressInfo | None = None
@@ -89,16 +88,21 @@ SYSTEM_PROMPT = """你是英语口语教练。根据场景任务和学习者原�
 已经正确、自然的请求可以不列 gap，不要为了“更简洁”而硬改。
 gaps 最多 4 条；nativeVersion 最多 2 句，保留原意；若任务没完成，要补上全部必要任务话术和关键信息。
 
+nativeVersion 和 standardAnswer 分工不同，都要输出：
+- nativeVersion：基于学习者原话的改写——保留他想表达的内容和意图，只改成 native 的说法。
+- standardAnswer：标准答案——完全脱离学习者原话，native 在这个场景里完成任务会怎么开口。覆盖 mission 和 points 的所有必要信息，最多 3 句；不要迁就学习者说了什么、说了多少，也不要复用他的句式。学习者漏掉的任务话术，standardAnswer 里必须有完整示范。
+
 输出 JSON 前做两次硬检查：
 1. 每个 gap.better 都必须逐字（忽略大小写）出现在 nativeVersion 中；如果没有，重写 nativeVersion 或删除该 gap。
-2. 如果有 task gap，nativeVersion 必须覆盖 scenario mission 和 points 的所有必要信息。
+2. 如果有 task gap，nativeVersion 必须覆盖 scenario mission 和 points 的所有必要信息。standardAnswer 任何时候都必须覆盖。
 score 是 IELTS speaking 0-9、0.5 步进。典型中国学习者 5.0-6.5，跑题/太短要低。
-语言：summary 中文≤25字；nativeVersion/original/better/example 英文；why 中文≤30字。
+语言：summary 中文≤25字；nativeVersion/standardAnswer/original/better/example 英文；why 中文≤30字。
 
 JSON schema:
 {
   "summary": "",
   "nativeVersion": "",
+  "standardAnswer": "",
   "score": 6.0,
   "gaps": [
     {
@@ -124,6 +128,7 @@ saveToReview 从严判断，宁缺毋滥（复习项太多会淹没重点）：
 {
   "summary": "任务办成，表达不够自然",
   "nativeVersion": "I'd like a large coffee, please.",
+  "standardAnswer": "Hi, could I get a large coffee to go, please?",
   "score": 5.5,
   "gaps": [
     {
@@ -165,6 +170,7 @@ verdict 规则：
 _EMPTY = {
     "summary": "",
     "nativeVersion": "",
+    "standardAnswer": "",
     "score": None,
     "gaps": [],
     "progress": None,
@@ -287,6 +293,7 @@ def _coerce_result(data: dict) -> dict:
     return {
         "summary": str(data.get("summary") or ""),
         "nativeVersion": str(data.get("nativeVersion") or data.get("native_version") or ""),
+        "standardAnswer": str(data.get("standardAnswer") or data.get("standard_answer") or ""),
         "score": score,
         "gaps": gaps,
         "progress": progress,
@@ -366,7 +373,7 @@ async def correct_text_stream(  # noqa: C901
 ) -> AsyncGenerator[tuple[str, dict], None]:
     """流式版本，yield (event_type, data) 元组：
     - ("chunk", {"text": "..."})  — 原始 token
-    - ("done",  {summary, nativeVersion, gaps, progress})
+    - ("done",  {summary, nativeVersion, standardAnswer, gaps, progress})
     - ("error", {"message": "..."})
     """
     if _is_too_short(text):

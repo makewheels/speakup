@@ -37,6 +37,8 @@ def _followup_context(scenario: dict | None, attempt: dict | None) -> str:
         parts.append(f'他这次说的话："{attempt.get("transcript", "")}"')
         if attempt.get("nativeVersion"):
             parts.append(f'你给的 native 版改写："{attempt["nativeVersion"]}"')
+        if attempt.get("standardAnswer"):
+            parts.append(f'你给的标准答案（脱离学习者原话、native 独立完成任务的说法）："{attempt["standardAnswer"]}"')
         gaps = attempt.get("gaps") or []
         if gaps:
             lines = "\n".join(

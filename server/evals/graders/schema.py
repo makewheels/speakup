@@ -13,7 +13,7 @@ from typing import Any
 # corrector 用的类别枚举（跟 SYSTEM_PROMPT 一致）
 ALLOWED_CATEGORIES = {"task", "grammar", "naturalness", "vocabulary", "register"}
 ALLOWED_VERDICTS = {"passed", "improved", "stuck"}
-REQUIRED_FIELDS = {"summary", "nativeVersion", "gaps"}
+REQUIRED_FIELDS = {"summary", "nativeVersion", "standardAnswer", "gaps"}
 
 # 中文字符（粗略检测，含中日韩统一表意，够用）
 _CHINESE_RE = re.compile(r"[一-鿿]")
@@ -117,6 +117,23 @@ def better_in_native_version(out: dict | None, _input: dict) -> tuple[bool, str]
     return True, "all gap.better appear verbatim in nativeVersion"
 
 
+def standard_answer_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
+    """standardAnswer（标准答案）：非空、英文。脱离学习者原话的独立示范。
+
+    短输入 fast-path 时 nativeVersion/gaps 都空 → standardAnswer 也允许空。
+    """
+    if (fail := _no_llm_output(out)) is not None:
+        return fail
+    sa = (out.get("standardAnswer") or "").strip()
+    if not sa:
+        if not (out.get("nativeVersion") or "").strip() and not out.get("gaps"):
+            return True, "standardAnswer empty (fast-path OK)"
+        return False, "standardAnswer is empty but nativeVersion/gaps exist"
+    if _has_chinese(sa):
+        return False, f"standardAnswer has Chinese: {sa!r}"
+    return True, f"standardAnswer OK ({len(sa)} chars)"
+
+
 def score_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
     """score 要么 None，要么 0-9 之间，要么 0.5 步进。"""
     if (fail := _no_llm_output(out)) is not None:
@@ -163,6 +180,7 @@ ALL = {
     "gaps_schema": gaps_schema,
     "gap_why_chinese": gap_why_in_chinese,
     "better_in_native": better_in_native_version,
+    "standard_answer": standard_answer_valid,
     "score_valid": score_valid,
     "progress_valid": progress_verdict_valid,
 }

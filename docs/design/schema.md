@@ -73,11 +73,12 @@
   "videoKey":    "scenarios/sc_.../cover.mp4",  // 从题目复制的场景视频 key，读取时现签；前端视频优先、图片兜底
   "attempts": [
     {
-      "round":         1,                  // 第几轮重说（最多 3）
-      "transcript":    "I ordered a hot latte but...",
-      "summary":       "...",
-      "score":         6.5,                // 雅思口语 band，0~9，0.5 进制
-      "nativeVersion": "...",
+      "round":          1,                 // 第几轮重说（不封顶，同一题可无限重说）
+      "transcript":     "I ordered a hot latte but...",
+      "summary":        "...",
+      "score":          6.5,               // 雅思口语 band，0~9，0.5 进制
+      "nativeVersion":  "...",             // 基于学习者原话的 native 改写
+      "standardAnswer": "...",             // 标准答案：脱离学习者原话，native 完成场景任务的完整说法（可空=旧数据）
       "gaps": [
         { "original": "...", "better": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
       ],
