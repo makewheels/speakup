@@ -157,6 +157,7 @@ describe("PracticePage feedback", () => {
           transcript: "Can you redo my latte",
           summary: "整体不错，请求可以更自然",
           nativeVersion: "Could you remake my latte? I'm in a hurry.",
+          standardAnswer: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
           score: 6.5,
           gaps: [],
           progress: null,
@@ -168,6 +169,9 @@ describe("PracticePage feedback", () => {
       expect(screen.getByText("Native version")).toBeInTheDocument(),
     );
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
+    // 标准答案也从 attempt 还原展示（按句切分渲染）
+    expect(screen.getByText("Reference answer")).toBeInTheDocument();
+    expect(screen.getByText("I'm in a bit of a rush.")).toBeInTheDocument();
   });
 
   it("结果页挂载后锚定到雅思分数（题目卡片留在上方可回看）", async () => {
@@ -248,6 +252,7 @@ describe("PracticePage feedback", () => {
         result: {
           summary: "good",
           nativeVersion: "Could you remake my latte? I'm in a hurry.",
+          standardAnswer: "Hi, my latte came out wrong — could you remake it? I'm in a bit of a rush.",
           score: 7.0,
           gaps: [{ original: "redo my latte", better: "remake my latte", why: "more natural" }],
           progress: null,
@@ -269,6 +274,8 @@ describe("PracticePage feedback", () => {
     );
     expect(screen.getByText("7.0")).toBeInTheDocument();
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
+    expect(screen.getByText("Reference answer")).toBeInTheDocument();
+    expect(screen.getByText(/my latte came out wrong/)).toBeInTheDocument();
     expect(screen.getByText("remake my latte")).toBeInTheDocument();
     expect(screen.getByText("more natural")).toBeInTheDocument();
     expect(screen.getByText(/1 added to Review/)).toBeInTheDocument();
@@ -338,10 +345,11 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("hot latte")).toBeInTheDocument();
     expect(screen.getByText("in a hurry")).toBeInTheDocument();
     expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
-    expect(screen.queryByText(/Say it again/)).not.toBeInTheDocument();
+    // 重说不封顶：即使 passed，重试按钮也常驻（下一次是第 2 次尝试）
+    expect(screen.getByText(/Say it again \(attempt 2\)/)).toBeInTheDocument();
   });
 
-  it("keeps the user on feedback after a streamed final-round review", async () => {
+  it("keeps the user on feedback after a streamed second-round review", async () => {
     const { api, correctStream } = await import("../api/client.js");
     correctStream.mockImplementation((_data, { onDone }) => {
       onDone({
@@ -363,8 +371,9 @@ describe("PracticePage feedback", () => {
     await recordUntilEvaluating();
 
     await waitFor(() => expect(screen.getByText("Native version")).toBeInTheDocument());
-    expect(screen.getByText(/these expressions are saved to review/)).toBeInTheDocument();
-    expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
+    // 不封顶：第 2 轮反馈后仍可继续重说，按钮标第 3 次尝试
+    expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Next/)).toBeInTheDocument();
     expect(screen.queryByText(/Tap once to record/)).not.toBeInTheDocument();
     expect(api.nextScenario).not.toHaveBeenCalled();
   });
@@ -441,23 +450,6 @@ describe("PracticePage feedback", () => {
         PREFS,
       ),
     );
-  });
-
-  it("shows 'rounds out' note when last round and not passed", async () => {
-    const { api } = await import("../api/client.js");
-    api.getPractice.mockResolvedValue({
-      ...SESSION,
-      attempts: [
-        { round: 1, transcript: "a", summary: "s", nativeVersion: "N1", score: 6, gaps: [], progress: { verdict: "needs-work" } },
-        { round: 2, transcript: "b", summary: "s", nativeVersion: "N2", score: 6.5, gaps: [], progress: { verdict: "needs-work" } },
-      ],
-    });
-    setup("/practice/sess_abc?result=1");
-    await waitFor(() =>
-      expect(screen.getByText(/these expressions are saved to review/)).toBeInTheDocument(),
-    );
-    expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
-    expect(screen.queryByText(/Say it again/)).not.toBeInTheDocument();
   });
 
   it("adds a gap to Review and toggles to 'In Review'", async () => {

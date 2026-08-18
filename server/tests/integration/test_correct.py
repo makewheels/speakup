@@ -6,6 +6,7 @@ from tests.conftest import login_headers
 FAKE_AI_RESULT = {
     "summary": "请求语气太硬，催促方式不像母语者。",
     "nativeVersion": "Could you remake it? I'm kind of in a rush.",
+    "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a bit of a rush.",
     "gaps": [
         {
             "original": "please change it fast",
@@ -28,6 +29,7 @@ FAKE_AI_RESULT = {
 FAKE_ROUND2_RESULT = {
     "summary": "好了很多。",
     "nativeVersion": "Could you remake it? I'm in a rush.",
+    "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a bit of a rush.",
     "gaps": [],
     "progress": {
         "verdict": "passed",
@@ -67,6 +69,7 @@ def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_
     data = resp.json()
     assert data["summary"]
     assert data["nativeVersion"]
+    assert data["standardAnswer"] == FAKE_AI_RESULT["standardAnswer"]
     assert data["round"] == 1
     assert len(data["gaps"]) == 2
     g = data["gaps"][0]
@@ -131,6 +134,7 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     a = p["attempts"][0]
     assert a["transcript"] == "test text here ok"
     assert a["summary"] == FAKE_AI_RESULT["summary"]
+    assert a["standardAnswer"] == FAKE_AI_RESULT["standardAnswer"]
     assert len(a["gaps"]) == 2
     assert a["gaps"][0]["better"] == FAKE_AI_RESULT["gaps"][0]["better"]
     assert a["gaps"][0]["reviewItemId"]            # saveToReview=True → 自动收录并回写 id
@@ -163,6 +167,25 @@ def test_second_call_passes_prev_attempt_and_round2(client, user_id, auth_header
     assert second_args[3] == 2
     # 场景上下文（来自练习快照）也要传进去
     assert second_args[1]["mission"]
+
+
+def test_round_not_capped_third_attempt_gets_round3(client, user_id, auth_headers, practice_id):
+    """重说不封顶：第 3 次评估 round=3（旧行为封顶在 2）。"""
+    mock = AsyncMock(return_value=FAKE_AI_RESULT)
+    with patch("routes.correct.correct_text", new=mock):
+        for i in range(3):
+            resp = client.post(
+                "/api/correct",
+                json={"userId": user_id, "practiceId": practice_id, "text": f"attempt number {i + 1}"},
+                headers=auth_headers,
+            )
+            assert resp.status_code == 200
+
+    assert [c.args[3] for c in mock.await_args_list] == [1, 2, 3]
+    # 第 3 轮的 prev 是第 2 轮
+    assert mock.await_args_list[2].args[2]["transcript"] == "attempt number 2"
+    p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert [a["round"] for a in p["attempts"]] == [1, 2, 3]
 
 
 def test_progress_persisted_in_attempt(client, user_id, auth_headers, practice_id):

@@ -1572,6 +1572,9 @@ button { font-family: inherit; }
   align-items: center;
 }
 .fb-card-label.native { color: var(--accent); display: flex; align-items: center; }
+/* 标准答案卡：与 native 版（蓝）同构，绿色描边区分 */
+.fb-card-label.standard { color: var(--ok); display: flex; align-items: center; }
+.fb-standard-card { border-color: var(--ok); }
 /* You said —— 与 native version 同字号(19)，无底色，区别只在颜色（黑 vs 蓝） */
 .fb-transcript-text {
   font-family: var(--ff-en);
@@ -2406,14 +2409,6 @@ button { font-family: inherit; }
   color: var(--ink-3);
   text-align: center;
   margin: 10px 0 0;
-}
-
-.fb-rounds-out {
-  font-family: var(--ff-cn);
-  font-size: 14px;
-  color: var(--ink-3);
-  text-align: center;
-  margin-top: 10px;
 }
 
 /* ===== 分享功能 ===== */

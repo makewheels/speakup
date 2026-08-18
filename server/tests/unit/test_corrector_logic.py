@@ -89,6 +89,7 @@ def test_short_input_skips_llm_entirely():
     result = asyncio.run(correct_text("hi"))
     assert result["gaps"] == []
     assert result["nativeVersion"] == ""
+    assert result["standardAnswer"] == ""
     assert result["summary"]  # has a "say more" hint
 
 
@@ -175,6 +176,15 @@ def test_first_round_has_no_progress_instructions():
     assert "重说尝试" not in messages[0].content
 
 
+def test_system_prompt_requires_standard_answer_independent_of_learner():
+    """标准答案板块：prompt 必须要求输出 standardAnswer，且明确它脱离学习者原话。"""
+    messages = _build_messages("I want a hot latte", scenario=SCENARIO)
+    system = messages[0].content
+    assert '"standardAnswer"' in system
+    assert "完全脱离学习者原话" in system
+    assert "nativeVersion" in system  # 两者分工都写进 prompt
+
+
 # ── _parse_result（含 progress）────────────────────────────────────────────
 
 def test_parse_result_with_progress():
@@ -188,6 +198,24 @@ def test_parse_result_with_progress():
 def test_parse_result_without_progress_is_none():
     raw = '{"summary": "ok", "nativeVersion": "x", "gaps": []}'
     assert _parse_result(raw)["progress"] is None
+
+
+def test_parse_result_maps_standard_answer():
+    raw = ('{"summary": "ok", "nativeVersion": "Could you remake it?", '
+           '"standardAnswer": "Excuse me, could you remake my latte? I\'m in a rush.", "gaps": []}')
+    result = _parse_result(raw)
+    assert result["standardAnswer"] == "Excuse me, could you remake my latte? I'm in a rush."
+
+
+def test_parse_result_accepts_snake_case_standard_answer():
+    raw = ('{"summary": "ok", "nativeVersion": "x", "standard_answer": "Could I get a large coffee?", '
+           '"gaps": []}')
+    assert _parse_result(raw)["standardAnswer"] == "Could I get a large coffee?"
+
+
+def test_parse_result_standard_answer_defaults_empty():
+    raw = '{"summary": "ok", "nativeVersion": "x", "gaps": []}'
+    assert _parse_result(raw)["standardAnswer"] == ""
 
 
 def test_parse_result_invalid_json_returns_failure_summary():
@@ -389,6 +417,7 @@ async def test_stream_exception_yields_error_event_not_crash():
 ATTEMPT = {
     "transcript": "Please change it fast.",
     "nativeVersion": "Could you remake this as a hot latte? I'm in a bit of a rush.",
+    "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a rush.",
     "summary": "任务基本完成，用词可更地道",
     "gaps": [
         {"category": "naturalness", "original": "change it fast", "better": "remake it", "why": "remake 更贴切"},
@@ -401,6 +430,7 @@ def test_followup_context_includes_scenario_and_feedback():
     assert SCENARIO["mission"] in ctx
     assert ATTEMPT["transcript"] in ctx
     assert ATTEMPT["nativeVersion"] in ctx
+    assert ATTEMPT["standardAnswer"] in ctx  # 标准答案也进追问上下文
     assert "remake it" in ctx          # gap better
     assert ATTEMPT["summary"] in ctx
 

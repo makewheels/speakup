@@ -60,9 +60,9 @@ sequenceDiagram
     U->>W: 开口说（语音识别转文本 + 录音）
     W->>S: POST /correct/stream
     S->>Q: 场景文案 + 口述文本（第2轮起带上一轮）
-    Q-->>S: summary / nativeVersion / gaps / progress
+    Q-->>S: summary / nativeVersion / standardAnswer / gaps / progress
     S-->>W: SSE 流式返回，错点入 vocabulary
     W->>S: 录音传 OSS（异步）
     S->>S: 后台：弱点表达反向生成定制题
-    U->>W: 再说一遍（最多 3 轮）或下一个场景
+    U->>W: 再说一遍（不封顶）或下一个场景
 ```

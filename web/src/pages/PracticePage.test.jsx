@@ -444,4 +444,22 @@ describe("PracticePage", () => {
     expect(btn).toBeDisabled();
   });
 
+  // ── 重说不封顶 ─────────────────────────────────────────
+
+  it("retry button never disappears — after two attempts it offers attempt 3", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        { round: 1, transcript: "a", summary: "s", nativeVersion: "N1", score: 6, gaps: [], progress: { verdict: "needs-work" } },
+        { round: 2, transcript: "b", summary: "s", nativeVersion: "N2", score: 6.5, gaps: [], progress: { verdict: "needs-work" } },
+      ],
+    });
+    setup("/practice/sess_abc?result=1");
+    await waitFor(() =>
+      expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Next/)).toBeInTheDocument();
+  });
+
 });

@@ -141,6 +141,19 @@ describe("SessionDetailPage", () => {
     );
   });
 
+  it("renders the standard answer when the attempt has one", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        { ...SESSION.attempts[0], standardAnswer: "Could I get a large coffee to go, please?" },
+      ],
+    });
+    setup();
+    await waitFor(() => expect(screen.getByText("Reference answer")).toBeInTheDocument());
+    expect(screen.getByText("Could I get a large coffee to go, please?")).toBeInTheDocument();
+  });
+
   it("renders IELTS score", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);

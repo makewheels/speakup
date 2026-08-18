@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
-from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream
+from services.corrector import correct_text, correct_text_stream
 from services.followup_chat import followup_chat_stream
 from utils.data_source import normalize_source_type
 from utils.id_generator import review_item_id
@@ -33,10 +33,10 @@ async def _load_practice(req: CorrectRequest, token_user_id: str) -> dict:
 
 
 def _round_context(practice: dict) -> tuple[dict | None, dict | None, int]:
-    """从练习取（场景, 上一轮 attempt, 本轮轮次）。轮次从 1 开始，封顶 MAX_ROUNDS。"""
+    """从练习取（场景, 上一轮 attempt, 本轮轮次）。轮次从 1 开始，不封顶（同一题可无限重说）。"""
     scenario = practice.get("scenario")
     attempts = practice.get("attempts", [])
-    round_no = min(len(attempts) + 1, MAX_ROUNDS)
+    round_no = len(attempts) + 1
     prev = attempts[-1] if attempts else None
     return scenario, prev, round_no
 
@@ -90,6 +90,7 @@ async def _save_attempt_and_review(
         "round": round_no,
         "summary": result["summary"],
         "nativeVersion": result["nativeVersion"],
+        "standardAnswer": result.get("standardAnswer", ""),
         "score": result.get("score"),
         "gaps": result["gaps"],
         "progress": result.get("progress"),

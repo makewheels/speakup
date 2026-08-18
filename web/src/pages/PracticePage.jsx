@@ -13,8 +13,6 @@ import {
   savePracticePreferences,
 } from "../lib/practicePreferences.js";
 
-const MAX_ROUNDS = 2;
-
 export default function PracticePage() {
   const { practiceId } = useParams();
   const navigate = useNavigate();
@@ -130,6 +128,7 @@ export default function PracticePage() {
           setResult({
             summary: last.summary,
             nativeVersion: last.nativeVersion,
+            standardAnswer: last.standardAnswer ?? "",
             score: last.score,
             gaps: last.gaps ?? [],
             progress: last.progress ?? null,
@@ -139,11 +138,11 @@ export default function PracticePage() {
           const init = {};
           (last.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
           setSavedMap(init);
-          setRound(Math.min(attempts.length, MAX_ROUNDS));
+          setRound(attempts.length);
           setChat(last.chat ?? []);
           setPhase("feedback");
         } else {
-          setRound(Math.min(attempts.length + 1, MAX_ROUNDS));
+          setRound(attempts.length + 1);
           setPhase("ready");
         }
       }).catch(console.error);
@@ -182,14 +181,14 @@ export default function PracticePage() {
     startNewRound(null, saved);
   };
 
-  // 同一场景再说一遍：保留 session，带着上一轮差距提示重录
+  // 同一场景再说一遍：保留 session，带着上一轮差距提示重录（不封顶，可无限重说）
   const retrySame = () => {
     setHintGaps((result?.gaps ?? []).filter((g) => g.better));
     setResult(null);
     setTranscript("");
     setTranscriptionError(false);
     setAutoSaved(0);
-    setRound((r) => Math.min(r + 1, MAX_ROUNDS));
+    setRound((r) => r + 1);
     setSavedMap({});
     setPhase("ready");
     // 离开结果态，清掉 ?result 标记；同样用 navigate 显式带 pathname，避免 setSearchParams 丢 pathname 触发自动跳题
@@ -445,7 +444,6 @@ export default function PracticePage() {
         chat={chat}
         chatBusy={chatBusy}
         chatInput={chatInput}
-        maxRounds={MAX_ROUNDS}
         recordingUrl={recordingUrl}
         result={result}
         retrySame={retrySame}

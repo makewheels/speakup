@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-18 10:28
+
+- **change(practice)**：同一题重说不封顶——移除 `MAX_ROUNDS=2`，重试按钮常驻（passed 后也在），按钮显示即将开始的第几次尝试（「再说一遍（第 N 次）」）；去掉「本场景已练完」提示
+- **add(corrector)**：反馈新增 `standardAnswer`（标准答案）——脱离学习者原话、native 独立完成场景任务的完整说法；与 nativeVersion（基于原话改写）分工输出，结果页/详情页/分享页独立绿卡展示，支持 TTS 朗读
+- **add(evals)**：schema grader 把 standardAnswer 纳入回归检测（必备字段 + 非空 + 英文）
+- **test**：补无限轮次（第 3 轮 round=3）、standardAnswer 透传/落库/渲染的单元 + 集成 + 前端测试
+- **docs**：schema.md attempts 字段、spec.md 反馈页规格、docs/README.md 时序图同步
+
 ### 2026-08-17 21:06
 
 - **docs(langfuse)**：同步 8-14 v4 升级后的部署现状——管理员凭据文件、独立 ClickHouse StatefulSet、auto-update 机制、新项目 ID 与评测配置（已在服务器逐条验证）
