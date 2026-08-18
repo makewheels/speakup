@@ -79,6 +79,12 @@ export default function Icon({ name, size = 20, color = "currentColor", stroke =
           <path d="M12 3v6M12 15v6M3 12h6M15 12h6M5.6 5.6l4.2 4.2M14.2 14.2l4.2 4.2M5.6 18.4l4.2-4.2M14.2 9.8l4.2-4.2" />
         </svg>
       );
+    case "moon":
+      return (
+        <svg {...p}>
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </svg>
+      );
     case "warn":
       return (
         <svg {...p}>

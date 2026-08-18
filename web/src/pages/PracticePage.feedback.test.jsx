@@ -192,18 +192,21 @@ describe("PracticePage feedback", () => {
         },
       ],
     });
-    // jsdom 没有 scrollIntoView，打桩后验证锚点元素
+    // 滚动定位改为按锚点几何显式 window.scrollTo（对抗上方大图加载/塌缩造成的位移），
+    // jsdom 没有布局，打桩 window.scrollTo 验证其被触发
     const scrollSpy = vi.fn();
-    const original = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollSpy;
+    const originalScrollTo = window.scrollTo;
+    window.scrollTo = scrollSpy;
     try {
       setup("/practice/sess_abc?result=1");
       await waitFor(() => expect(screen.getByText("6.5")).toBeInTheDocument());
-      await waitFor(() => expect(scrollSpy).toHaveBeenCalledWith({ block: "start" }));
-      // 被滚到的元素应包含分数本体
-      expect(scrollSpy.mock.instances[0].querySelector(".fb-score")).toBeTruthy();
+      await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+      // 锚点元素应包含分数本体
+      const anchor = document.querySelector(".fb-score-anchor");
+      expect(anchor).toBeTruthy();
+      expect(anchor.querySelector(".fb-score")).toBeTruthy();
     } finally {
-      Element.prototype.scrollIntoView = original;
+      window.scrollTo = originalScrollTo;
     }
   });
 

@@ -29,6 +29,7 @@ export default function PracticeActiveView({
   pauseSupported,
   phase,
   prompts,
+  round,
   scenario,
   session,
   startNewRound,
@@ -42,6 +43,11 @@ export default function PracticeActiveView({
 }) {
   return (
     <div className="practice-page">
+      {phase !== "loading" && (
+        <div className="attempt-badge-row">
+          <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
+        </div>
+      )}
       <PracticeMedia
         className={"su-img" + (phase === "loading" ? " loading" : "")}
         imageUrl={phase !== "loading" ? session?.imageUrl : ""}

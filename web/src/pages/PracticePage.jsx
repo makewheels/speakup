@@ -532,6 +532,7 @@ export default function PracticePage() {
       paused={paused}
       phase={phase}
       prompts={PROMPTS}
+      round={round}
       scenario={scenario}
       session={session}
       startNewRound={startNewRound}
