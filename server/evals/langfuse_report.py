@@ -50,6 +50,46 @@ def _grader_comment(trial: Any) -> str:
     return "; ".join(f"{g['grader']}: {g['reason']}" for g in failed)[:800]
 
 
+def _publish_task(client: Any, item: Any, report: Any, run_name: str,
+                  run_desc: str, trials_k: int) -> bool:
+    """单 task 的回写：每 trial 一条 eval-pass；代表 trial 挂 run item + pass@k/pass^k。"""
+    for trial in report.trials:
+        if trial.trace_id is None:
+            continue
+        try:
+            client.create_score(
+                trace_id=trial.trace_id,
+                name="eval-pass",
+                value=1.0 if trial.passed else 0.0,
+                comment=_grader_comment(trial),
+            )
+        except Exception as e:
+            logger.warning("langfuse 回写 eval-pass 失败（%s#%s）: %s",
+                           report.task.id, trial.trial_index, e)
+
+    rep = next((t for t in report.trials if not t.passed), report.trials[0])
+    if rep.trace_id is None:
+        return False
+    try:
+        client.api.dataset_run_items.create(
+            run_name=run_name,
+            run_description=run_desc,
+            dataset_item_id=item.id,
+            trace_id=rep.trace_id,
+        )
+        for name, value in (("pass@k", report.pass_at_k), ("pass^k", report.pass_pow_k)):
+            client.create_score(
+                trace_id=rep.trace_id,
+                name=name,
+                value=value,
+                comment=f"{report.task.id} over {trials_k} trials",
+            )
+        return True
+    except Exception as e:
+        logger.warning("langfuse 回写 run item 失败（%s）: %s", report.task.id, e)
+        return False
+
+
 def publish(suite: str, run_name: str, reports: list[TaskReport], trials_k: int) -> None:
     """把一次 run_suite 的结果写进 Langfuse。未启用/写不进时安静退出。"""
     from services import llm_trace
@@ -66,47 +106,13 @@ def publish(suite: str, run_name: str, reports: list[TaskReport], trials_k: int)
     item_by_input = {_input_key(i.input): i for i in dataset.items}
 
     n_items = 0
+    run_desc = f"speakup evals {suite} trials={trials_k}"
     for report in reports:
         item = item_by_input.get(_input_key(report.task.input))
         if item is None:
             logger.warning("langfuse 回写：task %s 无匹配 dataset item，跳过", report.task.id)
             continue
-
-        # 每 trial 一条 eval-pass（挂各自 trace）
-        for trial in report.trials:
-            if trial.trace_id is None:
-                continue
-            try:
-                client.create_score(
-                    trace_id=trial.trace_id,
-                    name="eval-pass",
-                    value=1.0 if trial.passed else 0.0,
-                    comment=_grader_comment(trial),
-                )
-            except Exception as e:
-                logger.warning("langfuse 回写 eval-pass 失败（%s#%s）: %s",
-                               report.task.id, trial.trial_index, e)
-
-        # 代表 trial → run item + task 级 pass@k / pass^k
-        rep = next((t for t in report.trials if not t.passed), report.trials[0])
-        if rep.trace_id is None:
-            continue
-        try:
-            client.api.dataset_run_items.create(
-                run_name=run_name,
-                run_description=f"speakup evals {suite} trials={trials_k}",
-                dataset_item_id=item.id,
-                trace_id=rep.trace_id,
-            )
+        if _publish_task(client, item, report, run_name, run_desc, trials_k):
             n_items += 1
-            for name, value in (("pass@k", report.pass_at_k), ("pass^k", report.pass_pow_k)):
-                client.create_score(
-                    trace_id=rep.trace_id,
-                    name=name,
-                    value=value,
-                    comment=f"{report.task.id} over {trials_k} trials",
-                )
-        except Exception as e:
-            logger.warning("langfuse 回写 run item 失败（%s）: %s", report.task.id, e)
 
     logger.info("langfuse 回写完成：run=%s items=%d", run_name, n_items)
