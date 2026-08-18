@@ -45,6 +45,11 @@ def _get_client() -> Any | None:
     return _client
 
 
+def get_client() -> Any | None:
+    """公共只读入口（evals 回写等复用同一单例）。未配置 env 时返回 None。"""
+    return _get_client()
+
+
 class _Tracer:
     __slots__ = ("cm", "gen")
 
