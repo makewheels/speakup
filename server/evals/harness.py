@@ -13,7 +13,7 @@ import asyncio
 import json
 import time
 import traceback
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -36,6 +36,7 @@ class TrialResult:
     llm_output: dict[str, Any] | None    # corrector 的结构化返回
     error: str | None = None
     grader_results: list[dict[str, Any]] = field(default_factory=list)  # [{grader, passed, reason}]
+    trace_id: str | None = None          # langfuse 回写用（未配 LANGFUSE_* 时 None）
 
     @property
     def passed(self) -> bool:
@@ -104,24 +105,37 @@ async def run_one_trial(task: Task, trial_index: int,
     """跑一次 corrector，捕异常不让单条挂掉整批。
 
     model_label 会进 link_to，langfuse 侧按 model:<label> tag 过滤。
+    配了 langfuse 时给 trial 包一层 root span：corrector 的 generation 嵌套其下，
+    trace_id 供 dataset run item 关联和 score 回写（langfuse_report）。
     """
+    from services import llm_trace
     from services.corrector import correct_text  # 延迟 import：让 evals 包本身不依赖 server 启动
 
     link_to = {"eval_task": task.id, "eval_trial": trial_index}
     if model_label:
         link_to["eval_model"] = model_label
 
+    client = llm_trace.get_client()
+    span_cm = (
+        client.start_as_current_observation(
+            name=f"eval-trial {task.id}#{trial_index}", as_type="span", input=task.input)
+        if client is not None else nullcontext()
+    )
+
     started = time.monotonic()
     try:
-        result = await correct_text(
-            text=task.input["text"],
-            scenario=task.input.get("scenario"),
-            prev_attempt=task.input.get("prev_attempt"),
-            round=task.input.get("round", 1),
-            link_to=link_to,
-        )
+        with span_cm as span:
+            result = await correct_text(
+                text=task.input["text"],
+                scenario=task.input.get("scenario"),
+                prev_attempt=task.input.get("prev_attempt"),
+                round=task.input.get("round", 1),
+                link_to=link_to,
+            )
+            trace_id = getattr(span, "trace_id", None) if span is not None else None
         duration = int((time.monotonic() - started) * 1000)
-        return TrialResult(trial_index=trial_index, duration_ms=duration, llm_output=result)
+        return TrialResult(trial_index=trial_index, duration_ms=duration,
+                           llm_output=result, trace_id=trace_id)
     except Exception as e:
         duration = int((time.monotonic() - started) * 1000)
         return TrialResult(

@@ -316,6 +316,12 @@ def main() -> int:
     print(f"▶ {len(specs)} models × {len(tasks)} tasks × {args.trials} trials")
     results = asyncio.run(run_compare(specs, tasks, args.trials, args.concurrency))
 
+    # 结果回写 Langfuse（未配 LANGFUSE_* 时 no-op）；flush 在回写后统一冲队列
+    from evals import langfuse_report
+    for label, reports in results.items():
+        langfuse_report.publish(args.suite, langfuse_report.default_run_name(label),
+                                reports, args.trials)
+
     from services import llm_trace
     llm_trace.flush()
 

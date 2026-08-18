@@ -155,5 +155,9 @@ uv run python -m evals.compare \
 
 - **PR 自动跑**：`.github/workflows/evals.yml` 已提供手动触发（workflow_dispatch，百炼 key，
   报告传 artifact）；基线 pass^k 没到 100% 之前不接 PR 自动门禁，避免随机性误报
+- **Langfuse 结果页**：2026-08-17 起 evals 跑完会把结果回写 Langfuse dev project
+  （experiment run + `eval-pass` / `pass@k` / `pass^k` score；CI 手动触发同样回写），
+  在 Datasets → 数据集 → Experiments 看；HTML 报告仍是主详细报告（grader 理由、逐 trial 原文）。
+  细节见 `server/evals/README.md` 的 Langfuse 回写一节
 - **prod failure 自动导入**：脚本化 `llmCalls → capability/` 的管道还没写
 - **AI 输出双语**：[[i18n]] 那个 PR 只翻了 UI；gaps/nativeVersion/summary 仍中文，跨语言对齐是另一坨工作

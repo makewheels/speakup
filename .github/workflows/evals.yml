@@ -60,6 +60,9 @@ jobs:
           CHAT_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
           CHAT_MODEL: ${{ inputs.model }}
           CHAT_THINKING: "false"
+          # 评测结果回写 Langfuse dev project（key 来自 Infisical speakup-secrets dev；
+          # 2026-08-17 前未配 host，trace/回写整体 no-op）
+          LANGFUSE_HOST: http://101.42.94.17:30030
         run: |
           # 未配公网 langfuse 入口时整体关闭 trace（避免 SDK 误连 cloud 产生告警噪音）
           if [ -z "$LANGFUSE_HOST" ]; then

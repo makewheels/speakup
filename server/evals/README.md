@@ -24,6 +24,7 @@ evals/
 │   └── expectation.py      # 任务级断言：gaps_count / first_gap_category / progress_verdict ...
 ├── run.py                  # CLI：单配置跑基线
 ├── compare.py              # CLI：跨模型对比（多 trial、pass@k/pass^k、langfuse model tag）
+├── langfuse_report.py      # 结果回写 Langfuse（experiment run + score，未配 env 时 no-op）
 ├── report.py               # HTML 报告
 └── tasks/
     ├── regression/         # 12 条已校准的，应当近 100% 过
@@ -69,6 +70,23 @@ uv run python -m evals.compare --models glm-5.2,deepseek-v3.2 \
 - **pass@k**：k 次试验中至少 1 次过 → 适合"模型能不能做到"
 - **pass^k**：k 次试验全过 → 适合"用户每次能不能稳定拿到"
   - SpeakUp 是面向最终用户的产品，**回归集用 pass^k 严判**
+
+## Langfuse 回写（可选）
+
+配了 `LANGFUSE_HOST` / `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` 时，跑完自动把结果
+写回 Langfuse dev project（`langfuse_report.py`；未配时整体 no-op，不影响本地报告）：
+
+- task ↔ dataset item 按 input 全等匹配（dataset `speakup/evals/<suite>-v1` 只是镜像，
+  git 的 `tasks/` 目录才是事实源）
+- 每次运行 = 一个 experiment run（名 = 模型标签 + 时间戳）；每个 task 选代表 trial
+  （优先第一个失败 trial，方便点开看失败原因）挂 run item
+- score：每 trial 一条 `eval-pass`（0/1，comment 带 grader 失败理由）；
+  每 task 一条 `pass@k` / `pass^k`（0/1，挂代表 trial 的 trace）
+- 看结果：Datasets → 数据集 → **Experiments** 标签；score 列的平均即总通过率，
+  点行可跳 trace 看 LLM 原文
+
+CI（`.github/workflows/evals.yml`）已配 `LANGFUSE_HOST`，key 走 Infisical，
+手动触发即回写。本地跑要自己 export 三个 LANGFUSE_* 变量才会回写。
 
 ## 加新任务
 

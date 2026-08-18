@@ -50,6 +50,12 @@ def main() -> int:
 
     print(render_text(reports, k=args.trials))
 
+    # 结果回写 Langfuse（未配 LANGFUSE_* 时 no-op）；flush 在回写后统一冲队列
+    import config
+    from evals import langfuse_report
+    langfuse_report.publish(args.suite, langfuse_report.default_run_name(config.CHAT_MODEL),
+                            reports, args.trials)
+
     # evals 是短进程：退出前把 langfuse trace 队列冲掉（未配 LANGFUSE_* 时 no-op）
     from services import llm_trace
     llm_trace.flush()
