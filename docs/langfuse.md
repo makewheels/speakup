@@ -34,8 +34,9 @@
 
 - 适配层：`server/services/llm_trace.py`（Langfuse SDK v4），在 `llm_audit` 漏斗统一双写
 - 未配 `LANGFUSE_*` env 整体 no-op；异常只 warn 不抛
-- 生产 env 由 CI 写 .env（GitHub Secrets `LANGFUSE_HOST/PUBLIC_KEY/SECRET_KEY`），
-  HOST 当前是 langfuse-web 的 ClusterIP（speakup 容器经宿主机路由可达）；DNS 配好后建议换成 https://langfuse.a4.fit
+- 生产 env 的三个 `LANGFUSE_*` 变量由 CI 通过 OIDC 从 Infisical `speakup/prod/langfuse` 读取后注入
+  （不放 GitHub Secrets），HOST 当前是 langfuse-web 的 ClusterIP（speakup 容器经宿主机路由可达）；
+  DNS 配好后建议换成 https://langfuse.a4.fit
 - eval 调用（link_to 带 eval_task）进 **environment=eval**，和线上流量隔开
 - 本地跑 evals 要上报：先 ssh -L 转发，再 server/.env 配 `LANGFUSE_HOST=http://127.0.0.1:3000` + 两个 key
 

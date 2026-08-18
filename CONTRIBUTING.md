@@ -7,7 +7,7 @@
 ```bash
 # 1. 从 master 开新分支
 git checkout master && git pull
-git checkout -b <type>/<slug>   # feat/ fix/ chore/ docs/
+git checkout -b <type>-<slug>   # feat-xxx / fix-xxx / chore-xxx / docs-xxx（分支名不含斜杠：CI 镜像文件名会用分支名）
 
 # 2. 改代码
 

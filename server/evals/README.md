@@ -6,7 +6,7 @@
 ## 跑一次
 
 ```bash
-cd ~/workspace/learning/speakup/server
+cd server   # 仓库内的 server/ 目录
 uv run python -m evals.run --suite regression --trials 3
 ```
 
