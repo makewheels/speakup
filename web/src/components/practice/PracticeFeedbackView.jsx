@@ -50,13 +50,32 @@ export default function PracticeFeedbackView({
   const progress = result.progress;
   const passed = progress?.verdict === "passed";
 
-  // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看
+  // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看。
+  // 挂载瞬间上方的大图/视频高度可能尚未定型（加载失败会塌缩、慢加载会位移），
+  // scrollIntoView 一次性定位会被这些位移带偏（手机上常见：分数被顶到屏幕外）。
+  // 改为按锚点当前几何位置显式 scrollTo，并在随后 1 秒多内复校几次，位移发生后自动归位。
   const scoreAnchorRef = useRef(null);
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      scoreAnchorRef.current?.scrollIntoView?.({ block: "start" });
-    });
-    return () => cancelAnimationFrame(raf);
+    const el = scoreAnchorRef.current;
+    if (!el) return;
+    let userScrolled = false;
+    const markUserScroll = () => { userScrolled = true; };
+    const scrollToScore = () => {
+      if (userScrolled) return; // 用户已经开始自己滚了就别再拽回去
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top, behavior: "auto" });
+    };
+    scrollToScore();
+    const raf = requestAnimationFrame(scrollToScore);
+    const timers = [120, 350, 700, 1200].map((ms) => setTimeout(scrollToScore, ms));
+    window.addEventListener("touchmove", markUserScroll);
+    window.addEventListener("wheel", markUserScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+      window.removeEventListener("touchmove", markUserScroll);
+      window.removeEventListener("wheel", markUserScroll);
+    };
   }, []);
 
   return (
@@ -70,7 +89,10 @@ export default function PracticeFeedbackView({
       )}
       <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
 
-      <div ref={scoreAnchorRef}>
+      <div ref={scoreAnchorRef} className="fb-score-anchor">
+        <div>
+          <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
+        </div>
         <ScoreBadge score={result.score} />
       </div>
 
