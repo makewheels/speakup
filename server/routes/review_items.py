@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import get_url as oss_signed_url
+from services.translator import translate_to_chinese
 from utils.data_source import normalize_source_type
 from utils.id_generator import review_item_id
 from utils.mongo_ids import id_filter, id_values
@@ -20,6 +21,23 @@ class ReviewRequest(BaseModel):
     remembered: bool
 
 
+async def reactivate_review_item(rid: str, now: datetime) -> None:
+    """已收纳的表达又说错 → 回到错题本：重置调度字段，立即待复习。"""
+    await get_db().reviewItems.update_one(
+        id_filter(rid),
+        {
+            "$set": {
+                "status": "active",
+                "nextReviewAt": now,
+                "reviewCount": 0,
+                "interval": 1,
+                "easiness": 2.5,
+            },
+            "$unset": {"retiredAt": "", "retiredBy": ""},
+        },
+    )
+
+
 @router.post("")
 async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_user_id)):
     assert_same_user(req.userId, token_user_id)
@@ -34,6 +52,8 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
         )
         if existing:
             ids.append(str(existing["_id"]))
+            if existing.get("status") == "retired":
+                await reactivate_review_item(str(existing["_id"]), now)
             continue
         rid = review_item_id()
         await get_db().reviewItems.insert_one({
@@ -43,8 +63,10 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
             "expression": it["expression"],
             "original": it.get("original", ""),
             "note": it.get("note", ""),
+            "chinese": it.get("chinese", ""),
             "contextSentence": it.get("contextSentence", ""),
             "practiceId": it.get("practiceId", ""),
+            "status": "active",
             "createdAt": now,
             "nextReviewAt": now,
             "reviewCount": 0,
@@ -60,10 +82,13 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
 async def list_items(
     userId: str = Query(...),
     due: bool = False,
+    includeRetired: bool = False,
     token_user_id: str = Depends(current_user_id),
 ):
     assert_same_user(userId, token_user_id)
     filter = {"userId": userId}
+    if not includeRetired:
+        filter["status"] = {"$ne": "retired"}
     if due:
         filter["nextReviewAt"] = {"$lte": datetime.now(timezone.utc)}
     cursor = get_db().reviewItems.find(filter).sort("nextReviewAt", 1)
@@ -108,25 +133,86 @@ async def review_item(
         raise HTTPException(404, "复习项不存在")
 
     item["reviewCount"] += 1
+    now = datetime.now(timezone.utc)
     if req.remembered:
-        item["easiness"] = min(3.0, item["easiness"] + 0.1)
-        item["interval"] = round(item["interval"] * item["easiness"])
+        # 错题本语义：会说即收纳，复习队列不再出现（列表里已收纳区可查看/恢复）
+        item["status"] = "retired"
+        item["retiredAt"] = now
+        item["retiredBy"] = "self"
+        await get_db().reviewItems.update_one(
+            id_filter(rid),
+            {"$set": {
+                "reviewCount": item["reviewCount"],
+                "status": "retired",
+                "retiredAt": item["retiredAt"],
+                "retiredBy": "self",
+            }},
+        )
     else:
         item["easiness"] = max(1.3, item["easiness"] - 0.3)
         item["interval"] = 1
-
-    item["nextReviewAt"] = datetime.now(timezone.utc) + timedelta(days=item["interval"])
-    await get_db().reviewItems.update_one(
-        id_filter(rid),
-        {"$set": {
-            "reviewCount": item["reviewCount"],
-            "easiness": item["easiness"],
-            "interval": item["interval"],
-            "nextReviewAt": item["nextReviewAt"],
-        }},
-    )
+        item["nextReviewAt"] = now + timedelta(days=item["interval"])
+        await get_db().reviewItems.update_one(
+            id_filter(rid),
+            {"$set": {
+                "reviewCount": item["reviewCount"],
+                "easiness": item["easiness"],
+                "interval": item["interval"],
+                "nextReviewAt": item["nextReviewAt"],
+            }},
+        )
     item["_id"] = str(item["_id"])
     return item
+
+
+@router.post("/{rid}/restore")
+async def restore_item(
+    rid: str,
+    userId: str = Query(...),
+    token_user_id: str = Depends(current_user_id),
+):
+    assert_same_user(userId, token_user_id)
+    item = await get_db().reviewItems.find_one({**id_filter(rid), "userId": token_user_id})
+    if not item:
+        raise HTTPException(404, "复习项不存在")
+    now = datetime.now(timezone.utc)
+    await get_db().reviewItems.update_one(
+        id_filter(rid),
+        {
+            "$set": {"status": "active", "nextReviewAt": now},
+            "$unset": {"retiredAt": "", "retiredBy": ""},
+        },
+    )
+    item["status"] = "active"
+    item["nextReviewAt"] = now
+    item.pop("retiredAt", None)
+    item.pop("retiredBy", None)
+    item["_id"] = str(item["_id"])
+    return item
+
+
+@router.post("/{rid}/translate")
+async def translate_item(
+    rid: str,
+    userId: str = Query(...),
+    token_user_id: str = Depends(current_user_id),
+):
+    """缺 chinese 的复习项（历史数据）首次复习时惰性翻译并落库。"""
+    assert_same_user(userId, token_user_id)
+    item = await get_db().reviewItems.find_one({**id_filter(rid), "userId": token_user_id})
+    if not item:
+        raise HTTPException(404, "复习项不存在")
+    chinese = (item.get("chinese") or "").strip()
+    if not chinese:
+        chinese = await translate_to_chinese(
+            item.get("expression", ""),
+            link_to={"reviewItemId": rid, "userId": token_user_id},
+        )
+        if chinese:
+            await get_db().reviewItems.update_one(
+                id_filter(rid), {"$set": {"chinese": chinese}}
+            )
+    return {"chinese": chinese}
 
 
 @router.delete("/{rid}")

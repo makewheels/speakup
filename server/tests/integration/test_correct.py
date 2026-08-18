@@ -11,6 +11,7 @@ FAKE_AI_RESULT = {
         {
             "original": "please change it fast",
             "better": "Could you remake it?",
+            "chinese": "能重做一下吗？",
             "why": "命令式听起来在指责，先用 Could you 提请求。",
             "category": "register",
             "saveToReview": True,
@@ -218,6 +219,37 @@ def test_correct_autosaves_flagged_gaps_to_vocabulary(client, user_id, auth_head
     items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
     assert len(items) == 1
     assert items[0]["expression"] == "Could you remake it?"
+    assert items[0]["chinese"] == "能重做一下吗？"  # 中文提示词随 gap 落库
+
+
+def test_correct_reactivates_retired_expression(client, user_id, auth_headers, practice_id):
+    """已收纳的表达再次说错 → 重新回到错题本。"""
+    with _mock_correct():
+        client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "Please change it fast now."},
+            headers=auth_headers,
+        )
+    items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
+    rid = items[0]["_id"]
+    client.post(
+        f"/api/review-items/{rid}/review?userId={user_id}",
+        json={"remembered": True},
+        headers=auth_headers,
+    )
+    assert client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json() == []
+
+    with _mock_correct():
+        resp = client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "Please change it fast again."},
+            headers=auth_headers,
+        )
+    assert resp.json()["autoSaved"] == 0  # 表达已存在，不新建
+    items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
+    assert len(items) == 1
+    assert items[0]["_id"] == rid
+    assert items[0]["status"] == "active"
 
 
 def test_correct_no_duplicate_vocab_on_retry(client, user_id, auth_headers, practice_id):

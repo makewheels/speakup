@@ -27,6 +27,7 @@ class GapItem(BaseModel):
     title: str = ""
     original: str = ""
     better: str = ""
+    chinese: str = ""
     example: str = ""
     why: str = ""
     category: Literal["task", "grammar", "naturalness", "vocabulary", "register"] = "vocabulary"
@@ -96,7 +97,7 @@ nativeVersion 和 standardAnswer 分工不同，都要输出：
 1. 每个 gap.better 都必须逐字（忽略大小写）出现在 nativeVersion 中；如果没有，重写 nativeVersion 或删除该 gap。
 2. 如果有 task gap，nativeVersion 必须覆盖 scenario mission 和 points 的所有必要信息。standardAnswer 任何时候都必须覆盖。
 score 是 IELTS speaking 0-9、0.5 步进。典型中国学习者 5.0-6.5，跑题/太短要低。
-语言：summary 中文≤25字；nativeVersion/standardAnswer/original/better/example 英文；why 中文≤30字。
+语言：summary 中文≤25字；nativeVersion/standardAnswer/original/better/example 英文；why 中文≤30字；chinese 是 better 的中文意思（复习时当提示词用，用户看着它说英文），口语化、≤20字。
 
 JSON schema:
 {
@@ -109,6 +110,7 @@ JSON schema:
       "title": "",
       "original": "",
       "better": "",
+      "chinese": "",
       "example": "",
       "why": "",
       "category": "task",
@@ -135,6 +137,7 @@ saveToReview 从严判断，宁缺毋滥（复习项太多会淹没重点）：
       "title": "更礼貌的点单句式",
       "original": "I want a coffee, big cup",
       "better": "I'd like a large coffee, please",
+      "chinese": "请给我来杯大杯咖啡",
       "example": "I'd like a latte to go, please.",
       "why": "I'd like 比 I want 礼貌；杯型放名词前",
       "category": "naturalness",
@@ -263,6 +266,7 @@ def _coerce_result(data: dict) -> dict:
             "title": str(item.get("title") or ""),
             "original": str(item.get("original") or ""),
             "better": str(item.get("better") or ""),
+            "chinese": str(item.get("chinese") or ""),
             "example": str(item.get("example") or ""),
             "why": str(item.get("why") or ""),
             "category": category,

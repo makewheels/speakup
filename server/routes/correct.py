@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
+from routes.review_items import reactivate_review_item
 from services.auth_tokens import assert_same_user, current_user_id
 from services.corrector import correct_text, correct_text_stream
 from services.followup_chat import followup_chat_stream
@@ -64,6 +65,9 @@ async def _save_attempt_and_review(
         existing = await get_db().reviewItems.find_one({"userId": req.userId, "expression": expression})
         if existing:
             gap["reviewItemId"] = str(existing["_id"])
+            if existing.get("status") == "retired":
+                # 已收纳的表达又说错 → 回到错题本
+                await reactivate_review_item(str(existing["_id"]), now)
             continue
         rid = review_item_id()
         await get_db().reviewItems.insert_one({
@@ -74,8 +78,10 @@ async def _save_attempt_and_review(
             "expression": expression,
             "original": gap.get("original", ""),
             "note": gap.get("why", ""),
+            "chinese": gap.get("chinese", ""),
             "contextSentence": result.get("nativeVersion", ""),
             "practiceId": req.practiceId,
+            "status": "active",
             "createdAt": now,
             "nextReviewAt": now,
             "reviewCount": 0,

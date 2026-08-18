@@ -224,7 +224,9 @@ async def generate_custom_scenario(user_id: str) -> dict | None:
     if pending >= MAX_PENDING_CUSTOM:
         return None
 
-    items = await db.reviewItems.find({"userId": user_id}).sort("nextReviewAt", 1).to_list(3)
+    items = await db.reviewItems.find(
+        {"userId": user_id, "status": {"$ne": "retired"}}
+    ).sort("nextReviewAt", 1).to_list(3)
     specs = [
         {"expression": v["expression"], "original": v.get("original", "")}
         for v in items if v.get("expression")
