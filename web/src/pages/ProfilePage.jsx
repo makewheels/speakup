@@ -115,17 +115,18 @@ export default function ProfilePage() {
           <span className="profile-setting-summary">{prefSummary}</span>
           <Icon name="next" size={16} color="var(--ink-4)" />
         </button>
+        <button className="profile-setting-row" onClick={() => navigate("/me/feedback")}>
+          <div className="profile-lang-key">
+            <Icon name="message" size={18} color="var(--ink-3)" />
+            <span>{t("profile.feedback")}</span>
+          </div>
+          <Icon name="next" size={16} color="var(--ink-4)" />
+        </button>
       </div>
 
       <button className="profile-entry" onClick={() => navigate("/shares")}>
         <Icon name="share" size={18} color="var(--ink-3)" />
         <span>{t("profile.myShares")}</span>
-        <Icon name="next" size={16} color="var(--ink-4)" />
-      </button>
-
-      <button className="profile-entry" onClick={() => navigate("/me/feedback")}>
-        <Icon name="message" size={18} color="var(--ink-3)" />
-        <span>{t("profile.feedback")}</span>
         <Icon name="next" size={16} color="var(--ink-4)" />
       </button>
 
