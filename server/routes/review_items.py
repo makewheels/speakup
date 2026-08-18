@@ -21,6 +21,14 @@ class ReviewRequest(BaseModel):
     remembered: bool
 
 
+# 错题本拆分两类：mistake=说错的点（corrector gap 自动收录），note=好表达笔记（用户主动记）
+_KINDS = {"mistake", "note"}
+
+
+def normalize_kind(kind) -> str:
+    return kind if kind in _KINDS else "mistake"
+
+
 async def reactivate_review_item(rid: str, now: datetime) -> None:
     """已收纳的表达又说错 → 回到错题本：重置调度字段，立即待复习。"""
     await get_db().reviewItems.update_one(
@@ -60,6 +68,7 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
             "_id": rid,
             "userId": req.userId,
             "sourceType": source_type,
+            "kind": normalize_kind(it.get("kind")),
             "expression": it["expression"],
             "original": it.get("original", ""),
             "note": it.get("note", ""),
@@ -117,6 +126,7 @@ async def list_items(
         sc = scenes.get(i.get("practiceId"))
         i["sceneImageUrl"] = sc["image"] if sc else ""
         i["topic"] = sc["topic"] if sc else ""
+        i["kind"] = normalize_kind(i.get("kind"))  # 历史数据无 kind 按错题兼容
     return items
 
 

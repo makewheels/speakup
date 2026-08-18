@@ -68,12 +68,19 @@ async def _save_attempt_and_review(
             if existing.get("status") == "retired":
                 # 已收纳的表达又说错 → 回到错题本
                 await reactivate_review_item(str(existing["_id"]), now)
+            if existing.get("kind") == "note":
+                # 记过笔记的表达又说错 → 升级为错题
+                await get_db().reviewItems.update_one(
+                    id_filter(str(existing["_id"])),
+                    {"$set": {"kind": "mistake", "original": gap.get("original", "")}},
+                )
             continue
         rid = review_item_id()
         await get_db().reviewItems.insert_one({
             "_id": rid,
             "userId": req.userId,
             "sourceType": source_type,
+            "kind": "mistake",
             "title": gap.get("title", ""),
             "expression": expression,
             "original": gap.get("original", ""),

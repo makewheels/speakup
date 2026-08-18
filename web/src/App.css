@@ -1864,6 +1864,21 @@ button { font-family: inherit; }
 }
 .fb-gap-add.added { color: var(--ok); background: var(--ok-soft); }
 .fb-gap-add:disabled { cursor: default; }
+/* 标准答案卡「记为笔记」（好表达笔记，kind=note） */
+.fb-note-add {
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ok);
+  background: var(--ok-soft);
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.fb-note-add.added { color: var(--ink-3); background: var(--bg-mute); }
 /* 三行做成表格：细分隔线分隔 You said / Say this / Why */
 .fb-gap-table {
   display: flex;
@@ -2184,6 +2199,9 @@ button { font-family: inherit; }
   cursor: pointer;
 }
 .rv-card-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--ff-cn);
   font-size: 13px;
   color: var(--ink-4);
@@ -2292,6 +2310,95 @@ button { font-family: inherit; }
 }
 .rv-retired-arrow.open { transform: rotate(90deg); }
 .rv-retired-card { opacity: 0.72; }
+
+/* 错题本拆分：全部 / 错题 / 笔记 过滤 chips */
+.rv-kind-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rv-kind-chip {
+  flex: 1;
+  border: 1px solid var(--rule);
+  background: var(--bg-elev);
+  border-radius: 999px;
+  padding: 6px 0;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.rv-kind-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+/* 卡片正面左上角类别小标签 */
+.rv-kind-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.rv-kind-tag.mistake {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+.rv-kind-tag.note {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: var(--ok);
+}
+/* 温故而知新：词卡四选一出题 */
+.rv-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rv-quiz-opt {
+  text-align: left;
+  font-family: var(--ff-en);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--bg-mute);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 11px 12px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.rv-quiz-opt:disabled { cursor: default; }
+.rv-quiz-opt.correct {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+  color: var(--ok);
+  font-weight: 600;
+}
+.rv-quiz-opt.wrong {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.rv-quiz-opt.dim { opacity: 0.55; }
+.rv-quiz-verdict {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--warn);
+  margin: 0 0 10px;
+}
+.rv-quiz-verdict.ok { color: var(--ok); }
+.rv-next-btn { width: 100%; height: 46px; }
+/* 列表视图分组标题 */
+.rv-list-section-label {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin: 14px 0 8px;
+}
+.rv-list-section-label.note { color: var(--ok); }
 
 /* 列表视图里的「练这个词」按钮 */
 .review-cta-btn {

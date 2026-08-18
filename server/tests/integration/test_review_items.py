@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock, patch
 
-from tests.conftest import login_headers
+from pymongo import MongoClient
+
+from tests.conftest import TEST_DB_NAME, login_headers
 
 
 def _add(  # noqa: PLR0913
@@ -11,18 +13,19 @@ def _add(  # noqa: PLR0913
     original="some peoples",
     note="people 已是复数",
     chinese="",
+    kind=None,
 ):
+    item = {
+        "expression": expression,
+        "original": original,
+        "note": note,
+        "chinese": chinese,
+    }
+    if kind is not None:
+        item["kind"] = kind
     return client.post(
         "/api/review-items",
-        json={
-            "userId": user_id,
-            "items": [{
-                "expression": expression,
-                "original": original,
-                "note": note,
-                "chinese": chinese,
-            }],
-        },
+        json={"userId": user_id, "items": [item]},
         headers=auth_headers,
     )
 
@@ -52,6 +55,29 @@ def test_add_stores_chinese_prompt(client, user_id, auth_headers):
     item = _first_item(client, user_id, auth_headers)
     assert item["chinese"] == "一些人"
     assert item["status"] == "active"
+
+
+def test_add_stores_kind_note(client, user_id, auth_headers):
+    """好表达笔记：kind=note 原样落库。"""
+    _add(client, user_id, auth_headers, expression="No worries", kind="note")
+    assert _first_item(client, user_id, auth_headers)["kind"] == "note"
+
+
+def test_add_kind_defaults_mistake_and_unknown_falls_back(client, user_id, auth_headers):
+    _add(client, user_id, auth_headers, expression="a")                # 不传 kind
+    _add(client, user_id, auth_headers, expression="b", kind="weird")  # 非法值
+    items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
+    assert [i["kind"] for i in items] == ["mistake", "mistake"]
+
+
+def test_list_normalizes_legacy_items_without_kind(client, user_id, auth_headers):
+    """历史数据无 kind 字段 → list 归一为 mistake。"""
+    _add(client, user_id, auth_headers)
+    rid = _first_item(client, user_id, auth_headers)["_id"]
+    mc = MongoClient("mongodb://localhost:27017/")
+    mc[TEST_DB_NAME].reviewItems.update_one({"_id": rid}, {"$unset": {"kind": ""}})
+    mc.close()
+    assert _first_item(client, user_id, auth_headers)["kind"] == "mistake"
 
 
 def test_add_inherits_ai_test_source(client):

@@ -252,6 +252,40 @@ def test_correct_reactivates_retired_expression(client, user_id, auth_headers, p
     assert items[0]["status"] == "active"
 
 
+def test_correct_autosaved_item_is_mistake_kind(client, user_id, auth_headers, practice_id):
+    """gap 自动收录的复习项是错题（mistake）。"""
+    with _mock_correct():
+        client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "Please change it fast now."},
+            headers=auth_headers,
+        )
+    items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
+    assert items[0]["kind"] == "mistake"
+
+
+def test_correct_upgrades_note_to_mistake(client, user_id, auth_headers, practice_id):
+    """记过笔记的好表达又说错 → 升级为错题并补上用户原话。"""
+    client.post(
+        "/api/review-items",
+        json={"userId": user_id, "items": [
+            {"expression": "Could you remake it?", "kind": "note", "chinese": "能重做一下吗？"}
+        ]},
+        headers=auth_headers,
+    )
+    with _mock_correct():
+        resp = client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "Please change it fast now."},
+            headers=auth_headers,
+        )
+    assert resp.json()["autoSaved"] == 0  # 表达已存在，不新建
+    items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
+    assert len(items) == 1
+    assert items[0]["kind"] == "mistake"
+    assert items[0]["original"] == "please change it fast"
+
+
 def test_correct_no_duplicate_vocab_on_retry(client, user_id, auth_headers, practice_id):
     with _mock_correct():
         for _ in range(2):
