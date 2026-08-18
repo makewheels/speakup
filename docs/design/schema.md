@@ -106,14 +106,15 @@
 
 > 命名：用 `reviewItems` 而非 `vocabulary`——错题不只是单词，更多是短语/句式；字段也用 `expression` 而非 `word`。
 
-每个 saveToReview 的 gap 落一行（大模型纠正出的点）；SM-2 间隔重复字段调度复习，也是因材施教反向出题的来源。
+两类来源（`kind`）：saveToReview 的 gap 落一行（错题 mistake），反馈页标准答案「记为笔记」落一行（好表达笔记 note）；SM-2 字段调度复习，也是因材施教反向出题的来源。行为细节见 [../业务/1-错题本与复习.md](../业务/1-错题本与复习.md)。
 
 ```json
 {
   "_id":           "rv_1781276...",
   "userId":        "u_1781276...",
   "sourceType":    "human | ai_test",           // 从 users 冗余
-  "expression":    "Could you take a look?",   // 地道说法（来自 gap.better），词/短语/句式皆可
+  "kind":          "mistake | note",           // 错题本拆分两类：mistake=说错的点（gap 收录），note=好表达笔记（标准答案整句记入）；历史无此字段按 mistake 归一
+  "expression":    "Could you take a look?",   // 地道说法（来自 gap.better 或标准答案），词/短语/句式/整句皆可
   "original":      "you see this",             // 用户原来的说法（仅留档，复习卡不再展示）
   "note":          "更礼貌的请求",
   "chinese":       "能帮我看看吗？",            // expression 的中文提示词：复习卡正面主动回忆用；新项由 corrector 产出，历史缺项走 translate 接口惰性补齐

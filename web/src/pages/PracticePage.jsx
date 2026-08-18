@@ -12,6 +12,7 @@ import {
   hasPracticePreferences,
   savePracticePreferences,
 } from "../lib/practicePreferences.js";
+import { useReviewCollection } from "./useReviewCollection.js";
 
 export default function PracticePage() {
   const { practiceId } = useParams();
@@ -39,13 +40,16 @@ export default function PracticePage() {
   const [transcriptionError, setTranscriptionError] = useState(false);
   const [elapsed, setElapsed] = useState("0:00");
   const [result, setResult] = useState(null);
+  // 错题本收录：gap 收录（错题）+ 标准答案记笔记（好表达笔记）
+  const {
+    savedMap, setSavedMap, noteSavedId, resetReviewCollection, toggleGap, toggleNote,
+  } = useReviewCollection(session, result);
   const [autoSaved, setAutoSaved] = useState(0);
   const [round, setRound] = useState(1);
   const [hintGaps, setHintGaps] = useState([]);
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
   const [feedbackActionsDisabled, setFeedbackActionsDisabled] = useState(false);
-  const [savedMap, setSavedMap] = useState({}); // gap 下标 -> reviewItem id（自动收录的初始就带，手动加/取消同步）
   const [recordingUrl, setRecordingUrl] = useState(""); // 本次录音的本地 object URL，结果页回放用
   const [chat, setChat] = useState([]);          // 追问对话 [{role, content}]
   const [chatInput, setChatInput] = useState("");
@@ -86,7 +90,7 @@ export default function PracticePage() {
     setAutoSaved(0);
     setRound(1);
     setHintGaps([]);
-    setSavedMap({});
+    resetReviewCollection();
     setElapsed("0:00");
     secondsRef.current = 0;
     setSession(null);
@@ -193,7 +197,7 @@ export default function PracticePage() {
     setTranscriptionError(false);
     setAutoSaved(0);
     setRound((r) => r + 1);
-    setSavedMap({});
+    resetReviewCollection();
     setPhase("ready");
     // 离开结果态，清掉 ?result 标记；同样用 navigate 显式带 pathname，避免 setSearchParams 丢 pathname 触发自动跳题
     if (session?._id) navigate(`/practice/${session._id}`, { replace: true });
@@ -438,35 +442,6 @@ export default function PracticePage() {
     );
   };
 
-  // 收录 / 取消收录：点一下加入错题本，再点一下取消
-  const toggleGap = async (g, i) => {
-    if (!session?._id) return;
-    const savedId = savedMap[i];
-    if (savedId) {
-      try {
-        await api.deleteReviewItem(savedId, user.userId);
-        setSavedMap((m) => { const n = { ...m }; delete n[i]; return n; });
-      } catch (e) {
-        alert(t("practice.removeFailed", { msg: e.message }));
-      }
-      return;
-    }
-    try {
-      const { ids } = await api.addReviewItems(user.userId, [{
-        expression: g.better,
-        original: g.original,
-        note: g.why,
-        chinese: g.chinese || "",
-        contextSentence: result?.nativeVersion || "",
-        practiceId: session._id,
-      }]);
-      const id = ids?.[0];
-      if (id) setSavedMap((m) => ({ ...m, [i]: id }));
-    } catch (e) {
-      alert(t("practice.addFailed", { msg: e.message }));
-    }
-  };
-
   const scenario = session?.scenario;
 
   if (needsPrefs) {
@@ -499,6 +474,7 @@ export default function PracticePage() {
         chat={chat}
         chatBusy={chatBusy}
         chatInput={chatInput}
+        noteSavedId={noteSavedId}
         recordingUrl={recordingUrl}
         result={result}
         retrySame={retrySame}
@@ -512,6 +488,7 @@ export default function PracticePage() {
         actionsDisabled={feedbackActionsDisabled}
         t={t}
         toggleGap={toggleGap}
+        toggleNote={toggleNote}
         transcript={transcript}
       />
     );

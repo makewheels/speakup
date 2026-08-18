@@ -8,6 +8,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-18 15:31
+
+- **add(review)**：错题本拆分两类（`kind: mistake|note`）——错题（gap 收录，用户错误说法仅留档）与**好表达笔记**；复习页卡片视图加「全部 / 错题 / 笔记」过滤 chips（带计数）+ 卡片正面类别标签，列表视图按「错题 · N」「笔记 · N」分组。历史数据无 kind 按错题归一；记过笔记的表达又说错自动升级为错题
+- **add(practice)**：反馈页标准答案卡新增「记为笔记」按钮——整句收录为好表达笔记（再点一下取消），与错题分开复习
+- **add(review)**：温故而知新——复习卡点开后**出四选一词卡题**（正确表达 + 3 个干扰项，干扰项取自用户自己的其它复习项）：答对即收纳、答错高亮正确答案并留在本里；选项池不足 3 个时兜底回「直接看答案 + 会说/还不会」自查
+- **chore(web)**：PracticePage 收录逻辑抽成 `useReviewCollection` hook（gap 收录 + 记笔记），页面回到 500 行 lint 门禁内；复习测试共享 fixture 抽到 `ReviewPage.helpers.jsx` / `PracticePage.feedback.helpers.jsx`
+- **test**：kind 落库/归一/升级、笔记收录与取消、词卡出题（答对/答错/兜底）、kind 过滤与分组的集成 + 行为测试（后端 216 + 前端 247 全绿）
+- **docs**：建立 video-2022 式文档体系——新增 `docs/业务/1-错题本与复习.md`（当前实现，行为变更必须同步维护）、`docs/README.md` 加文档地图并修正过时的 vocabulary 路由/页面名、CONTRIBUTING 加「文档随代码一起改」规则与 checklist 项；schema.md reviewItems 补 kind 字段
+
 ### 2026-08-18 14:48
 
 - **change(review)**：复习改为主动回忆训练——卡片正面只展示中文提示词（错误表达对应的中文翻译），用户自己大声说一遍再点开核对答案；**不再展示用户当时的错误版本**（卡片与列表都不再出现，避免加深错误印象）

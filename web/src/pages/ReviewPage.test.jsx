@@ -1,10 +1,17 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
 
-import ReviewPage from "./ReviewPage.jsx";
-import { UserProvider } from "../context/UserContext.jsx";
+import {
+  USER,
+  ITEM_DUE,
+  ITEM_NOT_DUE,
+  ITEM_MASTERED,
+  ITEM_RETIRED,
+  ITEM_NOTE,
+  ITEM_EXTRA,
+  setup,
+} from "./ReviewPage.helpers.jsx";
 
 vi.mock("../api/client.js", () => ({
   api: {
@@ -23,82 +30,6 @@ vi.mock("../utils/tts.js", () => ({
   stop: vi.fn(),
   isCached: vi.fn().mockReturnValue(false),
 }));
-
-const USER = { userId: "u_rv", phone: "13800000001", nickname: "Reviewer" };
-
-const now = new Date();
-const pastDate = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(); // 2 days ago
-const futureDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // future
-
-const ITEM_DUE = {
-  _id: "rv1",
-  userId: "u_rv",
-  expression: "Could you take a look?",
-  original: "you see this",
-  note: "More polite request",
-  chinese: "能帮我看看吗？",
-  contextSentence: "Could you take a look at this for me?",
-  status: "active",
-  reviewCount: 1,
-  interval: 1,
-  nextReviewAt: pastDate,
-};
-
-const ITEM_NOT_DUE = {
-  _id: "rv2",
-  userId: "u_rv",
-  expression: "I'm in a rush",
-  original: "I hurry",
-  note: "More natural",
-  chinese: "我赶时间",
-  contextSentence: "",
-  status: "active",
-  reviewCount: 1,
-  interval: 3,
-  nextReviewAt: futureDate,
-};
-
-const ITEM_MASTERED = {
-  _id: "rv3",
-  userId: "u_rv",
-  expression: "Let me think about it",
-  original: "I think",
-  note: "Natural stall phrase",
-  chinese: "让我想想",
-  contextSentence: "",
-  status: "active",
-  reviewCount: 5,
-  interval: 10,
-  nextReviewAt: futureDate,
-};
-
-const ITEM_RETIRED = {
-  _id: "rv4",
-  userId: "u_rv",
-  expression: "No worries",
-  original: "it's ok ok",
-  note: "",
-  chinese: "没关系",
-  contextSentence: "",
-  status: "retired",
-  reviewCount: 1,
-  interval: 1,
-  nextReviewAt: pastDate,
-};
-
-function setup() {
-  localStorage.setItem("english-speak-user", JSON.stringify(USER));
-  return render(
-    <MemoryRouter initialEntries={["/review"]}>
-      <UserProvider>
-        <Routes>
-          <Route path="/review" element={<ReviewPage />} />
-          <Route path="/practice/:practiceId" element={<div>Practice session</div>} />
-        </Routes>
-      </UserProvider>
-    </MemoryRouter>,
-  );
-}
 
 describe("ReviewPage", () => {
   beforeEach(() => {
@@ -269,8 +200,8 @@ describe("ReviewPage list view", () => {
     const { api } = await import("../api/client.js");
     api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOT_DUE]);
     setup();
-    await waitFor(() => screen.getByText(/All \d/));
-    await userEvent.click(screen.getByText(/All \d/));
+    await waitFor(() => document.querySelector(".rv-list-toggle"));
+    await userEvent.click(document.querySelector(".rv-list-toggle"));
     await waitFor(() =>
       expect(screen.getByText("All review items")).toBeInTheDocument(),
     );
@@ -280,8 +211,8 @@ describe("ReviewPage list view", () => {
     const { api } = await import("../api/client.js");
     api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOT_DUE]);
     setup();
-    await waitFor(() => screen.getByText(/All \d/));
-    await userEvent.click(screen.getByText(/All \d/));
+    await waitFor(() => document.querySelector(".rv-list-toggle"));
+    await userEvent.click(document.querySelector(".rv-list-toggle"));
     await waitFor(() => {
       expect(screen.getByText("Could you take a look?")).toBeInTheDocument();
       expect(screen.getByText("I'm in a rush")).toBeInTheDocument();
@@ -295,8 +226,8 @@ describe("ReviewPage list view", () => {
     const { api } = await import("../api/client.js");
     api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOT_DUE, ITEM_MASTERED]);
     setup();
-    await waitFor(() => screen.getByText(/All \d/));
-    await userEvent.click(screen.getByText(/All \d/));
+    await waitFor(() => document.querySelector(".rv-list-toggle"));
+    await userEvent.click(document.querySelector(".rv-list-toggle"));
     await waitFor(() => {
       expect(screen.getByText("Due")).toBeInTheDocument();
       expect(screen.getByText("Learning")).toBeInTheDocument();
@@ -309,8 +240,8 @@ describe("ReviewPage list view", () => {
     api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_RETIRED]);
     api.restoreReviewItem.mockResolvedValue({ ...ITEM_RETIRED, status: "active" });
     setup();
-    await waitFor(() => screen.getByText(/All \d/));
-    await userEvent.click(screen.getByText(/All \d/));
+    await waitFor(() => document.querySelector(".rv-list-toggle"));
+    await userEvent.click(document.querySelector(".rv-list-toggle"));
 
     await waitFor(() => screen.getByText("Archived 1"));
     await userEvent.click(screen.getByText("Archived 1"));
@@ -334,8 +265,8 @@ describe("ReviewPage list view", () => {
     api.listReviewItems.mockResolvedValue([ITEM_DUE]);
     api.deleteReviewItem.mockResolvedValue({});
     setup();
-    await waitFor(() => screen.getByText(/All \d/));
-    await userEvent.click(screen.getByText(/All \d/));
+    await waitFor(() => document.querySelector(".rv-list-toggle"));
+    await userEvent.click(document.querySelector(".rv-list-toggle"));
 
     // First tap → "Confirm" label appears
     const delBtn = screen.getByLabelText("Delete");
@@ -354,8 +285,8 @@ describe("ReviewPage list view", () => {
     const { api } = await import("../api/client.js");
     api.listReviewItems.mockResolvedValue([ITEM_DUE]);
     setup();
-    await waitFor(() => screen.getByText(/All \d/));
-    await userEvent.click(screen.getByText(/All \d/));
+    await waitFor(() => document.querySelector(".rv-list-toggle"));
+    await userEvent.click(document.querySelector(".rv-list-toggle"));
     await waitFor(() => screen.getByText("Flashcards"));
     await userEvent.click(screen.getByText("Flashcards"));
     await waitFor(() =>
@@ -400,5 +331,136 @@ describe("ReviewPage practice-word regressions", () => {
     );
     expect(screen.getByText("Answer")).toBeInTheDocument();
     expect(screen.queryByText("Practice session")).not.toBeInTheDocument();
+  });
+});
+
+describe("ReviewPage quiz (温故而知新词卡出题)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("reveals a 4-choice quiz when enough items exist", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOT_DUE, ITEM_EXTRA, ITEM_MASTERED]);
+    setup();
+    await waitFor(() => screen.getByText("能帮我看看吗？"));
+    await userEvent.click(screen.getByText("能帮我看看吗？"));
+    await waitFor(() =>
+      expect(screen.getByText("Which one is correct?")).toBeInTheDocument(),
+    );
+    // 正确项 + 干扰项都在选项里（共 4 个）
+    expect(screen.getByText("Could you take a look?")).toBeInTheDocument();
+    expect(screen.getByText("I'm in a rush")).toBeInTheDocument();
+    expect(document.querySelectorAll(".rv-quiz-opt")).toHaveLength(4);
+  });
+
+  it("correct pick archives on Next and calls reviewItem(true)", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOT_DUE, ITEM_EXTRA, ITEM_MASTERED]);
+    api.reviewItem.mockResolvedValue({});
+    setup();
+    await waitFor(() => screen.getByText("能帮我看看吗？"));
+    await userEvent.click(screen.getByText("能帮我看看吗？"));
+    await waitFor(() => screen.getByText("Which one is correct?"));
+    await userEvent.click(screen.getByText("Could you take a look?")); // 选中正确项
+
+    await waitFor(() =>
+      expect(screen.getByText("Correct — archived ✓")).toBeInTheDocument(),
+    );
+    expect(api.reviewItem).toHaveBeenCalledWith("rv1", USER.userId, true);
+
+    await userEvent.click(screen.getByText("Next"));
+    // 收纳后展示下一张卡，当前项的中文提示不再出现
+    await waitFor(() =>
+      expect(screen.queryByText("能帮我看看吗？")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Correct — archived ✓")).not.toBeInTheDocument();
+  });
+
+  it("wrong pick keeps the item, highlights the answer, and Next advances", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOT_DUE, ITEM_EXTRA, ITEM_MASTERED]);
+    api.reviewItem.mockResolvedValue({});
+    setup();
+    await waitFor(() => screen.getByText("能帮我看看吗？"));
+    await userEvent.click(screen.getByText("能帮我看看吗？"));
+    await waitFor(() => screen.getByText("Which one is correct?"));
+    await userEvent.click(screen.getByText("I'm in a rush")); // 选错
+
+    await waitFor(() =>
+      expect(screen.getByText("Not quite — keep at it")).toBeInTheDocument(),
+    );
+    expect(api.reviewItem).toHaveBeenCalledWith("rv1", USER.userId, false);
+    const correct = document.querySelectorAll(".rv-quiz-opt.correct");
+    expect(correct).toHaveLength(1);
+    expect(correct[0]).toHaveTextContent("Could you take a look?");
+
+    await userEvent.click(screen.getByText("Next"));
+    await waitFor(() =>
+      expect(screen.queryByText("Which one is correct?")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("falls back to reveal + self-grade when fewer than 4 items", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOT_DUE]);
+    setup();
+    await waitFor(() => screen.getByText("能帮我看看吗？"));
+    await userEvent.click(screen.getByText("能帮我看看吗？"));
+    await waitFor(() => expect(screen.getByText("Answer")).toBeInTheDocument());
+    expect(screen.queryByText("Which one is correct?")).not.toBeInTheDocument();
+    expect(screen.getByText("Got it")).toBeInTheDocument();
+    expect(screen.getByText("Not yet")).toBeInTheDocument();
+  });
+});
+
+describe("ReviewPage kind split (错题 / 笔记)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("shows kind filter chips with counts and filters the card queue", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOTE]);
+    setup();
+    // 三个过滤 chip（全部 / 错题 / 笔记），「All」文本与右上角列表入口相同，按类名断言
+    await waitFor(() =>
+      expect(document.querySelectorAll(".rv-kind-chip")).toHaveLength(3),
+    );
+    expect(screen.getByText("Mistakes 1")).toBeInTheDocument();
+    expect(screen.getByText("Notes 1")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("Notes 1"));
+    await waitFor(() =>
+      expect(screen.getByText("我可以")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("能帮我看看吗？")).not.toBeInTheDocument();
+    // 卡片正面带「笔记」类别标签
+    expect(screen.getByText("Notes", { selector: ".rv-kind-tag" })).toBeInTheDocument();
+  });
+
+  it("shows a hint when the filtered kind is empty", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE]);
+    setup();
+    await waitFor(() => screen.getByText("Notes 0"));
+    await userEvent.click(screen.getByText("Notes 0"));
+    await waitFor(() =>
+      expect(screen.getByText("Nothing to review in this category yet")).toBeInTheDocument(),
+    );
+  });
+
+  it("list view groups items into Mistakes / Notes sections", async () => {
+    const { api } = await import("../api/client.js");
+    api.listReviewItems.mockResolvedValue([ITEM_DUE, ITEM_NOTE]);
+    setup();
+    await waitFor(() => document.querySelector(".rv-list-toggle"));
+    await userEvent.click(document.querySelector(".rv-list-toggle"));
+    await waitFor(() => {
+      expect(screen.getByText("Mistakes · 1")).toBeInTheDocument();
+      expect(screen.getByText("Notes · 1")).toBeInTheDocument();
+    });
   });
 });

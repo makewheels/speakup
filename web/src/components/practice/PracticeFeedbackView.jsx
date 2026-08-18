@@ -32,6 +32,7 @@ export default function PracticeFeedbackView({
   chat,
   chatBusy,
   chatInput,
+  noteSavedId,
   recordingUrl,
   result,
   retrySame,
@@ -44,6 +45,7 @@ export default function PracticeFeedbackView({
   startNewRound,
   t,
   toggleGap,
+  toggleNote,
   transcript,
 }) {
   const gaps = result.gaps ?? [];
@@ -145,6 +147,15 @@ export default function PracticeFeedbackView({
           <div className="fb-card-label standard">
             {t("practice.standardAnswer")}
             <SpeakBtns text={result.standardAnswer} practiceId={session?._id} />
+            <button
+              className={"fb-note-add" + (noteSavedId ? " added" : "")}
+              onClick={toggleNote}
+              title={noteSavedId ? t("practice.removeTitle") : t("practice.saveAsNote")}
+            >
+              {noteSavedId
+                ? <><Icon name="check" size={13} />&nbsp;{t("practice.noteSaved")}</>
+                : <><Icon name="save" size={13} />&nbsp;{t("practice.saveAsNote")}</>}
+            </button>
           </div>
           {splitSentences(result.standardAnswer).map((s, i) => (
             <p key={i} className="fb-native-text">{s}</p>

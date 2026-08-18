@@ -1,11 +1,17 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
 
-import PracticePage from "./PracticePage.jsx";
-import { UserProvider } from "../context/UserContext.jsx";
-import { savePracticePreferences } from "../lib/practicePreferences.js";
+import {
+  USER,
+  SESSION,
+  SCENARIO_B,
+  SESSION_B,
+  PREFS,
+  setup,
+  installMediaStubs,
+  recordUntilEvaluating,
+} from "./PracticePage.feedback.helpers.jsx";
 
 vi.mock("../api/client.js", () => ({
   api: {
@@ -29,107 +35,6 @@ vi.mock("../utils/tts.js", () => ({
   stop: vi.fn(),
   isCached: vi.fn().mockReturnValue(false),
 }));
-
-const USER = { userId: "u_test1", phone: "13800001234", nickname: "Test" };
-
-const SESSION = {
-  _id: "sess_abc",
-  userId: "u_test1",
-  scenarioId: "sc_coffee",
-  title: "Coffee shop mess",
-  topic: "Coffee shop · Seattle",
-  scenario: {
-    title: "Coffee shop mess",
-    where: "Coffee shop · Seattle",
-    story: "You got the wrong drink.",
-    mission: "Ask them to redo it.",
-    points: ["Ask for hot latte", "Say you are in a hurry"],
-  },
-  imageUrl: "https://oss.example.com/img.jpg",
-  imageKey: "scenarios/sc_coffee/cover.jpg",
-  attempts: [],
-  createdAt: "2026-06-01T10:00:00Z",
-};
-
-const SCENARIO_B = {
-  scenarioId: "sc_airport",
-  title: "Airport check-in",
-  where: "Airport",
-  story: "Your bag is overweight.",
-  mission: "Negotiate with the agent.",
-  points: [],
-  imageUrl: "https://oss.example.com/airport.jpg",
-  isCustom: false,
-};
-
-const SESSION_B = {
-  ...SESSION,
-  _id: "sess_xyz",
-  scenarioId: "sc_airport",
-  title: "Airport check-in",
-};
-
-const PREFS = { level: "daily", purpose: "travel" };
-
-function setup(path = "/practice", { prefs = true } = {}) {
-  localStorage.setItem("english-speak-user", JSON.stringify(USER));
-  if (prefs) savePracticePreferences(USER.userId, PREFS);
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <UserProvider>
-        <Routes>
-          <Route path="/practice" element={<PracticePage />} />
-          <Route path="/practice/:practiceId" element={<PracticePage />} />
-        </Routes>
-      </UserProvider>
-    </MemoryRouter>,
-  );
-}
-
-class FakeMediaRecorder {
-  static isTypeSupported() { return true; }
-  constructor(stream) {
-    this.stream = stream;
-    this.mimeType = "audio/webm";
-    this.state = "inactive";
-    this.ondataavailable = null;
-    this.onstop = null;
-  }
-  start() {
-    this.state = "recording";
-    this.ondataavailable?.({ data: { size: 10 } });
-  }
-  pause() { this.state = "paused"; }
-  resume() { this.state = "recording"; }
-  requestData() {
-    this.ondataavailable?.({ data: { size: 10 } });
-  }
-  stop() {
-    this.state = "inactive";
-    this.onstop?.();
-  }
-}
-
-function installMediaStubs() {
-  const track = { stop: vi.fn() };
-  globalThis.MediaRecorder = FakeMediaRecorder;
-  Object.defineProperty(globalThis.navigator, "mediaDevices", {
-    configurable: true,
-    value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [track] }) },
-  });
-  if (!globalThis.URL.createObjectURL) globalThis.URL.createObjectURL = vi.fn();
-  globalThis.URL.createObjectURL = vi.fn(() => "blob:fake-url");
-  globalThis.URL.revokeObjectURL = vi.fn();
-}
-
-async function recordUntilEvaluating() {
-  const { api } = await import("../api/client.js");
-  const micBtn = document.querySelector(".su-rec");
-  await userEvent.click(micBtn);
-  await waitFor(() => expect(screen.getByText("Tap once to stop")).toBeInTheDocument());
-  await userEvent.click(document.querySelector(".su-rec"));
-  await waitFor(() => expect(api.transcribeAudio).toHaveBeenCalled());
-}
 
 describe("PracticePage feedback", () => {
   beforeEach(async () => {
@@ -539,5 +444,42 @@ describe("PracticePage feedback", () => {
     await userEvent.keyboard("{Enter}");
 
     await waitFor(() => expect(screen.getByText(/Error: net fail/)).toBeInTheDocument());
+  });
+
+  it("saves the standard answer as a good-expression note (kind=note)", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        {
+          round: 1,
+          transcript: "Can you redo my latte",
+          summary: "ok",
+          nativeVersion: "Could you remake my latte?",
+          standardAnswer: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
+          score: 6.0,
+          gaps: [],
+          progress: null,
+        },
+      ],
+    });
+    setup("/practice/sess_abc?result=1");
+    await waitFor(() => screen.getByText("Save as note"));
+    await userEvent.click(screen.getByText("Save as note").closest("button"));
+
+    await waitFor(() => expect(api.addReviewItems).toHaveBeenCalledWith(
+      USER.userId,
+      [{
+        expression: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
+        kind: "note",
+        practiceId: SESSION._id,
+      }],
+    ));
+    await waitFor(() => expect(screen.getByText("Noted")).toBeInTheDocument());
+
+    // 再点一下取消笔记
+    await userEvent.click(screen.getByText("Noted").closest("button"));
+    await waitFor(() => expect(api.deleteReviewItem).toHaveBeenCalledWith("rv_1", USER.userId));
+    await waitFor(() => expect(screen.getByText("Save as note")).toBeInTheDocument());
   });
 });
