@@ -103,6 +103,8 @@ class FakeMediaRecorder {
     this.state = "recording";
     this.ondataavailable?.({ data: { size: 10 } });
   }
+  pause() { this.state = "paused"; }
+  resume() { this.state = "recording"; }
   requestData() {
     this.ondataavailable?.({ data: { size: 10 } });
   }
@@ -442,6 +444,58 @@ describe("PracticePage", () => {
 
     const btn = screen.getByText("Review now").closest("button");
     expect(btn).toBeDisabled();
+  });
+
+  // ── 录音中：暂停 / 重录 ────────────────────────────────
+
+  it("recording shows pause and start-over side buttons around the stop button", async () => {
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Pause")).toBeInTheDocument());
+    expect(screen.getByTitle("Start over")).toBeInTheDocument();
+    expect(document.querySelector(".su-rec.recording")).toBeInTheDocument();
+  });
+
+  it("pause toggles paused state and resume goes back to recording", async () => {
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Pause")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByTitle("Pause"));
+    expect(screen.getByText("⏸ Paused")).toBeInTheDocument();
+    expect(screen.getByText(/Paused · tap ▶/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTitle("Resume"));
+    expect(screen.getByText("● REC")).toBeInTheDocument();
+    expect(screen.getByText("Tap once to stop")).toBeInTheDocument();
+  });
+
+  it("start-over discards the recording without transcribing or evaluating", async () => {
+    const { api, correctStream } = await import("../api/client.js");
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Start over")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByTitle("Start over"));
+    await waitFor(() => expect(screen.getByText("Tap once to record")).toBeInTheDocument());
+    expect(api.transcribeAudio).not.toHaveBeenCalled();
+    expect(correctStream).not.toHaveBeenCalled();
+  });
+
+  it("can still stop and transcribe after a pause", async () => {
+    const { api } = await import("../api/client.js");
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Pause")).toBeInTheDocument());
+    await userEvent.click(screen.getByTitle("Pause"));
+    await waitFor(() => expect(screen.getByText("⏸ Paused")).toBeInTheDocument());
+
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(api.transcribeAudio).toHaveBeenCalled());
   });
 
   // ── 重说不封顶 ─────────────────────────────────────────

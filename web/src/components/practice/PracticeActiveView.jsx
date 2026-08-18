@@ -15,6 +15,7 @@ function SpeakBtns({ text, practiceId }) {
 }
 
 export default function PracticeActiveView({
+  discardRecording,
   elapsed,
   evalAnchorRef,
   evalElapsed,
@@ -23,6 +24,9 @@ export default function PracticeActiveView({
   handleRecordPressEnd,
   handleRecordPressStart,
   hintGaps,
+  paused,
+  pauseResumeRecording,
+  pauseSupported,
   phase,
   prompts,
   scenario,
@@ -98,7 +102,7 @@ export default function PracticeActiveView({
 
       {phase === "recording" && (
         <div className="su-rec-meta">
-          <span className="rec-dot">{t("practice.rec")}</span>
+          <span className={"rec-dot" + (paused ? " paused" : "")}>{paused ? t("practice.paused") : t("practice.rec")}</span>
           <span className="elapsed">{elapsed}</span>
         </div>
       )}
@@ -134,17 +138,35 @@ export default function PracticeActiveView({
 
       {phase === "recording" && (
         <div className="su-rec-wrap">
-          <button
-            className="su-rec recording"
-            onPointerDown={() => handleRecordPressStart(stopRecording)}
-            onPointerUp={handleRecordPressEnd}
-            onPointerLeave={handleRecordPressEnd}
-            onContextMenu={(e) => e.preventDefault()}
-            onClick={() => handleRecordClick(stopRecording)}
-          >
-            <Icon name="stop" size={28} color="#fff" />
-          </button>
-          <div className="su-rec-label">{t("practice.tapToStop")}</div>
+          <div className="su-rec-row">
+            {pauseSupported && (
+              <button
+                className="su-rec-side"
+                title={paused ? t("practice.resume") : t("practice.pause")}
+                onClick={pauseResumeRecording}
+              >
+                <Icon name={paused ? "play" : "pause"} size={20} />
+              </button>
+            )}
+            <button
+              className={"su-rec recording" + (paused ? " paused" : "")}
+              onPointerDown={() => handleRecordPressStart(stopRecording)}
+              onPointerUp={handleRecordPressEnd}
+              onPointerLeave={handleRecordPressEnd}
+              onContextMenu={(e) => e.preventDefault()}
+              onClick={() => handleRecordClick(stopRecording)}
+            >
+              <Icon name="stop" size={28} color="#fff" />
+            </button>
+            <button
+              className="su-rec-side"
+              title={t("practice.discard")}
+              onClick={discardRecording}
+            >
+              <Icon name="trash" size={20} />
+            </button>
+          </div>
+          <div className="su-rec-label">{paused ? t("practice.tapToResume") : t("practice.tapToStop")}</div>
           <div className="su-rec-hint">{t("practice.stopHint")}</div>
         </div>
       )}
