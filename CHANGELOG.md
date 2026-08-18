@@ -8,6 +8,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-18 14:48
+
+- **change(review)**：复习改为主动回忆训练——卡片正面只展示中文提示词（错误表达对应的中文翻译），用户自己大声说一遍再点开核对答案；**不再展示用户当时的错误版本**（卡片与列表都不再出现，避免加深错误印象）
+- **change(review)**：错题本语义——点「会说」即收纳（`status=retired`），复习队列、待复习角标、因材施教出题取材都不再出现；点「还不会」留在本里明天继续。列表底部新增「已收纳」折叠区，可查看、单条恢复；已收纳的表达再次说错时自动重新激活回到错题本
+- **add(corrector)**：gap 新增 `chinese` 字段（better 的中文意思），纠错时顺带产出，落库为复习项的中文提示词；手动收录同步透传
+- **add(review-items)**：`POST /api/review-items/{rid}/translate`——历史复习项缺 chinese 的，前端首次刷到该卡时惰性翻译补齐并落库；新增 `POST /{rid}/restore`；list 新增 `includeRetired` 参数，默认不含已收纳
+- **test**：复习项收纳/恢复/重新激活/惰性翻译的后端集成与单元测试；复习卡中文提示、错误版本不再出现、会说即收纳、已收纳区恢复的前端测试（后端 211 + 前端 239 全绿）
+- **docs**：schema.md reviewItems 字段（chinese / status / retiredAt / retiredBy）同步；mixed-practice 设计稿标注 status 字段已落地
+
 ### 2026-08-18 10:48
 
 - **add(practice)**：录音支持暂停/继续 + 重录——录音中一行三按钮：左 `⏸ 暂停`（暂停后变 `▶ 继续`，计时冻结；MediaRecorder 原生 pause/resume，暂停段不进音频时间轴）、中间大按钮保持 `⏹ 完成`（说完→转写→自动评估，肌肉记忆不变）、右 `🗑 重录`（丢弃本段回到待录音，不转写不评估、麦克风释放）

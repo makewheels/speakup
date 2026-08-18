@@ -114,10 +114,14 @@
   "userId":        "u_1781276...",
   "sourceType":    "human | ai_test",           // 从 users 冗余
   "expression":    "Could you take a look?",   // 地道说法（来自 gap.better），词/短语/句式皆可
-  "original":      "you see this",             // 用户原来的说法
+  "original":      "you see this",             // 用户原来的说法（仅留档，复习卡不再展示）
   "note":          "更礼貌的请求",
+  "chinese":       "能帮我看看吗？",            // expression 的中文提示词：复习卡正面主动回忆用；新项由 corrector 产出，历史缺项走 translate 接口惰性补齐
   "contextSentence": "Could you take a look at this for me?",
   "practiceId":    "ps_1781276...",            // 来源练习，供复习卡展示场景图 + 原题重练
+  "status":        "active | retired",         // 会说即收纳（retired）：复习队列/出题取材不再出现；列表可恢复；历史无此字段按 active 兼容
+  "retiredAt":     datetime,                    // 收纳时间（仅 retired）
+  "retiredBy":     "self",                      // 收纳来源：self=复习卡「会说」（预留 practice=练习达标）
   "createdAt":     datetime,
   "nextReviewAt":  datetime,
   "reviewCount":   0,

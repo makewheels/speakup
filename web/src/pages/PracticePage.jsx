@@ -456,6 +456,7 @@ export default function PracticePage() {
         expression: g.better,
         original: g.original,
         note: g.why,
+        chinese: g.chinese || "",
         contextSentence: result?.nativeVersion || "",
         practiceId: session._id,
       }]);

@@ -10,18 +10,26 @@ export default function ReviewPage() {
   const { user } = useUser();
   const navigate = useNavigate();
   const t = useT();
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([]);      // active 复习项
+  const [retired, setRetired] = useState([]);  // 已收纳（会说即移除，可查看/恢复）
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("cards");     // cards 逐词复习（默认首屏）| list 全部列表
   const [idx, setIdx] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [genWord, setGenWord] = useState(null);  // 正在「练这个词」出题的 item id
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [retiredOpen, setRetiredOpen] = useState(false);
+  const [retiredNow, setRetiredNow] = useState(0);   // 本轮收纳条数
+  const [translateFailed, setTranslateFailed] = useState({});
   const deleteTimerRef = useRef(null);
+  const translatingIds = useRef(new Set());
 
   const fetchItems = useCallback(() => {
-    api.listReviewItems(user.userId)
-      .then(setItems)
+    api.listReviewItems(user.userId, false, true)
+      .then((all) => {
+        setItems(all.filter((w) => w.status !== "retired"));
+        setRetired(all.filter((w) => w.status === "retired"));
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [user.userId]);
@@ -31,20 +39,44 @@ export default function ReviewPage() {
   const isMastered = (w) => (w.reviewCount || 0) >= 3 && (w.interval || 0) >= 7;
   const isDue = (w) => new Date(w.nextReviewAt) <= new Date() && !isMastered(w);
 
-  // 卡片队列：待复习优先 → 复习中 → 已掌握
+  // 卡片队列：待复习优先 → 复习中 → 已掌握（历史数据兼容）
   const rank = (w) => (isDue(w) ? 0 : isMastered(w) ? 2 : 1);
   const queue = [...items].sort(
     (a, b) => rank(a) - rank(b) || new Date(a.nextReviewAt) - new Date(b.nextReviewAt)
   );
+  const current = queue[idx];
+
+  // 历史数据可能缺 chinese（中文提示词）：首次出现时惰性翻译补齐
+  useEffect(() => {
+    if (!current || current.chinese || translatingIds.current.has(current._id)) return;
+    translatingIds.current.add(current._id);
+    api.translateReviewItem(current._id, user.userId)
+      .then(({ chinese }) => {
+        if (!chinese) {
+          setTranslateFailed((m) => ({ ...m, [current._id]: true }));
+          return;
+        }
+        setItems((prev) => prev.map((w) => (w._id === current._id ? { ...w, chinese } : w)));
+      })
+      .catch(() => setTranslateFailed((m) => ({ ...m, [current._id]: true })));
+  }, [current, user.userId]);
 
   const handleReview = async (remembered) => {
     const w = queue[idx];
-    if (w) await api.reviewItem(w._id, user.userId, remembered).catch(console.error);
+    if (!w) return;
+    const updated = await api.reviewItem(w._id, user.userId, remembered).catch(console.error);
     setShowAnswer(false);
-    setIdx((i) => i + 1);
+    if (remembered) {
+      // 会说即收纳：移出复习队列，进已收纳区
+      setItems((prev) => prev.filter((x) => x._id !== w._id));
+      setRetired((prev) => [{ ...w, ...(updated || { status: "retired" }) }, ...prev]);
+      setRetiredNow((n) => n + 1);
+    } else {
+      setIdx((i) => i + 1);
+    }
   };
 
-  // 针对这个词即时出一道场景题去练（含出图，稍慢）
+  // 针对这个词即时出一道场景题去练（用上新学的表达，含出图，稍慢）
   const practiceThisWord = async (w) => {
     if (genWord) return;
     setGenWord(w._id);
@@ -76,9 +108,16 @@ export default function ReviewPage() {
     }
   };
 
+  const restoreItem = async (id) => {
+    const w = retired.find((x) => x._id === id);
+    await api.restoreReviewItem(id, user.userId).catch(console.error);
+    setRetired((prev) => prev.filter((x) => x._id !== id));
+    if (w) setItems((prev) => [...prev, { ...w, status: "active" }]);
+  };
+
   if (loading) return <div className="page-msg">{t("common.loading")}</div>;
 
-  if (items.length === 0) {
+  if (items.length === 0 && retired.length === 0) {
     return (
       <div className="empty-state">
         <div className="icon-box">
@@ -110,10 +149,13 @@ export default function ReviewPage() {
             <div className="rv-done-check"><Icon name="check" size={30} color="var(--ok)" /></div>
             <p className="rv-done-title">{t("review.doneTitle")}</p>
             <p className="rv-done-sub">{t("review.doneSub", { n: dueCount })}</p>
+            {retiredNow > 0 && (
+              <p className="rv-done-sub rv-done-retired">{t("review.doneRetired", { n: retiredNow })}</p>
+            )}
             <button
               className="su-btn su-btn-secondary"
               style={{ maxWidth: 220 }}
-              onClick={() => { setIdx(0); setShowAnswer(false); fetchItems(); }}
+              onClick={() => { setIdx(0); setShowAnswer(false); setRetiredNow(0); fetchItems(); }}
             >
               <Icon name="refresh" size={15} />&nbsp;{t("review.goAgain")}
             </button>
@@ -124,9 +166,15 @@ export default function ReviewPage() {
             <div className="rv-card" onClick={() => setShowAnswer(true)}>
               {!showAnswer ? (
                 <>
-                  <div className="rv-card-label">{t("review.whatYouSaid")}</div>
-                  <p className="rv-card-q">{w.original || w.contextSentence || w.expression}</p>
-                  <span className="rv-tap-hint">{t("review.tapToSeeNative")}</span>
+                  <div className="rv-card-label">{t("review.chinesePrompt")}</div>
+                  {w.chinese ? (
+                    <p className="rv-card-q rv-card-zh">{w.chinese}</p>
+                  ) : translateFailed[w._id] ? (
+                    <p className="rv-card-q rv-card-fallback">{t("review.translateFailed")}</p>
+                  ) : (
+                    <p className="rv-card-q rv-card-loading"><span className="spin" />&nbsp;{t("review.translating")}</p>
+                  )}
+                  <span className="rv-tap-hint">{t("review.tapToReveal")}</span>
                 </>
               ) : (
                 <>
@@ -186,9 +234,9 @@ export default function ReviewPage() {
         return (
           <div key={w._id} className="review-card">
             <div className="review-card-body">
-              {w.original && <div className="review-said">{w.original}</div>}
+              {w.chinese && <div className="review-zh">{w.chinese}</div>}
               <div className="review-better">
-                <span className="arrow">→</span> {w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} />
+                {w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} />
               </div>
               {w.note && <div className="review-why">{w.note}</div>}
               <div className="review-foot">
@@ -212,6 +260,31 @@ export default function ReviewPage() {
           </div>
         );
       })}
+      {retired.length > 0 && (
+        <div className="rv-retired-section">
+          <button className="rv-retired-toggle" onClick={() => setRetiredOpen(!retiredOpen)}>
+            {t("review.archivedCount", { n: retired.length })}
+            <span className={`rv-retired-arrow${retiredOpen ? " open" : ""}`}>
+              <Icon name="next" size={14} />
+            </span>
+          </button>
+          {retiredOpen && retired.map((w) => (
+            <div key={w._id} className="review-card rv-retired-card">
+              <div className="review-card-body">
+                {w.chinese && <div className="review-zh">{w.chinese}</div>}
+                <div className="review-better">
+                  {w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} />
+                </div>
+                <div className="review-foot">
+                  <button className="review-cta-btn" onClick={() => restoreItem(w._id)}>
+                    <Icon name="refresh" size={12} /> {t("review.restore")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <p className="list-end">{t("common.endOfList")}</p>
     </div>
   );

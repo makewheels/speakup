@@ -185,6 +185,29 @@ def test_system_prompt_requires_standard_answer_independent_of_learner():
     assert "nativeVersion" in system  # 两者分工都写进 prompt
 
 
+def test_system_prompt_requires_chinese_hint_per_gap():
+    """复习卡正面用中文提示词主动回忆：prompt 必须要求每个 gap 带 better 的中文意思。"""
+    messages = _build_messages("I want a hot latte", scenario=SCENARIO)
+    system = messages[0].content
+    assert '"chinese"' in system
+    assert "提示词" in system
+
+
+def test_parse_result_maps_gap_chinese():
+    raw = """{"summary": "ok", "nativeVersion": "Could you remake it?", "gaps": [
+        {"original": "redo", "better": "remake", "chinese": "重做一下", "why": "x", "category": "vocabulary"}
+    ]}"""
+    result = _parse_result(raw)
+    assert result["gaps"][0]["chinese"] == "重做一下"
+
+
+def test_parse_result_gap_chinese_defaults_empty():
+    raw = """{"summary": "ok", "nativeVersion": "x", "gaps": [
+        {"original": "a", "better": "b", "why": "x", "category": "vocabulary"}
+    ]}"""
+    assert _parse_result(raw)["gaps"][0]["chinese"] == ""
+
+
 # ── _parse_result（含 progress）────────────────────────────────────────────
 
 def test_parse_result_with_progress():

@@ -261,10 +261,14 @@ export const api = {
 
   addReviewItems: (userId, items) =>
     request("/review-items", { method: "POST", body: { userId, items } }),
-  listReviewItems: (userId, due = false) =>
-    request(`/review-items?userId=${userId}&due=${due}`),
+  listReviewItems: (userId, due = false, includeRetired = false) =>
+    request(`/review-items?userId=${userId}&due=${due}&includeRetired=${includeRetired}`),
   reviewItem: (id, userId, remembered) =>
     request(`/review-items/${id}/review?userId=${userId}`, { method: "POST", body: { remembered } }),
+  restoreReviewItem: (id, userId) =>
+    request(`/review-items/${id}/restore?userId=${userId}`, { method: "POST" }),
+  translateReviewItem: (id, userId) =>
+    request(`/review-items/${id}/translate?userId=${userId}`, { method: "POST" }),
   deleteReviewItem: (id, userId) =>
     request(`/review-items/${id}?userId=${userId}`, { method: "DELETE" }),
 
