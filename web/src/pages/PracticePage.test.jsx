@@ -182,7 +182,7 @@ describe("PracticePage", () => {
     await waitFor(() =>
       expect(screen.getByText("You got the wrong drink.")).toBeInTheDocument(),
     );
-    expect(screen.queryByText("Native version")).not.toBeInTheDocument();
+    expect(screen.queryByText("Correction")).not.toBeInTheDocument();
   });
 
   it("renders scenario points after session loads", async () => {

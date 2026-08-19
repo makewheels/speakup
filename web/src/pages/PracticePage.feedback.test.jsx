@@ -73,11 +73,11 @@ describe("PracticePage feedback", () => {
     });
     setup("/practice/sess_abc?result=1");
     await waitFor(() =>
-      expect(screen.getByText("Native version")).toBeInTheDocument(),
+      expect(screen.getByText("Correction")).toBeInTheDocument(),
     );
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
-    // 标准答案也从 attempt 还原展示（按句切分渲染）
-    expect(screen.getByText("Reference answer")).toBeInTheDocument();
+    // Native（原标准答案）也从 attempt 还原展示（按句切分渲染）
+    expect(screen.getByText("Native")).toBeInTheDocument();
     expect(screen.getByText("I'm in a bit of a rush.")).toBeInTheDocument();
   });
 
@@ -177,14 +177,14 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Native version")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Correction")).toBeInTheDocument());
     expect(correctStream).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER.userId, practiceId: "sess_abc", text: "Can you redo my latte" }),
       expect.any(Object),
     );
     expect(screen.getByText("7.0")).toBeInTheDocument();
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
-    expect(screen.getByText("Reference answer")).toBeInTheDocument();
+    expect(screen.getByText("Native")).toBeInTheDocument();
     expect(screen.getByText(/my latte came out wrong/)).toBeInTheDocument();
     expect(screen.getByText("remake my latte")).toBeInTheDocument();
     expect(screen.getByText("more natural")).toBeInTheDocument();
@@ -280,7 +280,7 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Native version")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Correction")).toBeInTheDocument());
     // 不封顶：第 2 轮反馈后仍可继续重说，按钮标第 3 次尝试
     expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument();
     expect(screen.getByText(/Next/)).toBeInTheDocument();

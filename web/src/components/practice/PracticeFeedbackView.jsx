@@ -172,6 +172,8 @@ export default function PracticeFeedbackView({
               <div key={i} className="fb-gap-card">
                 <div className="fb-gap-head">
                   <span className="fb-gap-num">{i + 1}</span>
+                  {g.category && <span className="fb-gap-cat">{t(`practice.gapCat.${g.category}`)}</span>}
+                  {g.title && <span className="fb-gap-title">{g.title}</span>}
                   <button
                     className={"fb-gap-add" + (added ? " added" : "")}
                     onClick={() => toggleGap(g, i)}
@@ -192,6 +194,19 @@ export default function PracticeFeedbackView({
                     <span className="fb-gap-fix">{g.better}</span>
                     <SpeakBtns text={g.better} practiceId={session?._id} />
                   </div>
+                  {g.chinese && (
+                    <div className="fb-gap-line">
+                      <span className="fb-gap-tag">{t("practice.gapMeaning")}</span>
+                      <span className="fb-gap-meaning">{g.chinese}</span>
+                    </div>
+                  )}
+                  {g.example && (
+                    <div className="fb-gap-line is-fix">
+                      <span className="fb-gap-tag">{t("practice.gapExample")}</span>
+                      <span className="fb-gap-example">{g.example}</span>
+                      <SpeakBtns text={g.example} practiceId={session?._id} />
+                    </div>
+                  )}
                   {g.why && (
                     <div className="fb-gap-line">
                       <span className="fb-gap-tag">{t("practice.gapWhy")}</span>
