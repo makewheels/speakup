@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from db.connection import connect_db
 from logging_config import configure_logging
-from routes import auth, correct, feedbacks, practice_sessions, review_items, scenarios, transcribe, tts
+from routes import auth, correct, feedbacks, practice_sessions, review_items, scenarios, transcribe, tts, version
 
 configure_logging()
 
@@ -32,6 +32,7 @@ app.include_router(review_items.router)
 app.include_router(feedbacks.router)
 app.include_router(transcribe.router)
 app.include_router(tts.router)
+app.include_router(version.router)
 
 
 @app.get("/api/health")
