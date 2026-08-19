@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-19 08:50
+
+- **change(corrector)**：好表达笔记改由 LLM 自动产出——新增 `note`/`noteChinese` 字段：挑一个可跨场景复用的**短表达/搭配**（≤8 词，宁缺毋滥、可空），不再整句抄 standardAnswer；prompt 附完整示例
+- **change(correct)**：`note` 自动落库为 `kind=note` 复习项（去重、已收纳可重新激活），回写 `noteReviewItemId`；attempt 同步存 `note`/`noteChinese`；与错题分开复习，记过笔记又说错仍会升级错题
+- **change(web)**：结果页移除「记为笔记」整句按钮，Native 卡内改为展示自动记入的短笔记（`已自动记入笔记 {note}`）；刷新从 attempt 还原 note；事后可在复习页删除
+- **add(evals)**：schema grader 新增 `note_valid`（note 存在时必须短≤10词、英文、不整句抄答案），防笔记回归成整句
+- **test**：note 自动落库/去重/升级错题的后端集成与 grader 单测；前端「Auto-noted 展示且无整句按钮」用例
+
 ### 2026-08-19 08:26
 
 - **fix(web)**：深色主题录音按钮不再发灰——新增 `--rec`/`--rec-glow` 专用红 token（两种主题都保持红色，录音键通用语义），替换原来复用 `--ink`（深色下反转为浅灰、显得像被禁用）；录音中呼吸动画同步用 `--rec-glow`

@@ -446,7 +446,7 @@ describe("PracticePage feedback", () => {
     await waitFor(() => expect(screen.getByText(/Error: net fail/)).toBeInTheDocument());
   });
 
-  it("saves the standard answer as a good-expression note (kind=note)", async () => {
+  it("shows the auto-saved short note (not the whole sentence) when the attempt has one", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({
       ...SESSION,
@@ -457,6 +457,8 @@ describe("PracticePage feedback", () => {
           summary: "ok",
           nativeVersion: "Could you remake my latte?",
           standardAnswer: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
+          note: "I'm in a bit of a rush",
+          noteChinese: "我有点赶时间",
           score: 6.0,
           gaps: [],
           progress: null,
@@ -464,22 +466,9 @@ describe("PracticePage feedback", () => {
       ],
     });
     setup("/practice/sess_abc?result=1");
-    await waitFor(() => screen.getByText("Save as note"));
-    await userEvent.click(screen.getByText("Save as note").closest("button"));
-
-    await waitFor(() => expect(api.addReviewItems).toHaveBeenCalledWith(
-      USER.userId,
-      [{
-        expression: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
-        kind: "note",
-        practiceId: SESSION._id,
-      }],
-    ));
-    await waitFor(() => expect(screen.getByText("Noted")).toBeInTheDocument());
-
-    // 再点一下取消笔记
-    await userEvent.click(screen.getByText("Noted").closest("button"));
-    await waitFor(() => expect(api.deleteReviewItem).toHaveBeenCalledWith("rv_1", USER.userId));
-    await waitFor(() => expect(screen.getByText("Save as note")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Auto-noted")).toBeInTheDocument());
+    expect(screen.getByText("I'm in a bit of a rush")).toBeInTheDocument();
+    // 不再整句存笔记：不应出现手动「Save as note」按钮
+    expect(screen.queryByText("Save as note")).not.toBeInTheDocument();
   });
 });

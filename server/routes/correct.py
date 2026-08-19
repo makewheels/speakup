@@ -98,12 +98,45 @@ async def _save_attempt_and_review(
         gap["reviewItemId"] = rid
         auto_saved += 1
 
+    # 好表达笔记：LLM 挑出的可复用短表达，自动存 kind=note（宁缺毋滥，可空）。
+    # 与错题分开复习；记过笔记的表达后又说错会在上面 gap 循环里升级为错题。
+    note_expr = (result.get("note") or "").strip()
+    if note_expr:
+        existing = await get_db().reviewItems.find_one({"userId": req.userId, "expression": note_expr})
+        if existing:
+            result["noteReviewItemId"] = str(existing["_id"])
+            if existing.get("status") == "retired":
+                await reactivate_review_item(str(existing["_id"]), now)
+        else:
+            nrid = review_item_id()
+            await get_db().reviewItems.insert_one({
+                "_id": nrid,
+                "userId": req.userId,
+                "sourceType": source_type,
+                "kind": "note",
+                "expression": note_expr,
+                "original": "",
+                "note": "",
+                "chinese": (result.get("noteChinese") or "").strip(),
+                "contextSentence": result.get("standardAnswer", ""),
+                "practiceId": req.practiceId,
+                "status": "active",
+                "createdAt": now,
+                "nextReviewAt": now,
+                "reviewCount": 0,
+                "interval": 1,
+                "easiness": 2.5,
+            })
+            result["noteReviewItemId"] = nrid
+
     attempt = {
         "transcript": req.text,
         "round": round_no,
         "summary": result["summary"],
         "nativeVersion": result["nativeVersion"],
         "standardAnswer": result.get("standardAnswer", ""),
+        "note": result.get("note", ""),
+        "noteChinese": result.get("noteChinese", ""),
         "score": result.get("score"),
         "gaps": result["gaps"],
         "progress": result.get("progress"),
