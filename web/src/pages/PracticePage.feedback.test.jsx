@@ -16,6 +16,7 @@ import {
 vi.mock("../api/client.js", () => ({
   api: {
     nextScenario: vi.fn(),
+    nextFreeTopic: vi.fn(),
     createPractice: vi.fn(),
     getPractice: vi.fn(),
     transcribeAudio: vi.fn(),

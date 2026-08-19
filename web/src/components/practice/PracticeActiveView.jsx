@@ -2,6 +2,7 @@ import Icon from "../Icon.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
+import PracticeFreeCard from "./PracticeFreeCard.jsx";
 
 function preferenceNoticeKey(match) {
   if (match === "relaxedDifficulty") return "practicePrefs.matchRelaxedDifficulty";
@@ -14,21 +15,38 @@ function SpeakBtns({ text, practiceId }) {
   return <SpeakBtn text={text} practiceId={practiceId} />;
 }
 
+// 阶段提示文案 —— 跟随语言切换，所以在组件内构造
+function buildPrompts(mode, t) {
+  return {
+    loading:      mode === "free" ? t("practice.freeLoading") : t("practice.loading"),
+    ready:        "",
+    recording:    t("practice.listening"),
+    transcribing: t("practice.transcribing"),
+    review:       t("practice.review"),
+    evaluating:   t("practice.evaluating"),
+    feedback:     "",
+  };
+}
+
 export default function PracticeActiveView({
   discardRecording,
   elapsed,
   evalAnchorRef,
   evalElapsed,
   evaluate,
+  freeTopic,
   handleRecordClick,
   handleRecordPressEnd,
   handleRecordPressStart,
   hintGaps,
+  mode,
+  modeSwitch,
+  onChangeTopic,
+  onNoTopic,
   paused,
   pauseResumeRecording,
   pauseSupported,
   phase,
-  prompts,
   round,
   scenario,
   session,
@@ -41,8 +59,16 @@ export default function PracticeActiveView({
   transcript,
   setTranscript,
 }) {
+  const isFree = mode === "free";
+  const prompts = buildPrompts(mode, t);
+  // 话题展示：优先当前抽到的话题；刷新后从会话快照还原（zh 不在快照里，可空）
+  const freeInfo = freeTopic
+    || (isFree && session?.freeTopic
+      ? { _id: session.freeTopicId || "", text: session.freeTopic, zh: "" }
+      : null);
   return (
     <div className="practice-page">
+      {modeSwitch}
       {phase !== "loading" && (
         <div className="attempt-badge-row">
           <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
@@ -50,11 +76,13 @@ export default function PracticeActiveView({
       )}
       <PracticeMedia
         className={"su-img" + (phase === "loading" ? " loading" : "")}
-        imageUrl={phase !== "loading" ? session?.imageUrl : ""}
-        videoUrl={phase !== "loading" ? session?.videoUrl : ""}
+        imageUrl={phase !== "loading" && !isFree ? session?.imageUrl : ""}
+        videoUrl={phase !== "loading" && !isFree ? session?.videoUrl : ""}
       />
 
-      {phase !== "loading" && <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
+      {phase !== "loading" && (isFree
+        ? <PracticeFreeCard freeTopic={freeInfo?.text || ""} zh={freeInfo?.zh || ""} t={t} />
+        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />)}
 
       {phase !== "loading" && preferenceNoticeKey(session?.preferenceMatch) && (
         <div className="pref-match-note">
@@ -129,7 +157,7 @@ export default function PracticeActiveView({
             <Icon name="mic" size={32} color="#fff" />
           </button>
           <div className="su-rec-label">{t("practice.tapToStart")}</div>
-          {phase === "ready" && session?.scenarioId && (
+          {phase === "ready" && !isFree && session?.scenarioId && (
             <button
               className="su-skip"
               title={t("practice.tryAnother")}
@@ -138,6 +166,19 @@ export default function PracticeActiveView({
               <Icon name="refresh" size={16} />
               <span>{t("practice.tryAnother")}</span>
             </button>
+          )}
+          {phase === "ready" && isFree && (
+            <div className="free-actions">
+              {freeInfo && (
+                <button className="su-skip" title={t("practice.freeChangeTopic")} onClick={onChangeTopic}>
+                  <Icon name="refresh" size={16} />
+                  <span>{t("practice.freeChangeTopic")}</span>
+                </button>
+              )}
+              <button className="su-btn su-btn-secondary free-no-topic" onClick={onNoTopic}>
+                {t("practice.freeNoTopic")}
+              </button>
+            </div>
           )}
         </div>
       )}

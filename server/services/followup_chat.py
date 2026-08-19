@@ -32,7 +32,13 @@ FOLLOWUP_SYSTEM = """你是这位中国成年学习者的英语口语私教。�
 
 def _followup_context(scenario: dict | None, attempt: dict | None) -> str:
     """把场景、原话和已给反馈拼成追问上下文。"""
-    parts = [_scenario_block(scenario).strip()] if scenario else []
+    parts: list[str] = []
+    if scenario:
+        if scenario.get("kind") == "free":
+            topic = scenario.get("freeTopic") or ""
+            parts.append(f'这是一次自由说练习（无场景任务）{"，话题：「" + topic + "」" if topic else ""}。')
+        else:
+            parts.append(_scenario_block(scenario).strip())
     if attempt:
         parts.append(f'他这次说的话："{attempt.get("transcript", "")}"')
         if attempt.get("nativeVersion"):

@@ -17,6 +17,12 @@ from services.llm_audit import (
     serialize_messages,
 )
 from services.text_input import is_too_short as _is_too_short
+from services.corrector_prompts import (
+    FREE_RETRY_PROMPT,
+    FREE_SYSTEM_PROMPT,
+    RETRY_PROMPT,
+    SYSTEM_PROMPT,
+)
 
 _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
@@ -83,103 +89,6 @@ def _get_client() -> ChatOpenAI:
     return _client
 
 
-SYSTEM_PROMPT = """你是英语口语教练。根据场景任务和学习者原话，输出严格 JSON，不要 markdown。
-
-先判断任务是否完成；没完成时第一个 gap 必须是 category=task，并给出完成任务该说的话。
-学习者的任务是练英语口语：如果回答主要是中文或其他非英语，即使中文意思对也视为任务未完成，score 不得高于 2.0，第一个 gap 必须是 task。
-只纠真正错误：任务缺失、语法/时态/单复数/词性/语序、Chinglish、用词错误、搭配错误、重复啰嗦、语体不合适。纯口味替换不要列。
-已经正确、自然的请求可以不列 gap，不要为了“更简洁”而硬改。
-gaps 最多 4 条；nativeVersion 最多 2 句，保留原意；若任务没完成，要补上全部必要任务话术和关键信息。
-
-nativeVersion 和 standardAnswer 分工不同，都要输出：
-- nativeVersion：基于学习者原话的改写——保留他想表达的内容和意图，只改成 native 的说法。
-- standardAnswer：标准答案——完全脱离学习者原话，native 在这个场景里完成任务会怎么开口。覆盖 mission 和 points 的所有必要信息，最多 3 句；不要迁就学习者说了什么、说了多少，也不要复用他的句式。学习者漏掉的任务话术，standardAnswer 里必须有完整示范。
-
-note（好表达笔记，自动收录，宁缺毋滥）：
-- 从本次反馈里挑**一个**最值得记、可跨场景复用的短表达/地道搭配/小句式（≤8 个词，如 "I'd like ... please"、"to go"、"keep the change"），作为 note；没有值得记的就留空字符串。
-- 不要整句抄 standardAnswer/nativeVersion；不要一次性任务话术（具体物品/数字/时间）；不要过于基础的词汇。
-- noteChinese 是 note 的中文意思，口语化、≤20字；note 为空时 noteChinese 也为空。
-
-输出 JSON 前做两次硬检查：
-1. 每个 gap.better 都必须逐字（忽略大小写）出现在 nativeVersion 中；如果没有，重写 nativeVersion 或删除该 gap。
-2. 如果有 task gap，nativeVersion 必须覆盖 scenario mission 和 points 的所有必要信息。standardAnswer 任何时候都必须覆盖。
-score 是 IELTS speaking 0-9、0.5 步进。典型中国学习者 5.0-6.5，跑题/太短要低。
-语言：summary 中文≤25字；nativeVersion/standardAnswer/original/better/example/note 英文；why 中文≤30字；chinese 是 better 的中文意思（复习时当提示词用，用户看着它说英文），口语化、≤20字。
-
-JSON schema:
-{
-  "summary": "",
-  "nativeVersion": "",
-  "standardAnswer": "",
-  "note": "",
-  "noteChinese": "",
-  "score": 6.0,
-  "gaps": [
-    {
-      "title": "",
-      "original": "",
-      "better": "",
-      "chinese": "",
-      "example": "",
-      "why": "",
-      "category": "task",
-      "saveToReview": true
-    }
-  ],
-  "progress": null
-}
-
-category 只能是 task / grammar / naturalness / vocabulary / register。
-saveToReview 从严判断，宁缺毋滥（复习项太多会淹没重点）：
-- true：可跨场景复用的高频表达、地道搭配、句式（换个场景也用得上）。
-- false：只适用本题的一次性任务话术（具体物品、数字、时间、借口）；过于基础的词汇；纯风格差异（两种说法都对）；单点语法修正（冠词、介词、单复数、时态变形）。
-每次反馈最多 2 条 true。
-
-完整示例（场景：在咖啡店点单；学习者说："I want a coffee, big cup"）：
-{
-  "summary": "任务办成，表达不够自然",
-  "nativeVersion": "I'd like a large coffee, please.",
-  "standardAnswer": "Hi, could I get a large coffee to go, please?",
-  "note": "I'd like ... please",
-  "noteChinese": "我想要……，谢谢（礼貌点单句式）",
-  "score": 5.5,
-  "gaps": [
-    {
-      "title": "更礼貌的点单句式",
-      "original": "I want a coffee, big cup",
-      "better": "I'd like a large coffee, please",
-      "chinese": "请给我来杯大杯咖啡",
-      "example": "I'd like a latte to go, please.",
-      "why": "I'd like 比 I want 礼貌；杯型放名词前",
-      "category": "naturalness",
-      "saveToReview": true
-    }
-  ],
-  "progress": null
-}"""
-
-RETRY_PROMPT = """
-
-这是第 {round} 轮——同一道题的重说尝试。他上一轮说的话和你上次指出的 gaps：
-上一轮原话："{prev_text}"
-上次指出的 gaps（original -> better）：{prev_gaps}
-
-把这一轮和上一轮对比。在 JSON 输出里**必须额外加一个 progress 字段**：
-
-"progress": {{
-  "verdict": "passed | improved | stuck",
-  "fixed": ["他这一轮成功用上的某个建议表达——每条是一个独立短句，不要箭头"],
-  "remaining": ["仍然没用上的某个建议表达——每条一个独立短句"],
-  "comment": "一句中文点评，不超过 20 字"
-}}
-
-verdict 规则：
-- "passed"：任务确实办成了 **且** 没什么大 gap——现在听起来已经像 native 在处理这个任务。要慷慨：小风格瑕疵不阻挡 pass。但任务还没完成（仍有 task gap）就**绝不能** pass。
-- "improved"：明显进步但仍有真 gap（含任务还没完全办成）。
-- "stuck"：同样的问题仍在。
-
-在 "gaps" 里，只列**新出现的或仍未修好的**。聚焦在剩下的问题上，不要重复他已经修好的。"""
-
 
 _EMPTY = {
     "summary": "",
@@ -194,8 +103,13 @@ _EMPTY = {
 _PARSE_FAIL = {**_EMPTY, "summary": "AI feedback could not be parsed. Try again."}
 
 
+def mode_of_scenario(scenario: dict | None) -> str:
+    """从练习的场景快照推导模式：自由说快照 kind=free；其余（含旧数据）按场景题。"""
+    return "free" if scenario and scenario.get("kind") == "free" else "scenario"
+
+
 def _scenario_block(scenario: dict | None) -> str:
-    if not scenario:
+    if not scenario or scenario.get("kind") == "free":
         return ""
     target = ""
     if scenario.get("targetWords"):
@@ -212,25 +126,34 @@ def _scenario_block(scenario: dict | None) -> str:
     )
 
 
+def _free_topic_block(scenario: dict | None) -> str:
+    """自由说模式的话题上下文（可空=无话题自由说）。不给任务要点，只做语言参考。"""
+    topic = (scenario or {}).get("freeTopic") or ""
+    return f'话题（仅供理解语境，不判完成度）："{topic}"\n' if topic else ""
+
+
 def _build_messages(
     text: str,
     scenario: dict | None = None,
     prev_attempt: dict | None = None,
     round: int = 1,
+    mode: str = "scenario",
 ) -> list:
-    system = SYSTEM_PROMPT
+    free = mode == "free"
+    system = FREE_SYSTEM_PROMPT if free else SYSTEM_PROMPT
     if prev_attempt and round > 1:
         gaps_brief = "; ".join(
             f'"{g.get("original", "")}" -> "{g.get("better", "")}"'
             for g in prev_attempt.get("gaps", [])
         )
-        system += RETRY_PROMPT.format(
+        system += (FREE_RETRY_PROMPT if free else RETRY_PROMPT).format(
             round=round,
             prev_text=prev_attempt.get("transcript", ""),
             prev_gaps=gaps_brief,
         )
+    block = _free_topic_block(scenario) if free else _scenario_block(scenario)
     user = (
-        f'{_scenario_block(scenario)}学习者刚说的话:\n"{text}"\n\n'
+        f'{block}学习者刚说的话:\n"{text}"\n\n'
         "请按上面的 SYSTEM 指令，找出他和 native 之间的 gap。"
     )
     return [SystemMessage(content=system), HumanMessage(content=user)]
@@ -262,7 +185,7 @@ def _loads_model_json(raw: str) -> dict:
     return json.loads(repaired, strict=False)
 
 
-def _coerce_result(data: dict) -> dict:
+def _coerce_result(data: dict, free: bool = False) -> dict:
     if isinstance(data.get("feedback"), dict):
         data = data["feedback"]
     if isinstance(data.get("result"), dict):
@@ -273,6 +196,9 @@ def _coerce_result(data: dict) -> dict:
         if not isinstance(item, dict):
             continue
         category = item.get("category") if item.get("category") in _CATEGORIES else "vocabulary"
+        # 自由说不判任务完成度：模型偶尔仍会吐 task，归一到 naturalness
+        if free and category == "task":
+            category = "naturalness"
         gaps.append({
             "title": str(item.get("title") or ""),
             "original": str(item.get("original") or ""),
@@ -317,10 +243,10 @@ def _coerce_result(data: dict) -> dict:
     }
 
 
-def _parse_result(raw: str) -> dict:
+def _parse_result(raw: str, free: bool = False) -> dict:
     raw = _clean_model_json(raw)
     try:
-        result = CorrectResult.model_validate(_coerce_result(_loads_model_json(raw)))
+        result = CorrectResult.model_validate(_coerce_result(_loads_model_json(raw), free=free))
     except Exception:
         logger.warning("corrector parse failed; raw_len=%d raw_start=%r", len(raw), raw[:200])
         return dict(_PARSE_FAIL)
@@ -341,10 +267,12 @@ async def correct_text(
     if _is_too_short(text):
         return {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
 
-    messages = _build_messages(text, scenario, prev_attempt, round)
+    # 模式由会话快照携带（free 会话快照 kind=free），不另加参数，保持函数签名精简
+    mode = mode_of_scenario(scenario)
+    messages = _build_messages(text, scenario, prev_attempt, round, mode)
 
     def _parse(raw: str) -> dict:
-        return _parse_result(raw)
+        return _parse_result(raw, free=(mode == "free"))
 
     result = await audited_invoke(
         _get_client(), messages,
@@ -397,7 +325,8 @@ async def correct_text_stream(  # noqa: C901
         yield "done", {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
         return
 
-    messages = _build_messages(text, scenario, prev_attempt, round)
+    mode = mode_of_scenario(scenario)
+    messages = _build_messages(text, scenario, prev_attempt, round, mode)
     started = time.monotonic()
     full_text = ""
     final_metadata: dict | None = None
@@ -424,7 +353,7 @@ async def correct_text_stream(  # noqa: C901
         if prompt_tok or completion_tok:
             yield "usage", {"model": model, "promptTokens": prompt_tok, "completionTokens": completion_tok}
 
-        parsed = _parse_result(full_text) if full_text.strip() else None
+        parsed = _parse_result(full_text, free=(mode == "free")) if full_text.strip() else None
         # 流式返空（生产偶发空 content）→ 降级非流式重取，避免结果页只剩用户原话
         if not _is_usable(parsed):
             try:

@@ -103,6 +103,32 @@ describe("SessionDetailPage", () => {
     );
   });
 
+  it("shows a Free talk badge for free-mode sessions and topic card", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      scenarioId: "",
+      mode: "free",
+      freeTopic: "Your favorite breakfast",
+      title: "Your favorite breakfast",
+      scenario: { kind: "free", title: "Your favorite breakfast", freeTopic: "Your favorite breakfast" },
+    });
+    setup();
+    // 标题和徽章同在一个容器里，用正则匹配标题文本
+    await waitFor(() =>
+      expect(screen.getByText(/Your favorite breakfast/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Free talk")).toBeInTheDocument();
+  });
+
+  it("does not show Free talk badge for scenario sessions", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue(SESSION);
+    setup();
+    await waitFor(() => screen.getByText("Coffee shop"));
+    expect(screen.queryByText("Free talk")).not.toBeInTheDocument();
+  });
+
   it("renders formatted datetime", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);

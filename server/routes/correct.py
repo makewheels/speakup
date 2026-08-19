@@ -21,6 +21,12 @@ class CorrectRequest(BaseModel):
     userId: str
     practiceId: str
     text: str
+    mode: str = "scenario"     # scenario 场景题 / free 自由说（历史缺省按场景题）
+    freeTopic: str = ""        # 自由说话题快照（无话题自由说为空）
+
+
+def _normalize_mode(value: object) -> str:
+    return "free" if value == "free" else "scenario"
 
 
 async def _load_practice(req: CorrectRequest, token_user_id: str) -> dict:
@@ -47,11 +53,15 @@ def _has_usable_feedback(result: dict) -> bool:
 
 
 async def _save_attempt_and_review(
-    req: CorrectRequest, result: dict, round_no: int, source_type: str
+    req: CorrectRequest, practice: dict, result: dict, round_no: int
 ) -> int:
     """写入练习的 attempts，并自动把 saveToReview=true 的 gap 存进 reviewItems（错题/复习项）。
     返回实际新增的复习项数量。
     """
+    source_type = normalize_source_type(practice.get("sourceType"))
+    # 模式以会话为准（创建时已定），请求里的 mode 仅兜底；话题快照优先取请求（前端从会话带）
+    mode = _normalize_mode(practice.get("mode") or req.mode)
+    free_topic = req.freeTopic or practice.get("freeTopic") or ""
     # 先自动收录 saveToReview 的 gap，把 reviewItemId 回写到 gap 上，
     # 再写入 attempt —— 这样存进库的 attempt 和回给前端的 result 都带 id。
     auto_saved = 0
@@ -132,6 +142,8 @@ async def _save_attempt_and_review(
     attempt = {
         "transcript": req.text,
         "round": round_no,
+        "mode": mode,
+        "freeTopic": free_topic if mode == "free" else "",
         "summary": result["summary"],
         "nativeVersion": result["nativeVersion"],
         "standardAnswer": result.get("standardAnswer", ""),
@@ -153,17 +165,19 @@ async def _save_attempt_and_review(
 async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
     practice = await _load_practice(req, token_user_id)
     scenario, prev, round_no = _round_context(practice)
-    source_type = normalize_source_type(practice.get("sourceType"))
+    mode = _normalize_mode(practice.get("mode") or req.mode)
     link = {
         "sessionId": req.practiceId,
         "userId": req.userId,
         "round": round_no,
-        "sourceType": source_type,
+        "mode": mode,
+        "sourceType": normalize_source_type(practice.get("sourceType")),
     }
+    # 自由说的 prompt 模式由场景快照 kind=free 携带（见 corrector.mode_of_scenario）
     result = await correct_text(req.text, scenario, prev, round_no, link_to=link)
     if not _has_usable_feedback(result):
         raise HTTPException(502, result.get("summary") or "AI 没有返回可用反馈，请重试")
-    auto_saved = await _save_attempt_and_review(req, result, round_no, source_type)
+    auto_saved = await _save_attempt_and_review(req, practice, result, round_no)
     return {"practiceId": req.practiceId, "autoSaved": auto_saved, "round": round_no, **result}
 
 
@@ -171,12 +185,13 @@ async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user
 async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
     practice = await _load_practice(req, token_user_id)
     scenario, prev, round_no = _round_context(practice)
-    source_type = normalize_source_type(practice.get("sourceType"))
+    mode = _normalize_mode(practice.get("mode") or req.mode)
     link = {
         "sessionId": req.practiceId,
         "userId": req.userId,
         "round": round_no,
-        "sourceType": source_type,
+        "mode": mode,
+        "sourceType": normalize_source_type(practice.get("sourceType")),
     }
 
     async def generate():
@@ -199,7 +214,7 @@ async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(curre
             message = (result or {}).get('summary') or 'AI 没有返回可用反馈，请重试'
             yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
             return
-        auto_saved = await _save_attempt_and_review(req, result, round_no, source_type)
+        auto_saved = await _save_attempt_and_review(req, practice, result, round_no)
         yield f"data: {json.dumps({'type': 'done', 'result': result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
 
     return StreamingResponse(
