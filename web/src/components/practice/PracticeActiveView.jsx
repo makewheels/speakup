@@ -69,9 +69,10 @@ export default function PracticeActiveView({
   return (
     <div className="practice-page">
       {modeSwitch}
-      {phase !== "loading" && (
+      {/* 第一次尝试不展示 attempt 徽章（第 1 次是默认状态，无需标注）；重说后才显示 */}
+      {phase !== "loading" && (round ?? 1) > 1 && (
         <div className="attempt-badge-row">
-          <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
+          <span className="attempt-badge">{t("practice.attemptBadge", { n: round })}</span>
         </div>
       )}
       <PracticeMedia

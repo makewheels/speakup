@@ -289,6 +289,20 @@ describe("PracticePage feedback", () => {
     expect(api.nextScenario).not.toHaveBeenCalled();
   });
 
+  it("shows the attempt badge on the question once it is a second try", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        { round: 1, transcript: "x", summary: "s", nativeVersion: "n", score: 5.5, gaps: [], progress: null },
+      ],
+    });
+    // 无 ?result → 回到题目页准备第 2 次（round = attempts+1 = 2）
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    expect(screen.getByText("Attempt #2")).toBeInTheDocument();
+  });
+
   it("returns to review phase and alerts when correctStream errors", async () => {
     const { correctStream } = await import("../api/client.js");
     vi.spyOn(window, "alert").mockImplementation(() => {});
