@@ -1,6 +1,6 @@
 # 场景任务模式 · 总体设计
 
-一页说清当前系统怎么转：流程、模型、存储、后台任务。细节见 [schema.md](schema.md) / [storage.md](storage.md)。
+一页说清当前系统怎么转：流程、模型、存储、后台任务。细节见 [schema.md](../schema.md) / [storage.md](../storage.md)。
 
 ## 练习流程
 
@@ -55,7 +55,7 @@ scenarios/{scenarioId}/cover.jpg                                    ← 场景�
 practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm ← 每轮录音
 ```
 
-资源为根、类型做子目录（参考 video-2022）。详见 [storage.md](storage.md)。
+资源为根、类型做子目录（参考 video-2022）。详见 [storage.md](../storage.md)。
 
 ## 后台任务与删除
 
