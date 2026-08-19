@@ -34,6 +34,8 @@ describe("utils/tts", () => {
     vi.useRealTimers();
     audioInstances.length = 0;
     ttsMock.mockReset();
+    globalThis.speechSynthesis = undefined;
+    globalThis.SpeechSynthesisUtterance = undefined;
     // 模块级 urlCache 是 module singleton，重置 modules 让每个 test 重新加载
     vi.resetModules();
   });
@@ -96,5 +98,27 @@ describe("utils/tts", () => {
     expect(await speak("", "sess_a")).toBeNull();
     expect(await speak("   ", "sess_a")).toBeNull();
     expect(ttsMock).not.toHaveBeenCalled();
+  });
+
+  it("后端 TTS 不可用时降级到浏览器朗读，并停止重复请求后端", async () => {
+    const cancel = vi.fn();
+    const nativeSpeak = vi.fn();
+    globalThis.speechSynthesis = { cancel, speak: nativeSpeak };
+    globalThis.SpeechSynthesisUtterance = class {
+      constructor(text) { this.text = text; }
+    };
+    const { speak, isCached, stop } = await import("./tts.js");
+    ttsMock.mockRejectedValue(new Error("TTS unavailable"));
+
+    const first = await speak("Fallback text", "sess_a");
+    const second = await speak("Another text", "sess_a");
+
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(ttsMock).toHaveBeenCalledTimes(1);
+    expect(nativeSpeak).toHaveBeenCalledTimes(2);
+    expect(isCached("Anything", "sess_b")).toBe(true);
+    stop();
+    expect(cancel).toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import Icon from "../Icon.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
+import PracticeFreeCard from "./PracticeFreeCard.jsx";
 
 function preferenceNoticeKey(match) {
   if (match === "relaxedDifficulty") return "practicePrefs.matchRelaxedDifficulty";
@@ -14,17 +15,39 @@ function SpeakBtns({ text, practiceId }) {
   return <SpeakBtn text={text} practiceId={practiceId} />;
 }
 
+// 阶段提示文案 —— 跟随语言切换，所以在组件内构造
+function buildPrompts(mode, t) {
+  return {
+    loading:      mode === "free" ? t("practice.freeLoading") : t("practice.loading"),
+    ready:        "",
+    recording:    t("practice.listening"),
+    transcribing: t("practice.transcribing"),
+    review:       t("practice.review"),
+    evaluating:   t("practice.evaluating"),
+    feedback:     "",
+  };
+}
+
 export default function PracticeActiveView({
+  discardRecording,
   elapsed,
   evalAnchorRef,
   evalElapsed,
   evaluate,
+  freeTopic,
   handleRecordClick,
   handleRecordPressEnd,
   handleRecordPressStart,
   hintGaps,
+  mode,
+  modeSwitch,
+  onChangeTopic,
+  onNoTopic,
+  paused,
+  pauseResumeRecording,
+  pauseSupported,
   phase,
-  prompts,
+  round,
   scenario,
   session,
   startNewRound,
@@ -32,17 +55,35 @@ export default function PracticeActiveView({
   stopRecording,
   streamingLen,
   t,
+  transcriptionError,
   transcript,
+  setTranscript,
 }) {
+  const isFree = mode === "free";
+  const prompts = buildPrompts(mode, t);
+  // 话题展示：优先当前抽到的话题；刷新后从会话快照还原（zh 不在快照里，可空）
+  const freeInfo = freeTopic
+    || (isFree && session?.freeTopic
+      ? { _id: session.freeTopicId || "", text: session.freeTopic, zh: "" }
+      : null);
   return (
     <div className="practice-page">
+      {modeSwitch}
+      {/* 第一次尝试不展示 attempt 徽章（第 1 次是默认状态，无需标注）；重说后才显示 */}
+      {phase !== "loading" && (round ?? 1) > 1 && (
+        <div className="attempt-badge-row">
+          <span className="attempt-badge">{t("practice.attemptBadge", { n: round })}</span>
+        </div>
+      )}
       <PracticeMedia
         className={"su-img" + (phase === "loading" ? " loading" : "")}
-        imageUrl={phase !== "loading" ? session?.imageUrl : ""}
-        videoUrl={phase !== "loading" ? session?.videoUrl : ""}
+        imageUrl={phase !== "loading" && !isFree ? session?.imageUrl : ""}
+        videoUrl={phase !== "loading" && !isFree ? session?.videoUrl : ""}
       />
 
-      {phase !== "loading" && <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
+      {phase !== "loading" && (isFree
+        ? <PracticeFreeCard freeTopic={freeInfo?.text || ""} zh={freeInfo?.zh || ""} t={t} />
+        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />)}
 
       {phase !== "loading" && preferenceNoticeKey(session?.preferenceMatch) && (
         <div className="pref-match-note">
@@ -64,7 +105,7 @@ export default function PracticeActiveView({
 
       <p className="su-prompt">{prompts[phase]}</p>
 
-      {(phase === "recording" || phase === "transcribing" || phase === "review" || phase === "evaluating") && (
+      {(phase === "recording" || phase === "transcribing" || phase === "evaluating") && (
         <div className={"su-transcript" + (!transcript ? " empty" : "")}>
           {transcript ||
             (phase === "recording"
@@ -76,9 +117,27 @@ export default function PracticeActiveView({
         </div>
       )}
 
+      {phase === "review" && (
+        <>
+          <textarea
+            aria-label={t("practice.transcriptInputLabel")}
+            className="su-transcript su-transcript-input"
+            onChange={(event) => setTranscript(event.target.value)}
+            placeholder={t("practice.transcriptPlaceholder")}
+            rows={4}
+            value={transcript}
+          />
+          {transcriptionError && (
+            <p className="su-transcript-fallback" role="status">
+              {t("practice.manualTranscriptHint")}
+            </p>
+          )}
+        </>
+      )}
+
       {phase === "recording" && (
         <div className="su-rec-meta">
-          <span className="rec-dot">{t("practice.rec")}</span>
+          <span className={"rec-dot" + (paused ? " paused" : "")}>{paused ? t("practice.paused") : t("practice.rec")}</span>
           <span className="elapsed">{elapsed}</span>
         </div>
       )}
@@ -99,8 +158,7 @@ export default function PracticeActiveView({
             <Icon name="mic" size={32} color="#fff" />
           </button>
           <div className="su-rec-label">{t("practice.tapToStart")}</div>
-          <div className="su-rec-hint">{t("practice.tapHint")}</div>
-          {phase === "ready" && session?.scenarioId && (
+          {phase === "ready" && !isFree && session?.scenarioId && (
             <button
               className="su-skip"
               title={t("practice.tryAnother")}
@@ -110,22 +168,53 @@ export default function PracticeActiveView({
               <span>{t("practice.tryAnother")}</span>
             </button>
           )}
+          {phase === "ready" && isFree && (
+            <div className="free-actions">
+              {freeInfo && (
+                <button className="su-skip" title={t("practice.freeChangeTopic")} onClick={onChangeTopic}>
+                  <Icon name="refresh" size={16} />
+                  <span>{t("practice.freeChangeTopic")}</span>
+                </button>
+              )}
+              <button className="su-btn su-btn-secondary free-no-topic" onClick={onNoTopic}>
+                {t("practice.freeNoTopic")}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {phase === "recording" && (
         <div className="su-rec-wrap">
-          <button
-            className="su-rec recording"
-            onPointerDown={() => handleRecordPressStart(stopRecording)}
-            onPointerUp={handleRecordPressEnd}
-            onPointerLeave={handleRecordPressEnd}
-            onContextMenu={(e) => e.preventDefault()}
-            onClick={() => handleRecordClick(stopRecording)}
-          >
-            <Icon name="stop" size={28} color="#fff" />
-          </button>
-          <div className="su-rec-label">{t("practice.tapToStop")}</div>
+          <div className="su-rec-row">
+            {pauseSupported && (
+              <button
+                className="su-rec-side"
+                title={paused ? t("practice.resume") : t("practice.pause")}
+                onClick={pauseResumeRecording}
+              >
+                <Icon name={paused ? "play" : "pause"} size={20} />
+              </button>
+            )}
+            <button
+              className={"su-rec recording" + (paused ? " paused" : "")}
+              onPointerDown={() => handleRecordPressStart(stopRecording)}
+              onPointerUp={handleRecordPressEnd}
+              onPointerLeave={handleRecordPressEnd}
+              onContextMenu={(e) => e.preventDefault()}
+              onClick={() => handleRecordClick(stopRecording)}
+            >
+              <Icon name="stop" size={28} color="#fff" />
+            </button>
+            <button
+              className="su-rec-side"
+              title={t("practice.discard")}
+              onClick={discardRecording}
+            >
+              <Icon name="trash" size={20} />
+            </button>
+          </div>
+          <div className="su-rec-label">{paused ? t("practice.tapToResume") : t("practice.tapToStop")}</div>
           <div className="su-rec-hint">{t("practice.stopHint")}</div>
         </div>
       )}

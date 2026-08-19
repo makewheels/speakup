@@ -106,7 +106,18 @@ def pick_public(
     purpose: str | None,
 ) -> tuple[dict, str]:
     blocked = practiced | skipped
+    blocked_sub_ids = {
+        (scenario.get("category") or {}).get("subId")
+        for scenario in public
+        if scenario["_id"] in skipped
+    }
+    blocked_sub_ids.discard(None)
+    diverse = [
+        s for s in public
+        if (s.get("category") or {}).get("subId") not in blocked_sub_ids
+    ]
     layers = [
+        [s for s in diverse if s["_id"] not in blocked],
         [s for s in public if s["_id"] not in blocked],
         [s for s in public if s["_id"] not in practiced],
         [s for s in public if s["_id"] not in skipped],

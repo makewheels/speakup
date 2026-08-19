@@ -6,6 +6,12 @@ import Icon from "../components/Icon.jsx";
 import {
   getPracticePreferences,
 } from "../lib/practicePreferences.js";
+import {
+  getThemeMode,
+  setThemeMode,
+  resolveTheme,
+  applyTheme,
+} from "../lib/theme.js";
 
 export default function ProfilePage() {
   const { user, logout } = useUser();
@@ -13,6 +19,14 @@ export default function ProfilePage() {
   const t = useT();
   const { lang, setLang } = useLang();
   const [practicePrefs] = useState(() => getPracticePreferences(user?.userId));
+  const [themeMode, setThemeModeState] = useState(() => getThemeMode());
+
+  const chooseTheme = (mode) => {
+    setThemeMode(mode);
+    setThemeModeState(mode);
+    // 立即生效；auto 的日出日落细化由 initTheme 的定时器接管
+    applyTheme(resolveTheme(mode));
+  };
 
   if (!user) return null;
 
@@ -68,6 +82,31 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
+        <div className="profile-lang-row">
+          <div className="profile-lang-key">
+            <Icon name="moon" size={18} color="var(--ink-3)" />
+            <span>{t("profile.theme")}</span>
+          </div>
+          <div className="profile-lang-segmented" role="radiogroup" aria-label={t("profile.theme")}>
+            {[
+              ["auto", t("profile.themeAuto"), t("profile.themeAutoTitle")],
+              ["light", t("profile.themeLight")],
+              ["dark", t("profile.themeDark")],
+            ].map(([mode, label, title]) => (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={themeMode === mode}
+                title={title}
+                className={"seg" + (themeMode === mode ? " active" : "")}
+                onClick={() => chooseTheme(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <button className="profile-setting-row" onClick={() => navigate("/me/practice-preferences")}>
           <div className="profile-lang-key">
             <Icon name="spark" size={18} color="var(--ink-3)" />
@@ -76,17 +115,18 @@ export default function ProfilePage() {
           <span className="profile-setting-summary">{prefSummary}</span>
           <Icon name="next" size={16} color="var(--ink-4)" />
         </button>
+        <button className="profile-setting-row" onClick={() => navigate("/me/feedback")}>
+          <div className="profile-lang-key">
+            <Icon name="message" size={18} color="var(--ink-3)" />
+            <span>{t("profile.feedback")}</span>
+          </div>
+          <Icon name="next" size={16} color="var(--ink-4)" />
+        </button>
       </div>
 
       <button className="profile-entry" onClick={() => navigate("/shares")}>
         <Icon name="share" size={18} color="var(--ink-3)" />
         <span>{t("profile.myShares")}</span>
-        <Icon name="next" size={16} color="var(--ink-4)" />
-      </button>
-
-      <button className="profile-entry" onClick={() => navigate("/me/feedback")}>
-        <Icon name="message" size={18} color="var(--ink-3)" />
-        <span>{t("profile.feedback")}</span>
         <Icon name="next" size={16} color="var(--ink-4)" />
       </button>
 

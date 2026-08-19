@@ -7,7 +7,7 @@
 ```bash
 # 1. 从 master 开新分支
 git checkout master && git pull
-git checkout -b <type>/<slug>   # feat/ fix/ chore/ docs/
+git checkout -b <type>-<slug>   # feat-xxx / fix-xxx / chore-xxx / docs-xxx（分支名不含斜杠：CI 镜像文件名会用分支名）
 
 # 2. 改代码
 
@@ -45,15 +45,18 @@ git checkout master && git pull
 
 - **页面的关键状态必须可被 URL 还原**：进入一个新视图 / 子状态（如练习的"结果 / 反馈页"）时，URL 要跟着变（path 段或 query param），且刷新后能从 URL + 后端数据重建该状态——绝不能"刷新就回到初始态、结果没了"。数据已落库的（如 attempt）刷新时从库里重建，不要只存内存。
 - **测试要是代码**：不靠 curl 一次性脚本。
-- **批量调 LLM / 文生图很贵**：默认一次 ≤5 个；先 `--dry-run` 验证文案，再花生图钱。详见 `docs/design/scenario-taxonomy.md`。
+- **批量调 LLM / 文生图很贵**：默认一次 ≤5 个；先 `--dry-run` 验证文案，再花生图钱。详见 `docs/design/场景练习/scenario-taxonomy.md`。
+- **文档随代码一起改**：`docs/业务/*.md` 记录**当前已实现**行为（一个模块一篇），任何对外行为变更必须在同一次 PR 里同步更新对应业务文档（没有就新建一篇）+ `CHANGELOG.md`；数据模型变更同步 `docs/design/schema.md`。设计稿（`docs/design/`）落地后回写进展。重要改动另在 `docs/changelog/<时间戳>-<名字>/` 追加一条详细记录（背景/权衡/验证，只增不改）。文档地图见 `docs/README.md`。
 
 ## 新增服务 / 路由时的 checklist
 
 - [ ] 单元测试覆盖核心逻辑（mock 外部依赖）
 - [ ] 集成测试覆盖 happy path + 边界（404、重复等）
+- [ ] `docs/业务/*.md` 同步更新（行为变更必选；新模块新建一篇）
 - [ ] `docs/design/schema.md` 同步更新（如有新集合或字段变更）
 - [ ] `docs/design/storage.md` 同步更新（如有新 OSS 路径）
 - [ ] `CHANGELOG.md` 更新（格式见下）
+- [ ] 重要改动在 `docs/changelog/<时间戳>-<名字>/README.md` 追加详细记录（只增不改）
 - [ ] 对应 `.test.jsx` 覆盖新增页面 / 组件的 happy path 及关键交互（前端改动必选）
 - [ ] `pnpm test` 全绿，`pnpm test:coverage` 门槛通过（前端改动必选）
 - [ ] `pnpm run build` 通过（如有前端改动）

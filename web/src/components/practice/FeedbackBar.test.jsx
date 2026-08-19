@@ -71,6 +71,26 @@ describe("FeedbackBar", () => {
     expect(screen.queryByLabelText("Helpful")).not.toBeInTheDocument();
   });
 
+  it("shows comment box before any rating and submits good with the comment", async () => {
+    const { api } = await import("../../api/client.js");
+    setup();
+    // 输入框常驻：还没点赞踩就能写
+    const box = await screen.findByPlaceholderText(/Anything to add/);
+    await userEvent.type(box, "很有帮助，但希望多给例句");
+    await userEvent.click(screen.getByLabelText("Helpful"));
+
+    await waitFor(() => expect(api.submitFeedback).toHaveBeenCalled());
+    const call = api.submitFeedback.mock.calls[0][0];
+    expect(call).toMatchObject({
+      type: "practice",
+      rating: "good",
+      tags: [],
+      comment: "很有帮助，但希望多给例句",
+    });
+    // 已反馈态回显文字
+    expect(screen.getByText("很有帮助，但希望多给例句")).toBeInTheDocument();
+  });
+
   it("expands reason tags on thumbs-down and submits bad with selected tags", async () => {
     const { api } = await import("../../api/client.js");
     setup();
@@ -78,7 +98,7 @@ describe("FeedbackBar", () => {
     await userEvent.click(screen.getByLabelText("Not helpful"));
     await userEvent.click(screen.getByText("Score too strict"));
     await userEvent.click(screen.getByText("Corrections inaccurate"));
-    await userEvent.type(screen.getByPlaceholderText(/What was wrong/), "score weird");
+    await userEvent.type(screen.getByPlaceholderText(/Anything to add/), "score weird");
     await userEvent.click(screen.getByText("Submit"));
 
     await waitFor(() => expect(screen.getByText("Edit")).toBeInTheDocument());

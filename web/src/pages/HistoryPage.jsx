@@ -110,6 +110,8 @@ export default function HistoryPage() {
                   <p className="history-headline">{g.title}</p>
                   <div className="history-sub">
                     <span className="history-date">{formatDateTime(latest.createdAt)}</span>
+                    {/* mode 缺省（旧数据）按场景题；free 会话打「自由说」徽章 */}
+                    {latest.mode === "free" && <span className="chip free">{t("history.freeBadge")}</span>}
                     {multi && <span className="chip">{t("history.attemptsCount", { n: g.sessions.length })}</span>}
                     {!multi && gapCount > 0 && <span className="chip warn">{t("history.gapsCount", { n: gapCount })}</span>}
                     {!multi && latest.shared && <span className="chip share">{t("history.shared")}</span>}
@@ -128,6 +130,7 @@ export default function HistoryPage() {
                       <div key={s._id} className="history-subrow" onClick={() => navigate(`/history/${s._id}`)}>
                         <span className="history-subidx">{t("history.attempt", { n: g.sessions.length - k })}</span>
                         <span className="history-subtime">{formatDateTime(s.createdAt)}</span>
+                        {s.mode === "free" && <span className="chip free">{t("history.freeBadge")}</span>}
                         {gc > 0 && <span className="chip warn">{t("history.gapsCount", { n: gc })}</span>}
                         {s.shared && <span className="chip share">{t("history.shared")}</span>}
                         <Icon name="next" size={14} color="var(--ink-4)" />

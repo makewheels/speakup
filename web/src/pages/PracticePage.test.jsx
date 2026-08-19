@@ -11,6 +11,7 @@ import { savePracticePreferences } from "../lib/practicePreferences.js";
 vi.mock("../api/client.js", () => ({
   api: {
     nextScenario: vi.fn(),
+    nextFreeTopic: vi.fn(),
     createPractice: vi.fn(),
     getPractice: vi.fn(),
     transcribeAudio: vi.fn(),
@@ -103,6 +104,8 @@ class FakeMediaRecorder {
     this.state = "recording";
     this.ondataavailable?.({ data: { size: 10 } });
   }
+  pause() { this.state = "paused"; }
+  resume() { this.state = "recording"; }
   requestData() {
     this.ondataavailable?.({ data: { size: 10 } });
   }
@@ -141,6 +144,7 @@ describe("PracticePage", () => {
     vi.clearAllMocks();
     const { api } = await import("../api/client.js");
     api.nextScenario.mockResolvedValue(SCENARIO_B);
+    api.nextFreeTopic.mockResolvedValue({ _id: "ft_1", text: "A topic", zh: "话题" });
     api.createPractice.mockResolvedValue(SESSION_B);
     api.getPractice.mockResolvedValue(SESSION);
     api.transcribeAudio.mockResolvedValue({ text: "Can you redo my latte" });
@@ -170,6 +174,14 @@ describe("PracticePage", () => {
     );
   });
 
+  it("hides the attempt badge on the first attempt", async () => {
+    setup("/practice/sess_abc");
+    await waitFor(() =>
+      expect(screen.getByText("You got the wrong drink.")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Attempt #1")).not.toBeInTheDocument();
+  });
+
   it("does NOT show feedback (shows ready) when attempts exist but URL lacks ?result=1", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({
@@ -180,7 +192,7 @@ describe("PracticePage", () => {
     await waitFor(() =>
       expect(screen.getByText("You got the wrong drink.")).toBeInTheDocument(),
     );
-    expect(screen.queryByText("Native version")).not.toBeInTheDocument();
+    expect(screen.queryByText("Correction")).not.toBeInTheDocument();
   });
 
   it("renders scenario points after session loads", async () => {
@@ -407,10 +419,9 @@ describe("PracticePage", () => {
     expect(api.nextScenario).toHaveBeenCalledTimes(1);
   });
 
-  it("shows review phase even when transcription fails", async () => {
-    const { api } = await import("../api/client.js");
+  it("allows manual transcript and review when cloud transcription fails", async () => {
+    const { api, correctStream } = await import("../api/client.js");
     api.transcribeAudio.mockRejectedValue(new Error("asr down"));
-    vi.spyOn(window, "alert").mockImplementation(() => {});
     setup("/practice/sess_abc");
     await waitFor(() => screen.getByText("Tap once to record"));
     await userEvent.click(document.querySelector(".su-rec"));
@@ -418,7 +429,16 @@ describe("PracticePage", () => {
     await userEvent.click(document.querySelector(".su-rec"));
 
     await waitFor(() => expect(screen.getByText("Review now")).toBeInTheDocument());
-    expect(window.alert).toHaveBeenCalledWith(expect.stringContaining("Transcription failed"));
+    expect(screen.getByText(/Cloud transcription is temporarily unavailable/)).toBeInTheDocument();
+    const input = screen.getByLabelText("Your transcript");
+    await userEvent.type(input, "Could you remake my hot latte?");
+    const review = screen.getByText("Review now").closest("button");
+    expect(review).toBeEnabled();
+    await userEvent.click(review);
+    expect(correctStream).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Could you remake my hot latte?" }),
+      expect.any(Object),
+    );
   });
 
   it("Review now is disabled when transcript is empty", async () => {
@@ -436,4 +456,75 @@ describe("PracticePage", () => {
     expect(btn).toBeDisabled();
   });
 
+  // ── 录音中：暂停 / 重录 ────────────────────────────────
+
+  it("recording shows pause and start-over side buttons around the stop button", async () => {
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Pause")).toBeInTheDocument());
+    expect(screen.getByTitle("Start over")).toBeInTheDocument();
+    expect(document.querySelector(".su-rec.recording")).toBeInTheDocument();
+  });
+
+  it("pause toggles paused state and resume goes back to recording", async () => {
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Pause")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByTitle("Pause"));
+    expect(screen.getByText("⏸ Paused")).toBeInTheDocument();
+    expect(screen.getByText(/Paused · tap ▶/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTitle("Resume"));
+    expect(screen.getByText("● REC")).toBeInTheDocument();
+    expect(screen.getByText("Tap once to stop")).toBeInTheDocument();
+  });
+
+  it("start-over discards the recording without transcribing or evaluating", async () => {
+    const { api, correctStream } = await import("../api/client.js");
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Start over")).toBeInTheDocument());
+
+    await userEvent.click(screen.getByTitle("Start over"));
+    await waitFor(() => expect(screen.getByText("Tap once to record")).toBeInTheDocument());
+    expect(api.transcribeAudio).not.toHaveBeenCalled();
+    expect(correctStream).not.toHaveBeenCalled();
+  });
+
+  it("can still stop and transcribe after a pause", async () => {
+    const { api } = await import("../api/client.js");
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(screen.getByTitle("Pause")).toBeInTheDocument());
+    await userEvent.click(screen.getByTitle("Pause"));
+    await waitFor(() => expect(screen.getByText("⏸ Paused")).toBeInTheDocument());
+
+    await userEvent.click(document.querySelector(".su-rec"));
+    await waitFor(() => expect(api.transcribeAudio).toHaveBeenCalled());
+  });
+
+  // ── 重说不封顶 ─────────────────────────────────────────
+
+  it("retry button never disappears — after two attempts it offers attempt 3", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        { round: 1, transcript: "a", summary: "s", nativeVersion: "N1", score: 6, gaps: [], progress: { verdict: "needs-work" } },
+        { round: 2, transcript: "b", summary: "s", nativeVersion: "N2", score: 6.5, gaps: [], progress: { verdict: "needs-work" } },
+      ],
+    });
+    setup("/practice/sess_abc?result=1");
+    await waitFor(() =>
+      expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Next/)).toBeInTheDocument();
+  });
+
 });
+

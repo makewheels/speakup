@@ -1,18 +1,25 @@
 # 部署指南
 
-> 敏感值（IP/域名/密钥）全走 GitHub Secrets，不在本文档出现。
-> 各 Secret 的名字见 `.github/workflows/ci-cd.yml` 和仓库 Settings → Secrets。
+> 敏感值（IP/域名/密钥）统一存放在 Infisical，不在本文档或 GitHub Secrets 中出现。
+> GitHub Actions 通过受仓库、分支和 audience 约束的 OIDC 身份临时读取生产配置。
 
 ## 架构
 
 ```
-GitHub Actions → 构建 Docker 镜像 → 推 ACR (b4/speakup)
-                               → SSH 到生产机 → docker compose pull && up
+GitHub Actions → OIDC 读取 Infisical → 构建 Docker 镜像 → 推 ACR (b4/speakup)
+                                          → SSH 到生产机 → 临时注入配置 → docker compose pull && up
 <生产域名> → /opt/caddy 网关 (Caddy, 80/443) → speakup:3001 (docker network: edge)
 speakup:3001  → MongoDB (内网, MONGO_URI)
                                  → 阿里云 OSS speakup-prod 桶
-                                 → 火山方舟 Agent Plan / openspeech
+                                 → DeepSeek deepseek-v4-flash（文字）/ 百炼 Qwen ASR / Qwen TTS
+                                 → 火山方舟 Seedream（配图，默认关闭）
 ```
+
+AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`，配图使用 `IMAGE_*`。当前生产文字模型是 DeepSeek 官方 `deepseek-v4-flash`（当前版本 DeepSeek-V4-Flash-0731），ASR/TTS 分别为百炼 `qwen3-asr-flash` / `qwen3-tts-flash`；配图因原套餐失效设置 `IMAGE_ENABLED=false`，已有题图不受影响。实际值以 Infisical 的 `speakup/prod` 为准，共享语音密钥以 `common/dev` 为准。
+
+语音容错：云 ASR 失败时前端保留录音并进入可编辑转写框，用户手动输入后仍可完成评估；云 TTS 失败时自动改用浏览器 `speechSynthesis`。这保证主练习链路可降级完成，但不等于云语音服务健康。恢复完整云语音前需用北京地域、已开通对应语音模型的常规百炼 API Key 更新 `DASHSCOPE_API_KEY`，再分别实测 `/api/transcribe` 与 `/api/tts`，不能只看 `/api/health`。
+
+更新 Infisical 后，从 Actions 页手动运行 `CI / CD` 工作流。任务只在部署期间创建受限临时文件，`docker compose` 完成环境解析后立即删除；生产机不再保留应用 `.env`。不要重跑更新前的旧任务，旧任务可能仍使用当时的密钥快照。
 
 **多服务部署的核心约定**（这台机以后会跑多个服务）：
 
@@ -25,7 +32,7 @@ speakup:3001  → MongoDB (内网, MONGO_URI)
   3. `docker compose -f /opt/caddy/docker-compose.yml exec caddy caddy reload --config /etc/caddy/Caddyfile`
 
 - **镜像仓库**：阿里云 ACR 个人版 (cn-beijing)，`b4/speakup` 存应用镜像。caddy 等公共镜像走 docker.io，靠生产机 docker daemon 配置的 **registry-mirrors** 拉。
-- **凭据**：阿里云**主账号 ACR 固定密码**（控制台 → 容器镜像服务 → 个人实例 → 访问凭证），存 GitHub Secrets `ACR_AK_ID`/`ACR_AK_SECRET`。
+- **凭据**：阿里云 ACR 登录凭据存 `speakup/prod/deployment`；runner 和生产机均使用一次性 Docker 配置目录，任务结束即清理。
 - **回滚**：旧 `:latest` 转 `:previous`，`docker tag :previous :latest && docker compose up -d`。
 
 ## 生产机布置
@@ -37,7 +44,6 @@ speakup:3001  → MongoDB (内网, MONGO_URI)
 
 /opt/speakup/                  # 业务服务
 ├── docker-compose.yml         # speakup 容器（CI 写入）
-├── .env                       # CI 写入
 └── logs/                      # 应用持久化日志（容器 /app/logs，按天切分，默认保留 30 天）
 
 /opt/<其他服务>/                # 同上模式
@@ -45,8 +51,8 @@ speakup:3001  → MongoDB (内网, MONGO_URI)
 
 ## 首次部署
 
-1. 阿里云控制台给主账号设 ACR 固定密码。
-2. `gh secret set ACR_AK_ID/ACR_AK_SECRET`（其余 Secret 已有跳过）。
+1. 在 Infisical 建立 `speakup` 的 dev/prod 目录和只读 GitHub OIDC 身份。
+2. 将 ACR、SSH、数据库、OSS、LLM 和 Langfuse 配置分别录入对应目录；GitHub 仅保存非敏感的 Infisical 地址与 audience 变量。
 3. 服务器装 Docker（`sudo apt install docker.io docker-compose-v2`）。
 4. 配 docker daemon 镜像加速器：
    ```bash
@@ -71,17 +77,11 @@ speakup:3001  → MongoDB (内网, MONGO_URI)
    docker compose up -d
    ```
 7. 建 `/opt/speakup/`：`sudo mkdir -p /opt/speakup && sudo chown ubuntu:ubuntu /opt/speakup`
-8. `git push master` → CI 自动构建部署。
+8. `git push master` → CI 自动构建部署；成功后确认生产机不存在应用 `.env` 和持久化 registry 登录文件。
 
 ## 回滚
 
-```bash
-ssh -i ~/Downloads/qcloud_lighthouse_beijing ubuntu@<HOST>
-cd /opt/speakup
-IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
-docker tag $IMG:previous $IMG:latest
-docker compose up -d
-```
+回滚也必须从带 Infisical OIDC 注入的流水线执行，不能依赖服务器上的明文 `.env`。流水线在每次部署前保留 `:previous` 镜像作为一步回滚锚点。
 
 ## 常用运维
 

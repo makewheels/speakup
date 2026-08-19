@@ -1,0 +1,95 @@
+{
+  "familyId": "food-explain-cn-food",
+  "coordinate": {
+    "domain": "food",
+    "subId": "food.explain_cn_food",
+    "kind": "explain",
+    "difficulty": 3
+  },
+  "cases": [
+    {
+      "id": "food-explain-cn-food-positive",
+      "bucket": "positive",
+      "challenge": "需要解释吃法和社交含义，而不只是翻译菜名或罗列味道",
+      "candidate": {
+        "title": "第一次带外国同事吃火锅",
+        "where": "重庆火锅店",
+        "story": "外国同事把所有生菜一次倒进锅里，又准备直接喝红汤；他问为什么大家要围着同一口锅吃。",
+        "mission": "解释安全吃法和火锅的社交习惯",
+        "points": ["说明食材要分批煮熟以及红汤很辣", "解释共享一口锅为什么适合朋友聚餐"]
+      },
+      "annotation": {
+        "verdict": "pass",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 5,
+          "task_clarity": 5,
+          "speakability": 5,
+          "specificity": 5,
+          "novelty": 5,
+          "difficulty_fit": 5,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": [],
+        "rationale": "有现场误解、即时安全需求和文化解释，能练习解释而不是背诵美食介绍。"
+      }
+    },
+    {
+      "id": "food-explain-cn-food-negative",
+      "bucket": "negative",
+      "challenge": "句子能说，但对 difficulty 3 明显过浅，且与大量常见火锅题没有区分",
+      "candidate": {
+        "title": "向外国人介绍火锅",
+        "where": "公司午餐区",
+        "story": "外国同事第一次看到你带的火锅底料，好奇火锅到底是什么。",
+        "mission": "用英语简单介绍火锅",
+        "points": ["说火锅通常很辣", "说朋友们会一起吃"]
+      },
+      "annotation": {
+        "verdict": "fail",
+        "scores": {
+          "real_world_use": 3,
+          "speaking_motivation": 2,
+          "task_clarity": 4,
+          "speakability": 4,
+          "specificity": 2,
+          "novelty": 1,
+          "difficulty_fit": 1,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": ["too_easy", "generic", "semantic_only_failure"],
+        "rationale": "这是典型的硬规则全过但质量不够；两句答案对 B1-B2 太简单，也没有具体交流障碍。"
+      }
+    },
+    {
+      "id": "food-explain-cn-food-boundary",
+      "bucket": "boundary",
+      "challenge": "处理螺蛳粉气味玩笑，需要既有文化解释又避免把对方写得冒犯",
+      "candidate": {
+        "title": "办公室里的螺蛳粉味道",
+        "where": "共享办公室茶水间",
+        "story": "你热了一碗螺蛳粉，外国同事闻到味道后开玩笑说是不是食物坏了，并好奇为什么有人爱吃。",
+        "mission": "解释味道来源并邀请对方理性尝试",
+        "points": ["说明特殊气味来自发酵配料而不是变质", "描述口感并让对方自己决定是否尝试"]
+      },
+      "annotation": {
+        "verdict": "borderline",
+        "scores": {
+          "real_world_use": 4,
+          "speaking_motivation": 5,
+          "task_clarity": 5,
+          "speakability": 5,
+          "specificity": 5,
+          "novelty": 5,
+          "difficulty_fit": 5,
+          "cultural_safety": 3
+        },
+        "expectedHardFailures": [],
+        "failureTags": ["stereotype_tone_review"],
+        "rationale": "很有话可说，但 joke 的措辞容易制造外国人嫌弃中国食物的模板，需要人工检查语气。"
+      }
+    }
+  ]
+}

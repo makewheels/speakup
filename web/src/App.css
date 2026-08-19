@@ -27,7 +27,78 @@
   --warn-soft:  oklch(0.95 0.025 25);
   --ok:         oklch(0.50 0.085 155);
   --ok-soft:    oklch(0.95 0.025 155);
+
+  /* 录音按钮专用红：两种主题下都保持红色（录音键的通用语义），
+     不复用 --ink（深色主题下 ink 反转为浅色，按钮会显得像被置灰禁用） */
+  --rec:        oklch(0.55 0.20 27);
+  --rec-glow:   oklch(0.55 0.20 27 / 0.35);
+
+  /* gap 序号徽章：深底白字。不能复用 --ink 做底——深色主题下 ink 反转为浅色，
+     会变成"浅灰底 + 白字"看不清 */
+  --gap-num-bg: oklch(0.20 0.012 60);
+  --gap-num-ink:#fff;
+
+  /* 「试着用上」提示条（默认浅色值，深色主题覆盖） */
+  --hint-bg:    oklch(0.97 0.03 90);
+  --hint-rule:  oklch(0.88 0.06 90);
 }
+
+/* ──────────────────────────────────────────────
+   深色主题：按日出日落自动切换（见 lib/theme.js），
+   只覆盖语义 token，组件内引用 token 处自动跟随
+   ────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:         oklch(0.20 0.008 60);
+  --bg-elev:    oklch(0.25 0.010 60);
+  --bg-mute:    oklch(0.28 0.011 60);
+  --bg-deep:    oklch(0.16 0.008 60);
+
+  --ink:        oklch(0.93 0.006 75);
+  --ink-2:      oklch(0.76 0.008 75);
+  --ink-3:      oklch(0.58 0.008 75);
+  --ink-4:      oklch(0.44 0.008 75);
+  --rule:       oklch(0.34 0.010 60);
+
+  --accent:     oklch(0.72 0.10 245);
+  --accent-soft:oklch(0.33 0.05 245);
+  --warn:       oklch(0.70 0.13 25);
+  --warn-soft:  oklch(0.33 0.05 25);
+  --ok:         oklch(0.72 0.10 155);
+  --ok-soft:    oklch(0.33 0.04 155);
+
+  /* 深色下录音红略提亮，保证在深底上的对比度 */
+  --rec:        oklch(0.63 0.19 27);
+  --rec-glow:   oklch(0.63 0.19 27 / 0.35);
+
+  /* 深色下序号徽章用中灰底 + 白字，避免"浅底白字"看不清 */
+  --gap-num-bg: oklch(0.46 0.008 75);
+  --gap-num-ink:#fff;
+
+  --hint-bg:    oklch(0.28 0.02 80);
+  --hint-rule:  oklch(0.38 0.03 80);
+}
+
+/* 图片占位条纹 & 半透明标签：深色下压低亮度 */
+:root[data-theme="dark"] .su-img,
+:root[data-theme="dark"] .mistake-row .thumb,
+:root[data-theme="dark"] .history-thumb,
+:root[data-theme="dark"] .detail-hero-placeholder,
+:root[data-theme="dark"] .review-card-img {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.27 0.012 70) 0 12px,
+      oklch(0.30 0.008 70) 12px 24px
+    );
+}
+:root[data-theme="dark"] .su-img.loading {
+  background:
+    linear-gradient(110deg, oklch(0.27 0.01 70) 8%, oklch(0.31 0.008 70) 18%, oklch(0.27 0.01 70) 33%);
+  background-size: 200% 100%;
+}
+:root[data-theme="dark"] .media-loading { background: rgba(0, 0, 0, 0.6); color: var(--ink-2); }
 
 * { box-sizing: border-box; }
 
@@ -322,7 +393,7 @@ button { font-family: inherit; }
   width: 88px;
   height: 88px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--rec);
   color: var(--bg);
   border: 0;
   cursor: pointer;
@@ -338,13 +409,45 @@ button { font-family: inherit; }
 .su-rec:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .su-rec.recording {
-  background: var(--warn);
+  background: var(--rec);
   animation: pulse 1.4s ease-out infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 oklch(0.52 0.135 25 / 0.35); }
-  50%      { box-shadow: 0 0 0 14px oklch(0.52 0.135 25 / 0); }
+  0%, 100% { box-shadow: 0 0 0 0 var(--rec-glow); }
+  50%      { box-shadow: 0 0 0 14px oklch(0.55 0.20 27 / 0); }
+}
+
+/* 录音中：暂停(左) + 完成(中大) + 重录(右) 一行 */
+.su-rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+}
+
+.su-rec-side {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--bg-elev);
+  color: var(--ink-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.su-rec-side:active { transform: scale(0.93); }
+
+/* 暂停态：大按钮灰色、停掉呼吸动画 */
+.su-rec.recording.paused {
+  background: var(--ink-3);
+  animation: none;
 }
 
 .su-rec-label {
@@ -399,6 +502,23 @@ button { font-family: inherit; }
   font-size: 14px;
 }
 
+.su-transcript-input {
+  box-sizing: border-box;
+  display: block;
+  min-height: 112px;
+  resize: vertical;
+}
+
+.su-transcript-fallback {
+  color: var(--warn);
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 8px auto 0;
+  max-width: 640px;
+  text-align: center;
+}
+
 .su-transcript .live-dot {
   display: inline-block;
   width: 6px;
@@ -426,9 +546,11 @@ button { font-family: inherit; }
 .su-rec-meta .rec-dot {
   font-family: var(--ff-mono);
   font-size: 13px;
-  color: var(--warn);
+  color: var(--rec);
   letter-spacing: 0.04em;
 }
+
+.su-rec-meta .rec-dot.paused { color: var(--ink-3); }
 
 .su-rec-meta .elapsed {
   font-family: var(--ff-mono);
@@ -1555,6 +1677,9 @@ button { font-family: inherit; }
   align-items: center;
 }
 .fb-card-label.native { color: var(--accent); display: flex; align-items: center; }
+/* 标准答案卡：与 native 版（蓝）同构，绿色描边区分 */
+.fb-card-label.standard { color: var(--ok); display: flex; align-items: center; }
+.fb-standard-card { border-color: var(--ok); }
 /* You said —— 与 native version 同字号(19)，无底色，区别只在颜色（黑 vs 蓝） */
 .fb-transcript-text {
   font-family: var(--ff-en);
@@ -1602,6 +1727,22 @@ button { font-family: inherit; }
   margin-left: 4px;
   align-self: center;
 }
+
+/* 第 N 次尝试徽章：练习页顶部 + 结果页分数上方 */
+.attempt-badge-row { text-align: center; margin-bottom: 10px; }
+.attempt-badge {
+  display: inline-block;
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  background: var(--bg-mute);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+.fb-score-anchor { text-align: center; }
+.fb-score-anchor .attempt-badge { margin-bottom: 6px; }
 .fb-summary-line {
   font-family: var(--ff-cn);
   font-size: 14px;
@@ -1615,10 +1756,10 @@ button { font-family: inherit; }
 .fb-empty-feedback {
   margin-top: 18px;
   padding: 14px 16px;
-  border: 1px solid rgba(42, 33, 24, 0.12);
+  border: 1px solid var(--rule);
   border-radius: 8px;
   color: var(--ink-2);
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--bg-mute);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -1675,8 +1816,8 @@ button { font-family: inherit; }
   border-radius: 12px;
   padding: 12px 14px;
   resize: none;
-  min-height: 72px;
-  max-height: 160px;
+  min-height: 96px;
+  max-height: 200px;
 }
 .fb-chat-input textarea:focus {
   outline: none;
@@ -1710,8 +1851,8 @@ button { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--ink);
-  color: #fff;
+  background: var(--gap-num-bg);
+  color: var(--gap-num-ink);
   border-radius: 6px;
   font-family: var(--ff-cn);
   font-size: 13px;
@@ -1725,6 +1866,16 @@ button { font-family: inherit; }
   border-radius: 6px;
   padding: 2px 8px;
   white-space: nowrap;
+}
+/* gap 要点标题（title，中文短语） */
+.fb-gap-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  line-height: 1.4;
 }
 .fb-gap-add {
   margin-left: auto;
@@ -1741,6 +1892,24 @@ button { font-family: inherit; }
 }
 .fb-gap-add.added { color: var(--ok); background: var(--ok-soft); }
 .fb-gap-add:disabled { cursor: default; }
+/* 自动记入的好表达笔记（LLM 产出的短表达，非整句） */
+.fb-note-line {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.fb-note-line b {
+  font-family: var(--ff-en);
+  font-weight: 700;
+  color: var(--ok);
+}
 /* 三行做成表格：细分隔线分隔 You said / Say this / Why */
 .fb-gap-table {
   display: flex;
@@ -1789,6 +1958,20 @@ button { font-family: inherit; }
   font-size: 16px;
   color: var(--ink-2);
   line-height: 1.55;
+}
+/* better 的中文意思（chinese，复习提示词同源） */
+.fb-gap-meaning {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+/* 例句（example，英文，次要于 better） */
+.fb-gap-example {
+  font-family: var(--ff-en);
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.5;
 }
 
 /* ── 反馈页：gap 对比卡片 ──────────────────────────────────────── */
@@ -1935,15 +2118,12 @@ button { font-family: inherit; }
   flex-direction: column;
   justify-content: center;
 }
-.review-said {
-  font-family: var(--ff-sans);
+.review-zh {
+  font-family: var(--ff-cn);
   font-size: 12.5px;
   color: var(--ink-3);
   line-height: 1.4;
   margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .review-better {
   font-family: var(--ff-mono);
@@ -1955,11 +2135,6 @@ button { font-family: inherit; }
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-.review-better .arrow {
-  color: var(--accent);
-  font-weight: 500;
-  margin-right: 4px;
 }
 .review-why {
   font-family: var(--ff-cn);
@@ -2069,6 +2244,9 @@ button { font-family: inherit; }
   cursor: pointer;
 }
 .rv-card-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--ff-cn);
   font-size: 13px;
   color: var(--ink-4);
@@ -2081,6 +2259,25 @@ button { font-family: inherit; }
   color: var(--ink-2);
   line-height: 1.5;
   margin: 0;
+}
+/* 卡片正面：中文提示词（主动回忆，不再展示用户的错误版本） */
+.rv-card-q.rv-card-zh {
+  font-family: var(--ff-cn);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.rv-card-q.rv-card-loading {
+  font-family: var(--ff-cn);
+  font-size: 15px;
+  color: var(--ink-4);
+  display: flex;
+  align-items: center;
+}
+.rv-card-q.rv-card-fallback {
+  font-family: var(--ff-cn);
+  font-size: 15px;
+  color: var(--ink-4);
 }
 .rv-tap-hint {
   margin-top: auto;
@@ -2135,6 +2332,118 @@ button { font-family: inherit; }
 }
 .rv-done-title { font-family: var(--ff-cn); font-size: 18px; font-weight: 700; margin: 0; }
 .rv-done-sub { font-family: var(--ff-cn); font-size: 14px; color: var(--ink-3); margin: 0 0 12px; }
+.rv-done-retired { color: var(--ok); margin-top: -8px; }
+
+/* 列表视图底部：已收纳区（会说即收纳，可展开查看/恢复） */
+.rv-retired-section { margin-top: 18px; }
+.rv-retired-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 10px 2px;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-4);
+  cursor: pointer;
+}
+.rv-retired-arrow {
+  display: inline-flex;
+  transition: transform 0.15s;
+}
+.rv-retired-arrow.open { transform: rotate(90deg); }
+.rv-retired-card { opacity: 0.72; }
+
+/* 错题本拆分：全部 / 错题 / 笔记 过滤 chips */
+.rv-kind-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rv-kind-chip {
+  flex: 1;
+  border: 1px solid var(--rule);
+  background: var(--bg-elev);
+  border-radius: 999px;
+  padding: 6px 0;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.rv-kind-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+/* 卡片正面左上角类别小标签 */
+.rv-kind-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.rv-kind-tag.mistake {
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  color: var(--warn);
+}
+.rv-kind-tag.note {
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  color: var(--ok);
+}
+/* 温故而知新：词卡四选一出题 */
+.rv-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rv-quiz-opt {
+  text-align: left;
+  font-family: var(--ff-en);
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--bg-mute);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 11px 12px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.rv-quiz-opt:disabled { cursor: default; }
+.rv-quiz-opt.correct {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+  color: var(--ok);
+  font-weight: 600;
+}
+.rv-quiz-opt.wrong {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.rv-quiz-opt.dim { opacity: 0.55; }
+.rv-quiz-verdict {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--warn);
+  margin: 0 0 10px;
+}
+.rv-quiz-verdict.ok { color: var(--ok); }
+.rv-next-btn { width: 100%; height: 46px; }
+/* 列表视图分组标题 */
+.rv-list-section-label {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin: 14px 0 8px;
+}
+.rv-list-section-label.note { color: var(--ok); }
 
 /* 列表视图里的「练这个词」按钮 */
 .review-cta-btn {
@@ -2284,16 +2593,30 @@ button { font-family: inherit; }
 .sc-hintbar {
   font-family: var(--ff-cn);
   font-size: 16px;
-  background: oklch(0.97 0.03 90);
-  border: 1px solid oklch(0.88 0.06 90);
+  background: var(--hint-bg, oklch(0.97 0.03 90));
+  border: 1px solid var(--hint-rule, oklch(0.88 0.06 90));
   border-radius: 12px;
   padding: 10px 14px;
   margin-bottom: 12px;
   line-height: 1.9;
+  /* 长表达 + 朗读按钮要能换行，不能把卡片撑出屏幕 */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
-.sc-hint-item { margin-right: 10px; white-space: nowrap; }
-.sc-hint-item b { color: var(--accent); }
+.sc-hint-item {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+.sc-hint-item b { color: var(--accent); font-weight: 600; }
 
 .pref-match-note {
   font-family: var(--ff-cn);
@@ -2389,14 +2712,6 @@ button { font-family: inherit; }
   color: var(--ink-3);
   text-align: center;
   margin: 10px 0 0;
-}
-
-.fb-rounds-out {
-  font-family: var(--ff-cn);
-  font-size: 14px;
-  color: var(--ink-3);
-  text-align: center;
-  margin-top: 10px;
 }
 
 /* ===== 分享功能 ===== */
@@ -2690,6 +3005,7 @@ button { font-family: inherit; }
   padding: 10px 12px;
   resize: vertical;
   box-sizing: border-box;
+  margin-bottom: 10px;
 }
 .fb-bar-done {
   margin: 20px 0 4px;
@@ -2737,4 +3053,108 @@ button { font-family: inherit; }
   background: var(--bg-mute);
   border: 1px solid var(--rule);
   border-radius: 16px;
+}
+
+/* ──────────────────────────────────────────────
+   练习模式切换（场景题 / 自由说）
+   ────────────────────────────────────────────── */
+
+.mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 auto 14px;
+  width: fit-content;
+  background: var(--bg-mute);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+}
+
+.mode-switch-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.mode-switch-btn.active {
+  background: var(--bg-elev);
+  color: var(--ink);
+  box-shadow: 0 1px 3px oklch(0.2 0 0 / 0.08);
+}
+
+/* ──────────────────────────────────────────────
+   自由说话题卡片
+   ────────────────────────────────────────────── */
+
+.free-card {
+  padding: 16px 18px;
+}
+
+.free-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.free-card-topic {
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.free-card-zh {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.free-card-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* 话题操作区：换一个话题 + 不用题目随便说 */
+.free-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.free-actions .su-skip { margin-top: 18px; }
+
+.free-no-topic {
+  width: min(320px, 86%);
+  height: 44px;
+}
+
+/* 自由说徽章（历史列表 / 详情页） */
+.chip.free { background: var(--accent-soft); color: var(--accent); }
+
+.free-badge {
+  margin-left: 8px;
+  vertical-align: 2px;
+  height: 22px;
+  font-size: 11px;
+}
+
+/* 自由说 standardAnswer 为空时，笔记独立成行 */
+.fb-note-standalone {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
 }

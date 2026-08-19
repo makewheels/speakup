@@ -9,15 +9,14 @@ from services.corrector import (
     CorrectResult,
     GapItem,
     ProgressInfo,
-    _build_followup_messages,
     _build_messages,
-    _followup_context,
     _get_client,
+    _is_too_short,
     _parse_result,
     correct_text,
     correct_text_stream,
-    followup_chat_stream,
 )
+from services.followup_chat import _build_followup_messages, _followup_context, followup_chat_stream
 
 SCENARIO = {
     "where": "☕️ 咖啡店 · 西雅图",
@@ -45,15 +44,44 @@ def _fake_llm(result: CorrectResult):
     return fake_client
 
 
-def test_get_client_disables_thinking_explicitly(monkeypatch):
+def test_get_client_disables_thinking_for_dashscope(monkeypatch):
     fake_chat = MagicMock(return_value="client")
     monkeypatch.setattr("services.corrector._client", None)
     monkeypatch.setattr("services.corrector.CHAT_THINKING", False)
+    monkeypatch.setattr(
+        "services.corrector.CHAT_BASE_URL",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    )
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
     assert _get_client() == "client"
 
+    assert fake_chat.call_args.kwargs["extra_body"] == {"enable_thinking": False}
+
+
+def test_get_client_uses_volcengine_thinking_shape(monkeypatch):
+    fake_chat = MagicMock(return_value="client")
+    monkeypatch.setattr("services.corrector._client", None)
+    monkeypatch.setattr("services.corrector.CHAT_THINKING", False)
+    monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+    monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
+
+    assert _get_client() == "client"
     assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
+
+
+def test_get_client_uses_deepseek_thinking_shape(monkeypatch):
+    """DeepSeek 官方 API 不认 enable_thinking，必须用 thinking.type，
+    否则思考模型先吐几千字 reasoning，用户端干等几十秒。"""
+    fake_chat = MagicMock(return_value="client")
+    monkeypatch.setattr("services.corrector._client", None)
+    monkeypatch.setattr("services.corrector.CHAT_THINKING", False)
+    monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://api.deepseek.com/v1")
+    monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
+
+    assert _get_client() == "client"
+    assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert fake_chat.call_args.kwargs["stream_usage"] is True
 
 
 def test_short_input_skips_llm_entirely():
@@ -61,12 +89,19 @@ def test_short_input_skips_llm_entirely():
     result = asyncio.run(correct_text("hi"))
     assert result["gaps"] == []
     assert result["nativeVersion"] == ""
+    assert result["standardAnswer"] == ""
     assert result["summary"]  # has a "say more" hint
 
 
 def test_empty_input_skips_llm():
     result = asyncio.run(correct_text(""))
     assert result["gaps"] == []
+
+
+def test_chinese_only_input_must_reach_evaluator_instead_of_short_fast_path():
+    assert _is_too_short("这个我不知道怎么说") is False
+    assert _is_too_short("I 不知道") is False
+    assert _is_too_short("hi") is True
 
 
 def test_valid_json_response_mapped_to_schema():
@@ -98,6 +133,15 @@ def test_scenario_block_included_in_user_message():
     user = messages[-1].content
     assert SCENARIO["story"] in user
     assert SCENARIO["mission"] in user
+
+
+def test_system_prompt_marks_non_english_answer_as_failed_task():
+    messages = _build_messages("我想让他重做拿铁", scenario=SCENARIO)
+    system = messages[0].content
+    assert "主要是中文" in system
+    assert "score 不得高于 2.0" in system
+    assert "忽略大小写" in system
+    assert "所有必要信息" in system
 
 
 def test_no_scenario_no_block():
@@ -132,6 +176,38 @@ def test_first_round_has_no_progress_instructions():
     assert "重说尝试" not in messages[0].content
 
 
+def test_system_prompt_requires_standard_answer_independent_of_learner():
+    """标准答案板块：prompt 必须要求输出 standardAnswer，且明确它脱离学习者原话。"""
+    messages = _build_messages("I want a hot latte", scenario=SCENARIO)
+    system = messages[0].content
+    assert '"standardAnswer"' in system
+    assert "完全脱离学习者原话" in system
+    assert "nativeVersion" in system  # 两者分工都写进 prompt
+
+
+def test_system_prompt_requires_chinese_hint_per_gap():
+    """复习卡正面用中文提示词主动回忆：prompt 必须要求每个 gap 带 better 的中文意思。"""
+    messages = _build_messages("I want a hot latte", scenario=SCENARIO)
+    system = messages[0].content
+    assert '"chinese"' in system
+    assert "提示词" in system
+
+
+def test_parse_result_maps_gap_chinese():
+    raw = """{"summary": "ok", "nativeVersion": "Could you remake it?", "gaps": [
+        {"original": "redo", "better": "remake", "chinese": "重做一下", "why": "x", "category": "vocabulary"}
+    ]}"""
+    result = _parse_result(raw)
+    assert result["gaps"][0]["chinese"] == "重做一下"
+
+
+def test_parse_result_gap_chinese_defaults_empty():
+    raw = """{"summary": "ok", "nativeVersion": "x", "gaps": [
+        {"original": "a", "better": "b", "why": "x", "category": "vocabulary"}
+    ]}"""
+    assert _parse_result(raw)["gaps"][0]["chinese"] == ""
+
+
 # ── _parse_result（含 progress）────────────────────────────────────────────
 
 def test_parse_result_with_progress():
@@ -145,6 +221,24 @@ def test_parse_result_with_progress():
 def test_parse_result_without_progress_is_none():
     raw = '{"summary": "ok", "nativeVersion": "x", "gaps": []}'
     assert _parse_result(raw)["progress"] is None
+
+
+def test_parse_result_maps_standard_answer():
+    raw = ('{"summary": "ok", "nativeVersion": "Could you remake it?", '
+           '"standardAnswer": "Excuse me, could you remake my latte? I\'m in a rush.", "gaps": []}')
+    result = _parse_result(raw)
+    assert result["standardAnswer"] == "Excuse me, could you remake my latte? I'm in a rush."
+
+
+def test_parse_result_accepts_snake_case_standard_answer():
+    raw = ('{"summary": "ok", "nativeVersion": "x", "standard_answer": "Could I get a large coffee?", '
+           '"gaps": []}')
+    assert _parse_result(raw)["standardAnswer"] == "Could I get a large coffee?"
+
+
+def test_parse_result_standard_answer_defaults_empty():
+    raw = '{"summary": "ok", "nativeVersion": "x", "gaps": []}'
+    assert _parse_result(raw)["standardAnswer"] == ""
 
 
 def test_parse_result_invalid_json_returns_failure_summary():
@@ -215,15 +309,18 @@ def test_progress_model_defaults():
 
 # ── correct_text_stream 単元测试 ────────────────────────────────────────────
 
-def _stream_chunk(text: str):
+def _stream_chunk(text: str, response_metadata: dict | None = None):
     chunk = MagicMock()
     chunk.content = text
+    chunk.response_metadata = response_metadata or {}
+    chunk.usage_metadata = None  # 真实 chunk 无 usage 时就是 None，避免 MagicMock 误判
     return chunk
 
 
 def _empty_content_chunk():
     chunk = MagicMock()
     chunk.content = ""
+    chunk.usage_metadata = None
     return chunk
 
 
@@ -266,6 +363,36 @@ async def test_stream_emits_chunk_events_then_done():
     assert "".join(chunk_texts) == raw
     assert len(done_events) == 1
     assert done_events[0]["summary"] == "nice"
+
+
+@pytest.mark.asyncio
+async def test_stream_emits_usage_event_before_done():
+    """stream_usage=True 时，finish_reason chunk 带顶层 usage_metadata（input_tokens/output_tokens）
+    → 在 done 之前 yield usage 事件，供前端展示本次 token 消耗。"""
+    import json
+    payload = {"summary": "nice", "nativeVersion": "A cat sleeps.", "gaps": []}
+    # 实测 langchain-openai 1.2.2 + DeepSeek 的 finish chunk 形态
+    finish = _stream_chunk("", {"model_name": "deepseek-v4-flash", "finish_reason": "stop"})
+    finish.usage_metadata = {"input_tokens": 321, "output_tokens": 65, "total_tokens": 386}
+    chunks = [_stream_chunk(json.dumps(payload)), finish]
+    fake = _fake_stream_client(chunks)
+    with patch("services.corrector._get_client", return_value=fake):
+        events = await _collect("There is a cat on the sofa", SCENARIO)
+    types = [t for t, _ in events]
+    assert types == ["chunk", "usage", "done"]
+    usage = [d for t, d in events if t == "usage"][0]
+    assert usage == {"model": "deepseek-v4-flash", "promptTokens": 321, "completionTokens": 65}
+
+
+@pytest.mark.asyncio
+async def test_stream_no_usage_event_when_metadata_missing():
+    """末尾 chunk 不带 usage（上游没开 include_usage）→ 不 yield usage 事件，行为向后兼容。"""
+    import json
+    payload = {"summary": "ok", "nativeVersion": "x", "gaps": []}
+    fake = _fake_stream_client([_stream_chunk(json.dumps(payload))])
+    with patch("services.corrector._get_client", return_value=fake):
+        events = await _collect("There is a cat sleeping here")
+    assert [t for t, _ in events] == ["chunk", "done"]
 
 
 @pytest.mark.asyncio
@@ -313,6 +440,7 @@ async def test_stream_exception_yields_error_event_not_crash():
 ATTEMPT = {
     "transcript": "Please change it fast.",
     "nativeVersion": "Could you remake this as a hot latte? I'm in a bit of a rush.",
+    "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a rush.",
     "summary": "任务基本完成，用词可更地道",
     "gaps": [
         {"category": "naturalness", "original": "change it fast", "better": "remake it", "why": "remake 更贴切"},
@@ -325,6 +453,7 @@ def test_followup_context_includes_scenario_and_feedback():
     assert SCENARIO["mission"] in ctx
     assert ATTEMPT["transcript"] in ctx
     assert ATTEMPT["nativeVersion"] in ctx
+    assert ATTEMPT["standardAnswer"] in ctx  # 标准答案也进追问上下文
     assert "remake it" in ctx          # gap better
     assert ATTEMPT["summary"] in ctx
 
@@ -366,7 +495,7 @@ async def test_followup_empty_question_yields_error():
 async def test_followup_streams_chunks_then_done():
     chunks = [_stream_chunk("re"), _stream_chunk("make"), _empty_content_chunk()]
     fake = _fake_stream_client(chunks)
-    with patch("services.corrector._get_client", return_value=fake):
+    with patch("services.followup_chat._get_client", return_value=fake):
         events = await _collect_followup("为什么用 remake?")
     chunk_texts = [d["text"] for t, d in events if t == "chunk"]
     done = [d for t, d in events if t == "done"]
@@ -379,7 +508,41 @@ async def test_followup_streams_chunks_then_done():
 async def test_followup_exception_yields_error_event():
     fake = MagicMock()
     fake.astream = MagicMock(side_effect=Exception("connection refused"))
-    with patch("services.corrector._get_client", return_value=fake):
+    with patch("services.followup_chat._get_client", return_value=fake):
         events = await _collect_followup("还能怎么说？")
     assert events[-1][0] == "error"
     assert events[-1][1]["message"]
+    assert fake.astream.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_followup_retries_once_when_stream_fails_before_first_token():
+    async def _success(*args, **kwargs):
+        yield _stream_chunk("retry worked")
+
+    fake = MagicMock()
+    fake.astream = MagicMock(side_effect=[Exception("transient access denied"), _success()])
+    with patch("services.followup_chat._get_client", return_value=fake):
+        events = await _collect_followup("还能怎么说？")
+
+    assert fake.astream.call_count == 2
+    assert events == [
+        ("chunk", {"text": "retry worked"}),
+        ("done", {"text": "retry worked"}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_followup_does_not_retry_after_partial_output():
+    async def _partial_then_error(*args, **kwargs):
+        yield _stream_chunk("partial")
+        raise Exception("connection dropped")
+
+    fake = MagicMock()
+    fake.astream = MagicMock(return_value=_partial_then_error())
+    with patch("services.followup_chat._get_client", return_value=fake):
+        events = await _collect_followup("还能怎么说？")
+
+    assert fake.astream.call_count == 1
+    assert events[0] == ("chunk", {"text": "partial"})
+    assert events[-1][0] == "error"

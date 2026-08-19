@@ -22,6 +22,26 @@ def test_next_returns_public_scenario(client, user_id, auth_headers, scenario_id
     assert data["videoUrl"]  # videoKey 现签出 URL
 
 
+def test_ai_test_next_skips_background_topup(client, scenario_id):
+    login = client.post(
+        "/api/auth/login",
+        json={"phone": "13900009994", "sourceType": "ai_test"},
+    ).json()
+    headers = {"Authorization": f"Bearer {login['token']}"}
+
+    with (
+        patch("routes.scenarios.generate_custom_scenario", new=AsyncMock()) as custom,
+        patch("routes.scenarios.topup_public_scenario", new=AsyncMock()) as public,
+    ):
+        resp = client.get(
+            f"/api/scenarios/next?userId={login['userId']}", headers=headers
+        )
+
+    assert resp.status_code == 200
+    custom.assert_not_awaited()
+    public.assert_not_awaited()
+
+
 def test_next_empty_library_404(client, user_id, auth_headers):
     resp = client.get(f"/api/scenarios/next?userId={user_id}", headers=auth_headers)
     assert resp.status_code == 404
@@ -242,6 +262,38 @@ def test_repeated_switch_no_immediate_repeat(client, user_id, auth_headers, scen
         seen.append(sid)
         excludes.append(sid)
     assert len(set(seen)) == 5  # 5 道全不重复
+
+
+def test_switch_prefers_a_different_sub_scenario(client, user_id, auth_headers, scenario_id):
+    """换题时不只排除当前 ID，还要优先避开同一子场景的换皮题。"""
+    db = _db()
+    db.scenarios.delete_many({})
+    db.scenarios.insert_many([
+        {
+            "_id": "sc_train_a", "slug": "train-a", "kind": "task",
+            "where": "火车站", "story": "错过火车", "mission": "改签",
+            "difficulty": 2, "ownerUserId": None, "status": "active",
+            "category": {"domain": "travel", "subId": "travel.train_rebooking"},
+        },
+        {
+            "_id": "sc_train_b", "slug": "train-b", "kind": "task",
+            "where": "火车站", "story": "车票日期错了", "mission": "改签",
+            "difficulty": 2, "ownerUserId": None, "status": "active",
+            "category": {"domain": "travel", "subId": "travel.train_rebooking"},
+        },
+        {
+            "_id": "sc_hotel", "slug": "hotel", "kind": "task",
+            "where": "酒店", "story": "房间漏水", "mission": "要求换房",
+            "difficulty": 2, "ownerUserId": None, "status": "active",
+            "category": {"domain": "lodging", "subId": "lodging.hotel_complain"},
+        },
+    ])
+    resp = client.get(
+        f"/api/scenarios/next?userId={user_id}&exclude=sc_train_a",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["scenarioId"] == "sc_hotel"
 
 
 def test_next_rejects_missing_token(client, user_id, scenario_id):

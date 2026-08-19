@@ -1,0 +1,80 @@
+name: Evals (manual)
+
+# 手动触发的评测 workflow：跑 evals regression 集，出 HTML 报告 artifact。
+# 不接 pull_request 自动跑——pass^k 对 LLM 随机性敏感，基线尚未 100%，自动跑会频繁误报。
+#
+# 密钥由 GitHub OIDC 从 Infisical 的 speakup dev 与 common 项目按需读取。
+# 评测 trace 固定走开发 project（speakup），与生产 speakup-prod 分离。
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "任务集：regression / capability / all"
+        default: regression
+      trials:
+        description: "每条任务跑几次（pass@k / pass^k 的 k）"
+        default: "3"
+      model:
+        description: "百炼模型名"
+        default: "glm-5.2"
+
+jobs:
+  evals:
+    name: Run evals
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: 从 Infisical 读取开发配置
+        uses: Infisical/secrets-action@v1.0.16
+        with:
+          method: oidc
+          identity-id: e0d98dc2-4295-4092-9cb9-6bf891cc3c2d
+          oidc-audience: ${{ vars.INFISICAL_OIDC_AUDIENCE }}
+          domain: ${{ vars.INFISICAL_DOMAIN }}
+          project-slug: speakup-secrets
+          env-slug: dev
+          secret-path: /
+          recursive: true
+      - name: 从 common 读取评测 LLM 密钥
+        uses: Infisical/secrets-action@v1.0.16
+        with:
+          method: oidc
+          identity-id: e0d98dc2-4295-4092-9cb9-6bf891cc3c2d
+          oidc-audience: ${{ vars.INFISICAL_OIDC_AUDIENCE }}
+          domain: ${{ vars.INFISICAL_DOMAIN }}
+          project-slug: common-shared
+          env-slug: dev
+          secret-path: /llm/speakup-evals
+      - uses: astral-sh/setup-uv@v7
+        with: { enable-cache: true }
+      - name: Sync deps
+        working-directory: server
+        run: uv sync --frozen
+      - name: Run evals
+        working-directory: server
+        env:
+          CHAT_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+          CHAT_MODEL: ${{ inputs.model }}
+          CHAT_THINKING: "false"
+          # 评测结果回写 Langfuse dev project（key 来自 Infisical speakup-secrets dev；
+          # 2026-08-17 前未配 host，trace/回写整体 no-op）
+          LANGFUSE_HOST: http://101.42.94.17:30030
+        run: |
+          # 未配公网 langfuse 入口时整体关闭 trace（避免 SDK 误连 cloud 产生告警噪音）
+          if [ -z "$LANGFUSE_HOST" ]; then
+            unset LANGFUSE_HOST LANGFUSE_PUBLIC_KEY LANGFUSE_SECRET_KEY
+          fi
+          uv run python -m evals.run \
+            --suite "${{ inputs.suite }}" \
+            --trials "${{ inputs.trials }}" \
+            --report "$RUNNER_TEMP/evals-report.html"
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: evals-report-${{ inputs.suite }}-${{ inputs.model }}
+          path: ${{ runner.temp }}/evals-report.html
+          if-no-files-found: warn

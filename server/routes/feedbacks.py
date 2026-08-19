@@ -7,6 +7,7 @@ from pymongo import ReturnDocument
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
+from utils.data_source import normalize_source_type
 from utils.id_generator import feedback_id
 from utils.mongo_ids import id_filter
 
@@ -47,6 +48,7 @@ async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(cur
         )
         if not practice:
             raise HTTPException(404, "练习不存在")
+        source_type = normalize_source_type(practice.get("sourceType"))
         # 一个 attempt 只一条反馈：同一 userId+practiceId+attemptIndex 存在则更新，不存在才新建。
         # 这样下次打开这一轮能看到上次反馈并修改（覆盖更新，不保留历史）。
         now = datetime.now(timezone.utc)
@@ -61,6 +63,7 @@ async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(cur
                     "scenarioId": practice.get("scenarioId", ""),
                     "scenarioTitle": practice.get("title", ""),
                     "snapshot": req.snapshot or {},
+                    "sourceType": source_type,
                     "updatedAt": now,
                 },
                 "$setOnInsert": {
@@ -85,9 +88,11 @@ async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(cur
         return doc
 
     # general 反馈不按 attempt 去重，每次新建一条
+    user = await get_db().users.find_one(id_filter(token_user_id), {"sourceType": 1})
     doc = {
         "_id": feedback_id(),
         "userId": token_user_id,
+        "sourceType": normalize_source_type((user or {}).get("sourceType")),
         "type": "general",
         "rating": req.rating,
         "tags": tags,

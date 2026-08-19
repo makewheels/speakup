@@ -10,6 +10,7 @@ def _new_id(prefix: str) -> str:
 
 def scenario_id() -> str: return _new_id("sc_")
 def user_id() -> str: return _new_id("u_")
+def free_topic_id() -> str: return _new_id("ft_")
 def practice_session_id() -> str: return _new_id("ps_")
 def review_item_id() -> str: return _new_id("rv_")
 def llm_call_id() -> str: return _new_id("llm_")

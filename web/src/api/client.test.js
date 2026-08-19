@@ -178,6 +178,22 @@ describe("api/client 各方法 URL/method/body", () => {
     expect(opts.body).toBe(JSON.stringify({ userId: "u1", scenarioId: "sc_1" }));
   });
 
+  it("createPractice 透传自由说字段（mode/freeTopicId/freeTopic）", async () => {
+    await api.createPractice({
+      userId: "u1", mode: "free", freeTopicId: "ft_1", freeTopic: "Your hometown",
+    });
+    const [, opts] = callArgs();
+    expect(opts.body).toBe(
+      JSON.stringify({ userId: "u1", mode: "free", freeTopicId: "ft_1", freeTopic: "Your hometown" }),
+    );
+  });
+
+  it("nextFreeTopic GET 拼 userId", async () => {
+    await api.nextFreeTopic("u1");
+    const [url] = callArgs();
+    expect(url).toBe("/api/free-topics/next?userId=u1");
+  });
+
   it("listPractices 拼 userId + skip", async () => {
     await api.listPractices("u1", 20);
     expect(callArgs()[0]).toBe("/api/practice-sessions?userId=u1&skip=20");
@@ -224,14 +240,14 @@ describe("api/client 各方法 URL/method/body", () => {
     expect(opts.body).toBe(JSON.stringify({ userId: "u1", items: [{ expression: "x" }] }));
   });
 
-  it("listReviewItems 拼 userId + due", async () => {
-    await api.listReviewItems("u1", true);
-    expect(callArgs()[0]).toBe("/api/review-items?userId=u1&due=true");
+  it("listReviewItems 拼 userId + due + includeRetired", async () => {
+    await api.listReviewItems("u1", true, true);
+    expect(callArgs()[0]).toBe("/api/review-items?userId=u1&due=true&includeRetired=true");
   });
 
-  it("listReviewItems 默认 due=false", async () => {
+  it("listReviewItems 默认 due=false、不含已收纳", async () => {
     await api.listReviewItems("u1");
-    expect(callArgs()[0]).toBe("/api/review-items?userId=u1&due=false");
+    expect(callArgs()[0]).toBe("/api/review-items?userId=u1&due=false&includeRetired=false");
   });
 
   it("reviewItem POST 路径带 userId + remembered body", async () => {
@@ -240,6 +256,20 @@ describe("api/client 各方法 URL/method/body", () => {
     expect(url).toBe("/api/review-items/r1/review?userId=u1");
     expect(opts.method).toBe("POST");
     expect(opts.body).toBe(JSON.stringify({ remembered: true }));
+  });
+
+  it("restoreReviewItem POST 恢复已收纳项", async () => {
+    await api.restoreReviewItem("r1", "u1");
+    const [url, opts] = callArgs();
+    expect(url).toBe("/api/review-items/r1/restore?userId=u1");
+    expect(opts.method).toBe("POST");
+  });
+
+  it("translateReviewItem POST 惰性补中文提示词", async () => {
+    await api.translateReviewItem("r1", "u1");
+    const [url, opts] = callArgs();
+    expect(url).toBe("/api/review-items/r1/translate?userId=u1");
+    expect(opts.method).toBe("POST");
   });
 
   it("deleteReviewItem DELETE 路径带 userId", async () => {

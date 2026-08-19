@@ -4,6 +4,7 @@ import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
 import PracticeMedia from "./practice/PracticeMedia.jsx";
 import PracticeScenarioCard from "./practice/PracticeScenarioCard.jsx";
+import PracticeFreeCard from "./practice/PracticeFreeCard.jsx";
 import FeedbackBar from "./practice/FeedbackBar.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
@@ -73,7 +74,11 @@ export default function SessionView({
           <div className="detail-hero-placeholder" />
         ) : null}
         <div className="detail-hero-info">
-          <div className="detail-topic">{stripEmoji(session.title || session.topic || t("history.defaultTitle"))}</div>
+          <div className="detail-topic">
+            {stripEmoji(session.title || session.topic || t("history.defaultTitle"))}
+            {/* 自由说会话（mode=free）打徽章；旧数据无 mode 按场景题，不显示 */}
+            {session.mode === "free" && <span className="chip free free-badge">{t("history.freeBadge")}</span>}
+          </div>
           <div className="detail-when">{formatDateTime(session.createdAt)}</div>
           {subtitle && <div className="detail-subtitle">{subtitle}</div>}
         </div>
@@ -91,7 +96,9 @@ export default function SessionView({
               videoUrl={session.videoUrl}
             />
           )}
-          <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
+          {scenario?.kind === "free"
+            ? <PracticeFreeCard freeTopic={scenario.freeTopic || ""} t={t} />
+            : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
           {!readOnly && <div className="page-msg">{t("session.noFeedback")}</div>}
         </div>
       ) : (
@@ -143,6 +150,15 @@ export default function SessionView({
               </div>
             )}
 
+            {attempt.standardAnswer && (
+              <div className="fb-native-card fb-standard-card">
+                <div className="fb-card-label standard">{t("practice.standardAnswer")}{canSpeak && <SpeakBtn text={attempt.standardAnswer} practiceId={practiceId} />}</div>
+                {splitSentences(attempt.standardAnswer).map((s, k) => (
+                  <p key={k} className="fb-native-text">{s}</p>
+                ))}
+              </div>
+            )}
+
             {attempt.gaps?.length > 0 && (
               <div className="fb-gaps-section">
                 <div className="fb-section-label">{t("practice.gapsTitle", { n: attempt.gaps.length })}</div>
@@ -150,6 +166,8 @@ export default function SessionView({
                   <div key={j} className="fb-gap-card">
                     <div className="fb-gap-head">
                       <span className="fb-gap-num">{j + 1}</span>
+                      {g.category && <span className="fb-gap-cat">{t(`practice.gapCat.${g.category}`)}</span>}
+                      {g.title && <span className="fb-gap-title">{g.title}</span>}
                     </div>
                     <div className="fb-gap-table">
                       <div className="fb-gap-line is-said">
@@ -161,6 +179,19 @@ export default function SessionView({
                         <span className="fb-gap-fix">{g.better}</span>
                         {canSpeak && <SpeakBtn text={g.better} practiceId={practiceId} />}
                       </div>
+                      {g.chinese && (
+                        <div className="fb-gap-line">
+                          <span className="fb-gap-tag">{t("practice.gapMeaning")}</span>
+                          <span className="fb-gap-meaning">{g.chinese}</span>
+                        </div>
+                      )}
+                      {g.example && (
+                        <div className="fb-gap-line is-fix">
+                          <span className="fb-gap-tag">{t("practice.gapExample")}</span>
+                          <span className="fb-gap-example">{g.example}</span>
+                          {canSpeak && <SpeakBtn text={g.example} practiceId={practiceId} />}
+                        </div>
+                      )}
                       {g.why && (
                         <div className="fb-gap-line">
                           <span className="fb-gap-tag">{t("practice.gapWhy")}</span>

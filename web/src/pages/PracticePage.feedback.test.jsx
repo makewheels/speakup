@@ -1,15 +1,22 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
 
-import PracticePage from "./PracticePage.jsx";
-import { UserProvider } from "../context/UserContext.jsx";
-import { savePracticePreferences } from "../lib/practicePreferences.js";
+import {
+  USER,
+  SESSION,
+  SCENARIO_B,
+  SESSION_B,
+  PREFS,
+  setup,
+  installMediaStubs,
+  recordUntilEvaluating,
+} from "./PracticePage.feedback.helpers.jsx";
 
 vi.mock("../api/client.js", () => ({
   api: {
     nextScenario: vi.fn(),
+    nextFreeTopic: vi.fn(),
     createPractice: vi.fn(),
     getPractice: vi.fn(),
     transcribeAudio: vi.fn(),
@@ -29,105 +36,6 @@ vi.mock("../utils/tts.js", () => ({
   stop: vi.fn(),
   isCached: vi.fn().mockReturnValue(false),
 }));
-
-const USER = { userId: "u_test1", phone: "13800001234", nickname: "Test" };
-
-const SESSION = {
-  _id: "sess_abc",
-  userId: "u_test1",
-  scenarioId: "sc_coffee",
-  title: "Coffee shop mess",
-  topic: "Coffee shop · Seattle",
-  scenario: {
-    title: "Coffee shop mess",
-    where: "Coffee shop · Seattle",
-    story: "You got the wrong drink.",
-    mission: "Ask them to redo it.",
-    points: ["Ask for hot latte", "Say you are in a hurry"],
-  },
-  imageUrl: "https://oss.example.com/img.jpg",
-  imageKey: "scenarios/sc_coffee/cover.jpg",
-  attempts: [],
-  createdAt: "2026-06-01T10:00:00Z",
-};
-
-const SCENARIO_B = {
-  scenarioId: "sc_airport",
-  title: "Airport check-in",
-  where: "Airport",
-  story: "Your bag is overweight.",
-  mission: "Negotiate with the agent.",
-  points: [],
-  imageUrl: "https://oss.example.com/airport.jpg",
-  isCustom: false,
-};
-
-const SESSION_B = {
-  ...SESSION,
-  _id: "sess_xyz",
-  scenarioId: "sc_airport",
-  title: "Airport check-in",
-};
-
-const PREFS = { level: "daily", purpose: "travel" };
-
-function setup(path = "/practice", { prefs = true } = {}) {
-  localStorage.setItem("english-speak-user", JSON.stringify(USER));
-  if (prefs) savePracticePreferences(USER.userId, PREFS);
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <UserProvider>
-        <Routes>
-          <Route path="/practice" element={<PracticePage />} />
-          <Route path="/practice/:practiceId" element={<PracticePage />} />
-        </Routes>
-      </UserProvider>
-    </MemoryRouter>,
-  );
-}
-
-class FakeMediaRecorder {
-  static isTypeSupported() { return true; }
-  constructor(stream) {
-    this.stream = stream;
-    this.mimeType = "audio/webm";
-    this.state = "inactive";
-    this.ondataavailable = null;
-    this.onstop = null;
-  }
-  start() {
-    this.state = "recording";
-    this.ondataavailable?.({ data: { size: 10 } });
-  }
-  requestData() {
-    this.ondataavailable?.({ data: { size: 10 } });
-  }
-  stop() {
-    this.state = "inactive";
-    this.onstop?.();
-  }
-}
-
-function installMediaStubs() {
-  const track = { stop: vi.fn() };
-  globalThis.MediaRecorder = FakeMediaRecorder;
-  Object.defineProperty(globalThis.navigator, "mediaDevices", {
-    configurable: true,
-    value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [track] }) },
-  });
-  if (!globalThis.URL.createObjectURL) globalThis.URL.createObjectURL = vi.fn();
-  globalThis.URL.createObjectURL = vi.fn(() => "blob:fake-url");
-  globalThis.URL.revokeObjectURL = vi.fn();
-}
-
-async function recordUntilEvaluating() {
-  const { api } = await import("../api/client.js");
-  const micBtn = document.querySelector(".su-rec");
-  await userEvent.click(micBtn);
-  await waitFor(() => expect(screen.getByText("Tap once to stop")).toBeInTheDocument());
-  await userEvent.click(document.querySelector(".su-rec"));
-  await waitFor(() => expect(api.transcribeAudio).toHaveBeenCalled());
-}
 
 describe("PracticePage feedback", () => {
   beforeEach(async () => {
@@ -157,6 +65,7 @@ describe("PracticePage feedback", () => {
           transcript: "Can you redo my latte",
           summary: "整体不错，请求可以更自然",
           nativeVersion: "Could you remake my latte? I'm in a hurry.",
+          standardAnswer: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
           score: 6.5,
           gaps: [],
           progress: null,
@@ -165,9 +74,46 @@ describe("PracticePage feedback", () => {
     });
     setup("/practice/sess_abc?result=1");
     await waitFor(() =>
-      expect(screen.getByText("Native version")).toBeInTheDocument(),
+      expect(screen.getByText("Correction")).toBeInTheDocument(),
     );
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
+    // Native（原标准答案）也从 attempt 还原展示（按句切分渲染）
+    expect(screen.getByText("Native")).toBeInTheDocument();
+    expect(screen.getByText("I'm in a bit of a rush.")).toBeInTheDocument();
+  });
+
+  it("结果页挂载后锚定到雅思分数（题目卡片留在上方可回看）", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        {
+          round: 1,
+          transcript: "Can you redo my latte",
+          summary: "整体不错",
+          nativeVersion: "Could you remake my latte?",
+          score: 6.5,
+          gaps: [],
+          progress: null,
+        },
+      ],
+    });
+    // 滚动定位改为按锚点几何显式 window.scrollTo（对抗上方大图加载/塌缩造成的位移），
+    // jsdom 没有布局，打桩 window.scrollTo 验证其被触发
+    const scrollSpy = vi.fn();
+    const originalScrollTo = window.scrollTo;
+    window.scrollTo = scrollSpy;
+    try {
+      setup("/practice/sess_abc?result=1");
+      await waitFor(() => expect(screen.getByText("6.5")).toBeInTheDocument());
+      await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+      // 锚点元素应包含分数本体
+      const anchor = document.querySelector(".fb-score-anchor");
+      expect(anchor).toBeTruthy();
+      expect(anchor.querySelector(".fb-score")).toBeTruthy();
+    } finally {
+      window.scrollTo = originalScrollTo;
+    }
   });
 
   it("追问：发送问题后流式回答渲染、并以本练习上下文调用 chatStream", async () => {
@@ -217,6 +163,7 @@ describe("PracticePage feedback", () => {
         result: {
           summary: "good",
           nativeVersion: "Could you remake my latte? I'm in a hurry.",
+          standardAnswer: "Hi, my latte came out wrong — could you remake it? I'm in a bit of a rush.",
           score: 7.0,
           gaps: [{ original: "redo my latte", better: "remake my latte", why: "more natural" }],
           progress: null,
@@ -231,13 +178,15 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Native version")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Correction")).toBeInTheDocument());
     expect(correctStream).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER.userId, practiceId: "sess_abc", text: "Can you redo my latte" }),
       expect.any(Object),
     );
     expect(screen.getByText("7.0")).toBeInTheDocument();
     expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
+    expect(screen.getByText("Native")).toBeInTheDocument();
+    expect(screen.getByText(/my latte came out wrong/)).toBeInTheDocument();
     expect(screen.getByText("remake my latte")).toBeInTheDocument();
     expect(screen.getByText("more natural")).toBeInTheDocument();
     expect(screen.getByText(/1 added to Review/)).toBeInTheDocument();
@@ -307,10 +256,11 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("hot latte")).toBeInTheDocument();
     expect(screen.getByText("in a hurry")).toBeInTheDocument();
     expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
-    expect(screen.queryByText(/Say it again/)).not.toBeInTheDocument();
+    // 重说不封顶：即使 passed，重试按钮也常驻（下一次是第 2 次尝试）
+    expect(screen.getByText(/Say it again \(attempt 2\)/)).toBeInTheDocument();
   });
 
-  it("keeps the user on feedback after a streamed final-round review", async () => {
+  it("keeps the user on feedback after a streamed second-round review", async () => {
     const { api, correctStream } = await import("../api/client.js");
     correctStream.mockImplementation((_data, { onDone }) => {
       onDone({
@@ -331,11 +281,26 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Native version")).toBeInTheDocument());
-    expect(screen.getByText(/these expressions are saved to review/)).toBeInTheDocument();
-    expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Correction")).toBeInTheDocument());
+    // 不封顶：第 2 轮反馈后仍可继续重说，按钮标第 3 次尝试
+    expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Next/)).toBeInTheDocument();
     expect(screen.queryByText(/Tap once to record/)).not.toBeInTheDocument();
     expect(api.nextScenario).not.toHaveBeenCalled();
+  });
+
+  it("shows the attempt badge on the question once it is a second try", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        { round: 1, transcript: "x", summary: "s", nativeVersion: "n", score: 5.5, gaps: [], progress: null },
+      ],
+    });
+    // 无 ?result → 回到题目页准备第 2 次（round = attempts+1 = 2）
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    expect(screen.getByText("Attempt #2")).toBeInTheDocument();
   });
 
   it("returns to review phase and alerts when correctStream errors", async () => {
@@ -410,23 +375,6 @@ describe("PracticePage feedback", () => {
         PREFS,
       ),
     );
-  });
-
-  it("shows 'rounds out' note when last round and not passed", async () => {
-    const { api } = await import("../api/client.js");
-    api.getPractice.mockResolvedValue({
-      ...SESSION,
-      attempts: [
-        { round: 1, transcript: "a", summary: "s", nativeVersion: "N1", score: 6, gaps: [], progress: { verdict: "needs-work" } },
-        { round: 2, transcript: "b", summary: "s", nativeVersion: "N2", score: 6.5, gaps: [], progress: { verdict: "needs-work" } },
-      ],
-    });
-    setup("/practice/sess_abc?result=1");
-    await waitFor(() =>
-      expect(screen.getByText(/these expressions are saved to review/)).toBeInTheDocument(),
-    );
-    expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
-    expect(screen.queryByText(/Say it again/)).not.toBeInTheDocument();
   });
 
   it("adds a gap to Review and toggles to 'In Review'", async () => {
@@ -511,5 +459,31 @@ describe("PracticePage feedback", () => {
     await userEvent.keyboard("{Enter}");
 
     await waitFor(() => expect(screen.getByText(/Error: net fail/)).toBeInTheDocument());
+  });
+
+  it("shows the auto-saved short note (not the whole sentence) when the attempt has one", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        {
+          round: 1,
+          transcript: "Can you redo my latte",
+          summary: "ok",
+          nativeVersion: "Could you remake my latte?",
+          standardAnswer: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
+          note: "I'm in a bit of a rush",
+          noteChinese: "我有点赶时间",
+          score: 6.0,
+          gaps: [],
+          progress: null,
+        },
+      ],
+    });
+    setup("/practice/sess_abc?result=1");
+    await waitFor(() => expect(screen.getByText("Auto-noted")).toBeInTheDocument());
+    expect(screen.getByText("I'm in a bit of a rush")).toBeInTheDocument();
+    // 不再整句存笔记：不应出现手动「Save as note」按钮
+    expect(screen.queryByText("Save as note")).not.toBeInTheDocument();
   });
 });

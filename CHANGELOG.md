@@ -8,6 +8,181 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-19 12:15
+
+- **fix(web)**：首页题目第一次尝试不再展示「第 N 次尝试」徽章（第 1 次是默认状态、无需标注），重说回到题目页（round≥2）才显示
+- **test**：新增「首次不显示徽章 / 第二次显示 Attempt #2」用例
+
+### 2026-08-19 10:16
+
+- **chore(docs)**：文档重构——顶层 `design/` 归入 `docs/原型设计/`；`docs/design/` 按业务模块分组（场景练习/）；新增 `docs/评测/`（evals + 发音纠正选型调研）、`docs/changelog/`（追加式变更档案：背景/权衡/验证，只增不改）、`docs/脚本说明.md`（两处 scripts/ 用途）
+- **chore(docs)**：同步更新 docs/README（目录结构+地图）、AGENTS.md（代码地图）、CONTRIBUTING（changelog 机制+路径），修复移动后的内部链接
+
+### 2026-08-19 09:57
+
+- **add(practice)**：新增「自由说」练习模式——练习页顶部模式切换（场景题/自由说，URL `?mode=free` 可刷新还原）；默认抽一个该用户**没说过**的话题，另提供「不用题目，随便说」与「换一个话题」入口；点录音才建会话（没开口不留空记录），录音/转写/评估复用现有链路
+- **add(free-topics)**：新集合 `freeTopics`（ft_ id，slug 幂等键）+ `GET /api/free-topics/next?userId=`；`services/free_practice.py` 负责抽题/去重/补题——池子用完自动一次 LLM 批量生成 20 个（≤12 词日常短句，slug 去重入库），补题失败返 404 前端仍可无话题开口
+- **change(corrector)**：自由说走独立 `FREE_SYSTEM_PROMPT`——不判任务完成度，gap 类别只用 grammar/naturalness/vocabulary/register（解析层把漏网的 task 归一 naturalness），逐点纠正不整段重写，nativeVersion=原话改地道，standardAnswer 可空；重说用去掉任务措辞的 `FREE_RETRY_PROMPT`；四个 prompt 拆到 `services/corrector_prompts.py`（质量门禁 ≤500 行）
+- **change(sessions)**：`practiceSessions` 新增 `mode`（scenario/free，旧数据按 scenario 归一）、`freeTopicId`、`freeTopic` 快照，自由说会话 `kind=free`、标题=话题；correct 的 attempt 同步落 `mode`/`freeTopic`；`POST /api/correct` 与建会话接口接受可选 `mode/freeTopicId/freeTopic`
+- **add(web)**：历史页/详情页给 `mode=free` 会话打「自由说」徽章（i18n），自由说缩略图用占位；结果页自由说话题卡替代场景卡、`standardAnswer` 为空时笔记独立成行、「下一个」变「下一个话题」
+- **add(scripts)**：`seed_free_topics.py` 内置 60 个手写日常话题（英文+中文），按 slug 幂等 upsert，默认执行插入；`--llm-topup N` 才调外部 LLM 补到约 100；`--prod` 塞生产（PROD_SYNC_MONGO_URI）
+- **test**：free_topics 抽题/去重/补题/鉴权集成测试，correct 自由说落库与快照透传，建会话/历史 mode 字段；前端自由说抽题、建会话、评估透传 mode、结果页、历史徽章用例
+- **docs**：新增 `docs/业务/3-自由录入.md`（模式/纠正差异/题库/API/种子脚本）
+
+### 2026-08-19 08:50
+
+- **change(corrector)**：好表达笔记改由 LLM 自动产出——新增 `note`/`noteChinese` 字段：挑一个可跨场景复用的**短表达/搭配**（≤8 词，宁缺毋滥、可空），不再整句抄 standardAnswer；prompt 附完整示例
+- **change(correct)**：`note` 自动落库为 `kind=note` 复习项（去重、已收纳可重新激活），回写 `noteReviewItemId`；attempt 同步存 `note`/`noteChinese`；与错题分开复习，记过笔记又说错仍会升级错题
+- **change(web)**：结果页移除「记为笔记」整句按钮，Native 卡内改为展示自动记入的短笔记（`已自动记入笔记 {note}`）；刷新从 attempt 还原 note；事后可在复习页删除
+- **add(evals)**：schema grader 新增 `note_valid`（note 存在时必须短≤10词、英文、不整句抄答案），防笔记回归成整句
+- **test**：note 自动落库/去重/升级错题的后端集成与 grader 单测；前端「Auto-noted 展示且无整句按钮」用例
+
+### 2026-08-19 08:26
+
+- **fix(web)**：深色主题录音按钮不再发灰——新增 `--rec`/`--rec-glow` 专用红 token（两种主题都保持红色，录音键通用语义），替换原来复用 `--ink`（深色下反转为浅灰、显得像被禁用）；录音中呼吸动画同步用 `--rec-glow`
+- **fix(web)**：深色主题 gap 序号徽章不再"浅灰底白字"看不清——新增 `--gap-num-bg`/`--gap-num-ink` token（深色下中灰底白字），替换复用 `--ink` 做底；空反馈卡片边框/背景也改用语义 token
+- **add(web)**：gap 卡片展示 LLM 返回的更多字段——类别徽章（task/grammar/naturalness/vocabulary/register，复用既有 `.fb-gap-cat` 死样式）、要点标题 `title`、中文意思 `chinese`、例句 `example`（带朗读）；结果页与历史详情页两处渲染器同步
+- **change(web)**：两个答案板块改名为「纠正 / Native」——`nativeVersion`（基于原话的纠正）显示为"纠正/Correction"，`standardAnswer`（抛开原话的最 native 说法）显示为"Native"；标题不入库、纯 i18n，老数据自动跟随，无需改库；反馈标签 `native_unnatural` 文案同步
+- **test**：同步更新结果页/详情页对「Correction / Native」文案与 gap 新字段的断言
+
+### 2026-08-18 16:31
+
+- **change(feedback)**：「反馈建议」入口从我的页底部挪进**设置区**（与语言 / 主题 / 练习偏好并列），不再埋在退出登录按钮上方；反馈页本身不变（标签 + 文字输入）
+- **test**：ProfilePage 新增「反馈入口在设置区内且可跳转反馈页」用例；业务文档同步入口位置
+- **docs**：`docs/业务/2-用户反馈.md` 更新入口描述
+
+### 2026-08-18 16:20
+
+- **change(feedback)**：结果页反馈文字输入框**常驻可见**——不再需要先点 👎 才能写字，👍 / 👎 两种评价都可以带文字提交（后端本就支持，此前前端把 👍 的文字丢了）；👎 的原因标签保留
+- **docs**：新增 `docs/业务/2-用户反馈.md`（两个反馈入口 / 数据 / API 的当前实现文档）；i18n 输入框占位文案改为通用的「想补充点什么？（可选）」
+
+### 2026-08-18 16:06
+
+- **docs**：文档与目录结构整改——根 README 项目结构/页面与路由清单更新到现状（移除已不存在的 Vocabulary/generate 等）；AGENTS.md 代码地图修正（pages/routes 清单、deploy.md 位置、Caddyfile 实际不入库、补 fb_ ID 前缀）；`docs/README.md` 文档地图补齐 deploy/evals/langfuse/scenario-evaluation/evals README/design 画布入口，API 表对齐代码（`/api/practice-sessions`、share、coach 追问、feedbacks、health）
+- **add(docs)**：根目录 `design/`（UI 设计稿画布原型）新增 README 并纳入文档地图（此前无任何入口指向）
+- **fix(docs)**：CONTRIBUTING 分支命名改为 `<type>-<slug>` 不含斜杠（与 CI 镜像文件名约束和历史分支一致）；langfuse.md 生产 `LANGFUSE_*` 来源更正为 Infisical（非 GitHub Secrets）；evals README 去掉硬编码本机路径
+
+### 2026-08-18 15:31
+
+- **add(review)**：错题本拆分两类（`kind: mistake|note`）——错题（gap 收录，用户错误说法仅留档）与**好表达笔记**；复习页卡片视图加「全部 / 错题 / 笔记」过滤 chips（带计数）+ 卡片正面类别标签，列表视图按「错题 · N」「笔记 · N」分组。历史数据无 kind 按错题归一；记过笔记的表达又说错自动升级为错题
+- **add(practice)**：反馈页标准答案卡新增「记为笔记」按钮——整句收录为好表达笔记（再点一下取消），与错题分开复习
+- **add(review)**：温故而知新——复习卡点开后**出四选一词卡题**（正确表达 + 3 个干扰项，干扰项取自用户自己的其它复习项）：答对即收纳、答错高亮正确答案并留在本里；选项池不足 3 个时兜底回「直接看答案 + 会说/还不会」自查
+- **chore(web)**：PracticePage 收录逻辑抽成 `useReviewCollection` hook（gap 收录 + 记笔记），页面回到 500 行 lint 门禁内；复习测试共享 fixture 抽到 `ReviewPage.helpers.jsx` / `PracticePage.feedback.helpers.jsx`
+- **test**：kind 落库/归一/升级、笔记收录与取消、词卡出题（答对/答错/兜底）、kind 过滤与分组的集成 + 行为测试（后端 216 + 前端 247 全绿）
+- **docs**：建立 video-2022 式文档体系——新增 `docs/业务/1-错题本与复习.md`（当前实现，行为变更必须同步维护）、`docs/README.md` 加文档地图并修正过时的 vocabulary 路由/页面名、CONTRIBUTING 加「文档随代码一起改」规则与 checklist 项；schema.md reviewItems 补 kind 字段
+
+### 2026-08-18 14:48
+
+- **change(review)**：复习改为主动回忆训练——卡片正面只展示中文提示词（错误表达对应的中文翻译），用户自己大声说一遍再点开核对答案；**不再展示用户当时的错误版本**（卡片与列表都不再出现，避免加深错误印象）
+- **change(review)**：错题本语义——点「会说」即收纳（`status=retired`），复习队列、待复习角标、因材施教出题取材都不再出现；点「还不会」留在本里明天继续。列表底部新增「已收纳」折叠区，可查看、单条恢复；已收纳的表达再次说错时自动重新激活回到错题本
+- **add(corrector)**：gap 新增 `chinese` 字段（better 的中文意思），纠错时顺带产出，落库为复习项的中文提示词；手动收录同步透传
+- **add(review-items)**：`POST /api/review-items/{rid}/translate`——历史复习项缺 chinese 的，前端首次刷到该卡时惰性翻译补齐并落库；新增 `POST /{rid}/restore`；list 新增 `includeRetired` 参数，默认不含已收纳
+- **test**：复习项收纳/恢复/重新激活/惰性翻译的后端集成与单元测试；复习卡中文提示、错误版本不再出现、会说即收纳、已收纳区恢复的前端测试（后端 211 + 前端 239 全绿）
+- **docs**：schema.md reviewItems 字段（chinese / status / retiredAt / retiredBy）同步；mixed-practice 设计稿标注 status 字段已落地
+
+### 2026-08-18 10:48
+
+- **add(practice)**：录音支持暂停/继续 + 重录——录音中一行三按钮：左 `⏸ 暂停`（暂停后变 `▶ 继续`，计时冻结；MediaRecorder 原生 pause/resume，暂停段不进音频时间轴）、中间大按钮保持 `⏹ 完成`（说完→转写→自动评估，肌肉记忆不变）、右 `🗑 重录`（丢弃本段回到待录音，不转写不评估、麦克风释放）
+- **change(web)**：暂停态视觉——大按钮转灰停呼吸动画、`● 录音中` 变 `⏸ 已暂停`；浏览器不支持 `MediaRecorder.pause` 时自动隐藏暂停按钮（重录不受影响）
+- **fix(web)**：暂停态点完成不再因 `requestData()` 抛 InvalidStateError 卡死（暂停时数据已 flush，跳过即可）
+- **test**：新增暂停/继续切换、重录不触发转写评估、暂停后仍可完成提交、录音中三按钮渲染 4 条前端测试
+- **docs**：spec.md 练习主页「录音中」状态同步三按钮交互
+
+### 2026-08-18 10:28
+
+- **change(practice)**：同一题重说不封顶——移除 `MAX_ROUNDS=2`，重试按钮常驻（passed 后也在），按钮显示即将开始的第几次尝试（「再说一遍（第 N 次）」）；去掉「本场景已练完」提示
+- **add(corrector)**：反馈新增 `standardAnswer`（标准答案）——脱离学习者原话、native 独立完成场景任务的完整说法；与 nativeVersion（基于原话改写）分工输出，结果页/详情页/分享页独立绿卡展示，支持 TTS 朗读
+- **add(evals)**：schema grader 把 standardAnswer 纳入回归检测（必备字段 + 非空 + 英文）
+- **test**：补无限轮次（第 3 轮 round=3）、standardAnswer 透传/落库/渲染的单元 + 集成 + 前端测试
+- **docs**：schema.md attempts 字段、spec.md 反馈页规格、docs/README.md 时序图同步
+
+### 2026-08-17 21:06
+
+- **docs(langfuse)**：同步 8-14 v4 升级后的部署现状——管理员凭据文件、独立 ClickHouse StatefulSet、auto-update 机制、新项目 ID 与评测配置（已在服务器逐条验证）
+
+### 2026-08-17 20:59
+
+- **chore(docs)**：AGENTS.md 注意事项加「开工先 pull」硬规矩——开分支前必须 checkout master && git pull，不得基于过时本地 master 开分支或合并
+
+### 2026-08-17 20:50
+
+- **add(docs)**：新增混合练习设计稿 `docs/design/mixed-practice.md`——练习流新旧题混排 + 错题练到 6.5 收纳（retired）；只设计不实现，分 P1/P2/P3 三期
+
+### 2026-08-17 20:47
+
+- **change(corrector)**：收紧 saveToReview 判断标准——加负面清单（一次性任务话术、基础词汇、纯风格差异、单点语法修正不收录）+ 每次反馈最多 2 条，降低低价值复习项入库
+
+### 2026-08-17 20:43
+
+- **change(web)**：体验走查修复——gap 卡片「为什么」改为「解释」；术语统一为「复习」（原「错题本」）；出题页去掉多余的「不用长按」提示；英文场景卡标签 Scene→Scenario；追问教练输入框加高（72→96px）
+- **fix(web)**：结果页进入后自动定位到雅思分数（题目卡片留在上方可回看），不再从大图顶部开始
+- **test**：新增结果页滚动锚定测试
+
+### 2026-08-14 15:57
+
+- **chore(evals)**：DeepSeek probe 验证完成（key 可用、`deepseek-v4-flash` 探活通过），移除临时 `deepseek-probe.yml`。
+
+### 2026-08-14 15:25
+
+- **change(model)**：生产文字评估从百炼 `qwen3.8-max` 切到 DeepSeek 官方 `deepseek-v4-flash`（当前版本 DeepSeek-V4-Flash-0731，2026-07-31 重新后训练）；旧名 `deepseek-chat` 已于 2026-07-24 退役，不再使用。
+- **add(evals)**：新增临时 DeepSeek probe workflow（`deepseek-probe.yml`），用生产 key 手动验证模型列表/探活，验证完成后移除。
+- **chore(cost)**：llm_audit 定价表补 `deepseek-v4-flash`（按官方 $0.14/$0.28 每百万 tokens 估算）。
+- **fix(docs)**：架构/部署/场景/评测文档同步当前生产模型链路；regression 基线待在新模型上重跑重建。
+
+### 2026-08-14 02:17
+
+- **fix(media)**：场景没有图片/视频，或唯一媒体加载失败时，不再显示巨大空白方块，直接让用户看场景任务卡。
+- **test**：覆盖无媒体、单图失败、无封面视频失败三种降级。
+
+### 2026-08-14 02:06
+
+- **fix(chat)**：追问对话在尚未输出任何 token 时遇到瞬时模型错误，自动重试一次；已经开始输出时不重试，避免重复回答。
+- **test**：覆盖追问首 token 前重试成功、两次都失败和部分输出后不重试。
+
+### 2026-08-14 01:51
+
+- **fix(model)**：百炼服务恢复后，生产文字评估从临时 `deepseek-chat` 升级到新横评最佳的 `qwen3.8-max`，同步当前架构文档。
+- **test(evals)**：初筛 6 个当前模型，再对前 3 名跑 regression 12 × 3 trials；`qwen3.8-max` 取得 pass@3 12/12、pass^3 10/12、平均延迟 3.1s。
+
+### 2026-08-14 01:45
+
+- **chore(deploy)**：为 CI/CD 增加手动触发入口，支持仅轮换 GitHub Secrets 时不改代码也能启动一次全新部署。
+
+### 2026-08-14 01:30
+
+- **fix(voice)**：云端 ASR 不可用时进入可编辑转写态，用户可手动输入后继续 AI 评估；云端 TTS 不可用时自动降级到浏览器英文朗读，同一页面会停止重复请求已确认不可用的后端。
+- **change(ui)**：转写失败后的复核态改为可编辑文本框，不再用空文本和禁用按钮把用户卡死。
+- **test**：覆盖 ASR 失败后的手动转写闭环和 TTS 浏览器降级、停止与缓存行为。
+
+### 2026-08-14 01:20
+
+- **add(data)**：用户首次创建时记录 `sourceType=human|ai_test`，练习、复习项、定制题及 LLM 审计记录同步冗余来源；历史缺字段按 `human` 兼容，生产统计可直接排除自动体验数据。
+- **fix(data)**：产品/结果反馈继承同一来源，反馈导出默认排除自动体验；`ai_test` 账号取题时跳过后台补题，避免自动体验污染共享题库。
+- **fix(docs)**：部署与架构文档同步当前生产模型链路：文字评估为 DeepSeek 官方 `deepseek-chat`，语音为百炼 Qwen ASR/TTS。
+- **test**：覆盖 AI 测试用户来源不可被普通登录改写，以及练习、复习项的来源继承。
+
+### 2026-08-13 00:52
+
+- **add(evals)**：新增 `evals/compare.py` 跨模型对比 CLI——模型 spec 参数化（`name[@base_url[@KEY_ENV]]`，key 只走环境变量）、多 trial 按 pass@k/pass^k 判、HTML 矩阵报告 + JSON 存档、`--ping` 探活；harness 收敛 client 换单例逻辑为 `use_client` 上下文管理器，eval 调用在 langfuse 侧追加 `model:<名字>` tag，可按模型过滤 trace。退役一次性脚本 `scripts/compare_models.py` / `ping_models.py` / `merge_compare_reports.py`。
+- **add(ci)**：新增手动触发的评测 workflow（`.github/workflows/evals.yml`），百炼 key 跑 regression 集，HTML 报告传 artifact；可选配 `LANGFUSE_PUBLIC_HOST` secret 让 CI 运行也上报 trace。
+- **fix(infra)**：修复 langfuse trace 全部静默丢失——ClickHouse limit 1536Mi 触顶，OvercommitTracker 杀掉一切写入/读取（worker 日志 `dropped N traces record(s)`）；clickhouse 内存上调至 2560Mi 并 helm upgrade，写入读取已恢复（详见 docs/langfuse.md 踩坑记录）。
+- **docs(evals)**：补 2026-08-13 百炼 5 模型横评基线（glm-5.2 / glm-4.7 / deepseek-v3.2 / qwen3-max / kimi-k2.6 × regression 12 × 3 trials）；deepseek-v3.2 核心纠错能力塌陷（pass^3 5/12），当前生产临时模型处于质量回退状态，百炼 key 恢复后建议切回 glm-5.2。
+- **test**：补 compare 的 spec 解析与报告渲染单测。
+
+### 2026-08-10 18:38
+
+- **add(evals)**：新增场景题 Pilot v1 人工评测集，按 8 个真实口语坐标组织 24 条正例、反例和边界例；每条标注 8 维分数、硬规则预期、失败标签与人工理由。
+- **add(evals)**：新增评测集 schema/配比/硬规则一致性校验器和静态 HTML 审阅页，支持按领域与样本类型筛选。
+- **test**：覆盖评测集配比、纯语义失败样本、陈旧标签检测和 24 卡片审阅页渲染。
+
+### 2026-08-09 11:11
+
+- **fix(ai/voice)**：火山 Agent Plan 过期后，文字链路迁到阿里云百炼 `glm-5.2`，ASR/TTS 分别迁到 `qwen3-asr-flash` / `qwen3-tts-flash`；百炼与火山的 thinking/语音协议按 provider 适配，部署密钥按文字、语音、图片/视频解耦。
+- **fix(corrector)**：中文/中英混合回答不再被 whitespace 短输入 fast-path 拦截；纯非英语回答强制按未完成任务低分处理，并收紧 `better ⊂ nativeVersion` 与任务信息覆盖约束。
+- **fix(scenarios)**：公共题补齐新增跨进程 Mongo 租约和锁内重查，防止并发超过 taxonomy target；生成 prompt 注入同坐标已有题反例，确定性拒绝近重复并最多重试一次；换题优先避开上一题的子场景。
+- **add(evals/ops)**：新增题目硬规则 grader、8 维 rubric、AI 用户模拟与人工黄金集方案；新增默认 dry-run、可按 run 回滚的超额公共题软归档脚本。
+- **test**：补 provider 协议、中文边界、近重复、换题多样性、题目评测与可逆归档测试；真实百炼 TTS→ASR 闭环及生成题硬门禁验证通过。
+
 ### 2026-06-29 16:45
 
 - **add(server)**：接入火山方舟 Agent Plan 视频任务链路。新增 `VIDEO_ENABLED` 开关、`services/volc_video.py` 异步任务适配器、`scenario_videos.py` 场景视频 OSS 持久化，场景生成时可写入 `videoKey/videoPrompt/videoStatus`；默认关闭，避免自动补题消耗视频额度。

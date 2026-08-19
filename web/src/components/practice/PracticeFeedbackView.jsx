@@ -1,8 +1,10 @@
+import { useEffect, useRef } from "react";
 import Icon from "../Icon.jsx";
 import RecordingPlayBtn from "../RecordingPlayBtn.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
+import PracticeFreeCard from "./PracticeFreeCard.jsx";
 import FeedbackBar from "./FeedbackBar.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
@@ -31,7 +33,7 @@ export default function PracticeFeedbackView({
   chat,
   chatBusy,
   chatInput,
-  maxRounds,
+  modeSwitch,
   recordingUrl,
   result,
   retrySame,
@@ -49,20 +51,56 @@ export default function PracticeFeedbackView({
   const gaps = result.gaps ?? [];
   const progress = result.progress;
   const passed = progress?.verdict === "passed";
-  const lastRound = round >= maxRounds;
+  const isFree = session?.mode === "free";
+
+  // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看。
+  // 挂载瞬间上方的大图/视频高度可能尚未定型（加载失败会塌缩、慢加载会位移），
+  // scrollIntoView 一次性定位会被这些位移带偏（手机上常见：分数被顶到屏幕外）。
+  // 改为按锚点当前几何位置显式 scrollTo，并在随后 1 秒多内复校几次，位移发生后自动归位。
+  const scoreAnchorRef = useRef(null);
+  useEffect(() => {
+    const el = scoreAnchorRef.current;
+    if (!el) return;
+    let userScrolled = false;
+    const markUserScroll = () => { userScrolled = true; };
+    const scrollToScore = () => {
+      if (userScrolled) return; // 用户已经开始自己滚了就别再拽回去
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top, behavior: "auto" });
+    };
+    scrollToScore();
+    const raf = requestAnimationFrame(scrollToScore);
+    const timers = [120, 350, 700, 1200].map((ms) => setTimeout(scrollToScore, ms));
+    window.addEventListener("touchmove", markUserScroll);
+    window.addEventListener("wheel", markUserScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
+      window.removeEventListener("touchmove", markUserScroll);
+      window.removeEventListener("wheel", markUserScroll);
+    };
+  }, []);
 
   return (
     <div className="practice-page fb-page fade-in">
-      {(session?.videoUrl || session?.imageUrl) && (
+      {modeSwitch}
+      {!isFree && (session?.videoUrl || session?.imageUrl) && (
         <PracticeMedia
           className="fb-img"
           imageUrl={session.imageUrl}
           videoUrl={session.videoUrl}
         />
       )}
-      <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
+      {isFree
+        ? <PracticeFreeCard freeTopic={scenario?.freeTopic || session?.freeTopic || ""} t={t} />
+        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
 
-      <ScoreBadge score={result.score} />
+      <div ref={scoreAnchorRef} className="fb-score-anchor">
+        <div>
+          <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
+        </div>
+        <ScoreBadge score={result.score} />
+      </div>
 
       {result.summary && <p className="fb-summary-line">{result.summary}</p>}
 
@@ -108,6 +146,34 @@ export default function PracticeFeedbackView({
         </div>
       )}
 
+      {result.standardAnswer && (
+        <div className="fb-native-card fb-standard-card">
+          <div className="fb-card-label standard">
+            {t("practice.standardAnswer")}
+            <SpeakBtns text={result.standardAnswer} practiceId={session?._id} />
+          </div>
+          {splitSentences(result.standardAnswer).map((s, i) => (
+            <p key={i} className="fb-native-text">{s}</p>
+          ))}
+          {result.note && (
+            <div className="fb-note-line">
+              <Icon name="save" size={13} />
+              <span>{t("practice.autoNote")}</span>
+              <b>{result.note}</b>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 自由说 standardAnswer 可空：只有笔记时也展示出来，别丢 */}
+      {!result.standardAnswer && result.note && (
+        <div className="fb-note-line fb-note-standalone">
+          <Icon name="save" size={13} />
+          <span>{t("practice.autoNote")}</span>
+          <b>{result.note}</b>
+        </div>
+      )}
+
       {gaps.length > 0 && (
         <div className="fb-gaps-section">
           <div className="fb-section-label">{t("practice.gapsTitle", { n: gaps.length })}</div>
@@ -117,6 +183,8 @@ export default function PracticeFeedbackView({
               <div key={i} className="fb-gap-card">
                 <div className="fb-gap-head">
                   <span className="fb-gap-num">{i + 1}</span>
+                  {g.category && <span className="fb-gap-cat">{t(`practice.gapCat.${g.category}`)}</span>}
+                  {g.title && <span className="fb-gap-title">{g.title}</span>}
                   <button
                     className={"fb-gap-add" + (added ? " added" : "")}
                     onClick={() => toggleGap(g, i)}
@@ -137,6 +205,19 @@ export default function PracticeFeedbackView({
                     <span className="fb-gap-fix">{g.better}</span>
                     <SpeakBtns text={g.better} practiceId={session?._id} />
                   </div>
+                  {g.chinese && (
+                    <div className="fb-gap-line">
+                      <span className="fb-gap-tag">{t("practice.gapMeaning")}</span>
+                      <span className="fb-gap-meaning">{g.chinese}</span>
+                    </div>
+                  )}
+                  {g.example && (
+                    <div className="fb-gap-line is-fix">
+                      <span className="fb-gap-tag">{t("practice.gapExample")}</span>
+                      <span className="fb-gap-example">{g.example}</span>
+                      <SpeakBtns text={g.example} practiceId={session?._id} />
+                    </div>
+                  )}
                   {g.why && (
                     <div className="fb-gap-line">
                       <span className="fb-gap-tag">{t("practice.gapWhy")}</span>
@@ -196,25 +277,15 @@ export default function PracticeFeedbackView({
         }}
       />
 
+      {/* 重说不封顶：重试按钮常驻，带上即将开始的第 N 次尝试；不想再说就点下一个 */}
       <div className="actions-row" style={{ marginTop: 8 }}>
-        {passed || lastRound ? (
-          <button className="su-btn su-btn-primary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
-            {t("practice.nextScenario")}&nbsp;<Icon name="next" size={16} />
-          </button>
-        ) : (
-          <>
-            <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
-              <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain")}
-            </button>
-            <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
-              {t("practice.next")}&nbsp;<Icon name="next" size={16} />
-            </button>
-          </>
-        )}
+        <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
+          <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain", { n: (round ?? 1) + 1 })}
+        </button>
+        <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
+          {t(isFree ? "practice.nextTopic" : passed ? "practice.nextScenario" : "practice.next")}&nbsp;<Icon name="next" size={16} />
+        </button>
       </div>
-      {!passed && lastRound && (
-        <p className="fb-rounds-out">{t("practice.roundsOut")}</p>
-      )}
     </div>
   );
 }

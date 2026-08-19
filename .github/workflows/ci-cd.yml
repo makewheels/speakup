@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
 
 env:
   ACR: registry.cn-beijing.aliyuncs.com
@@ -34,6 +35,9 @@ jobs:
       - name: Code quality gates
         working-directory: server
         run: uv run python scripts/check_code_quality.py
+      - name: Ruff lint
+        working-directory: server
+        run: uv run ruff check
       - name: Run pytest
         working-directory: server
         run: uv run pytest -v
@@ -71,15 +75,39 @@ jobs:
     needs: [test-server, test-web]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
 
-      - name: Login to ACR
-        uses: docker/login-action@v4
+      - name: 从 Infisical 读取生产配置
+        uses: Infisical/secrets-action@v1.0.16
         with:
-          registry: ${{ env.ACR }}
-          username: ${{ secrets.ACR_AK_ID }}
-          password: ${{ secrets.ACR_AK_SECRET }}
+          method: oidc
+          identity-id: e0d98dc2-4295-4092-9cb9-6bf891cc3c2d
+          oidc-audience: ${{ vars.INFISICAL_OIDC_AUDIENCE }}
+          domain: ${{ vars.INFISICAL_DOMAIN }}
+          project-slug: speakup-secrets
+          env-slug: prod
+          secret-path: /
+          recursive: true
+
+      - name: 从 common 读取共享语音密钥
+        uses: Infisical/secrets-action@v1.0.16
+        with:
+          method: oidc
+          identity-id: e0d98dc2-4295-4092-9cb9-6bf891cc3c2d
+          oidc-audience: ${{ vars.INFISICAL_OIDC_AUDIENCE }}
+          domain: ${{ vars.INFISICAL_DOMAIN }}
+          project-slug: common-shared
+          env-slug: dev
+          secret-path: /llm/speakup
+
+      - name: Login to ACR
+        run: |
+          printf '%s' "$ACR_AK_SECRET" | docker login \
+            --username "$ACR_AK_ID" --password-stdin "$ACR" >/dev/null
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -105,104 +133,131 @@ jobs:
           cache-to: type=gha,scope=speakup,mode=max
           provenance: false
 
-      - name: Install SSH key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+      - name: 清理 Runner registry 登录
+        if: always()
+        run: docker logout "$ACR" >/dev/null 2>&1 || true
+
+      - name: 准备临时 SSH 文件
+        run: |
+          runner_temp_resolved=$(cd "$RUNNER_TEMP" && pwd -P)
+          ssh_tmp_dir=$(mktemp -d "$runner_temp_resolved/speakup-ssh.XXXXXX")
+          printf 'SSH_TMP_DIR=%s\n' "$ssh_tmp_dir" >> "$GITHUB_ENV"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$ssh_tmp_dir/key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$ssh_tmp_dir/known_hosts"
+          chmod 600 "$ssh_tmp_dir/key" "$ssh_tmp_dir/known_hosts"
 
       - name: Sync compose
         run: |
-          rsync -az -e "ssh -o ServerAliveInterval=30" \
+          rsync -az -e "ssh -i $SSH_TMP_DIR/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$SSH_TMP_DIR/known_hosts -o StrictHostKeyChecking=yes -o ServerAliveInterval=30" \
             docker-compose.yml \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.SERVER_DIR }}/
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${SERVER_DIR}/"
 
-      - name: Write server .env
+      - name: 注入配置并部署
         run: |
-          cat <<__ENVEOF__ | \
-            ssh -o ServerAliveInterval=30 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cat > ${{ env.SERVER_DIR }}/.env"
-          CHAT_API_KEY=${{ secrets.CHAT_API_KEY }}
-          CHAT_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3
-          CHAT_MODEL=glm-5.2
-          CHAT_THINKING=false
-          IMAGE_API_KEY=${{ secrets.CHAT_API_KEY }}
-          IMAGE_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3
-          IMAGE_MODEL=doubao-seedream-5.0-lite
-          IMAGE_SIZE=2560x1440
-          IMAGE_ENABLED=true
-          VOICE_API_KEY=${{ secrets.CHAT_API_KEY }}
-          VOICE_APP_KEY=plan
-          VOICE_BASE_URL=https://openspeech.bytedance.com/api/v3/plan
-          VOICE_WS_BASE_URL=wss://openspeech.bytedance.com/api/v3/plan
-          VOICE_TTS_URL=https://openspeech.bytedance.com/api/v3/plan/tts/unidirectional
-          VOICE_ASR_URL=wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_nostream
-          TTS_RESOURCE_ID=seed-tts-2.0
-          TTS_MODEL=seed-tts-2.0
-          TTS_VOICE=zh_female_vv_uranus_bigtts
-          ASR_RESOURCE_ID=volc.seedasr.sauc.duration
-          ASR_MODEL=bigmodel
-          VIDEO_API_KEY=${{ secrets.CHAT_API_KEY }}
-          VIDEO_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3
-          VIDEO_MODEL=doubao-seedance-1.5-pro
-          VIDEO_ENABLED=${{ vars.VIDEO_ENABLED || 'false' }}
-          VIDEO_POLL_INTERVAL_SECONDS=${{ vars.VIDEO_POLL_INTERVAL_SECONDS || '5' }}
-          VIDEO_POLL_TIMEOUT_SECONDS=${{ vars.VIDEO_POLL_TIMEOUT_SECONDS || '180' }}
-          APP_LOG_DIR=/app/logs
-          APP_LOG_ROTATE_WHEN=midnight
-          APP_LOG_ROTATE_INTERVAL=1
-          APP_LOG_BACKUP_COUNT=30
-          APP_LOG_UTC=false
-          LOG_LEVEL=INFO
-          MONGO_URI=${{ secrets.MONGO_URI }}
-          OSS_BUCKET_PROD=${{ secrets.OSS_BUCKET_PROD }}
-          OSS_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}
-          OSS_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          OSS_ENDPOINT=${{ secrets.OSS_ENDPOINT }}
-          __ENVEOF__
+          emit_record() {
+            local key=$1
+            printf '%s\0%s\0' "$key" "${!key}"
+          }
+          {
+            for key in \
+              ACR_AK_ID ACR_AK_SECRET \
+              CHAT_API_KEY CHAT_BASE_URL CHAT_MODEL CHAT_THINKING \
+              IMAGE_API_KEY IMAGE_BASE_URL IMAGE_MODEL IMAGE_SIZE IMAGE_ENABLED \
+              VOICE_API_KEY VOICE_PROVIDER VOICE_BASE_URL VOICE_TTS_URL VOICE_ASR_URL \
+              TTS_MODEL TTS_VOICE TTS_LANGUAGE ASR_MODEL \
+              VIDEO_API_KEY VIDEO_BASE_URL VIDEO_MODEL VIDEO_ENABLED \
+              VIDEO_POLL_INTERVAL_SECONDS VIDEO_POLL_TIMEOUT_SECONDS \
+              APP_LOG_DIR APP_LOG_ROTATE_WHEN APP_LOG_ROTATE_INTERVAL \
+              APP_LOG_BACKUP_COUNT APP_LOG_UTC LOG_LEVEL \
+              MONGO_URI OSS_BUCKET_PROD OSS_ACCESS_KEY_ID OSS_ACCESS_KEY_SECRET OSS_ENDPOINT \
+              LANGFUSE_HOST LANGFUSE_PUBLIC_KEY LANGFUSE_SECRET_KEY; do
+              emit_record "$key"
+            done
+          } | ssh -i "$SSH_TMP_DIR/key" -o IdentitiesOnly=yes \
+            -o UserKnownHostsFile="$SSH_TMP_DIR/known_hosts" -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "${DEPLOY_USER}@${DEPLOY_HOST}" '
+              set -euo pipefail
+              runtime_root=$(cd "${TMPDIR:-/tmp}" && pwd -P)
+              runtime_file=$(mktemp "$runtime_root/speakup-runtime.XXXXXX")
+              docker_config_dir=$(mktemp -d "$runtime_root/speakup-docker-config.XXXXXX")
+              cleanup() {
+                case "$runtime_file" in
+                  "$runtime_root"/speakup-runtime.*) [ ! -e "$runtime_file" ] || unlink "$runtime_file" ;;
+                esac
+                case "$docker_config_dir" in
+                  "$runtime_root"/speakup-docker-config.*)
+                    [ ! -e "$docker_config_dir" ] || { [ -d "$docker_config_dir" ] && [ ! -L "$docker_config_dir" ] && rm -rf -- "$docker_config_dir"; }
+                    ;;
+                esac
+              }
+              trap cleanup EXIT HUP INT TERM
+              chmod 600 "$runtime_file"
 
-      - name: Pull and restart
-        run: |
-          H="${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
+              while IFS= read -r -d "" key && IFS= read -r -d "" value; do
+                case "$key" in
+                  ACR_AK_ID) ACR_USER=$value ;;
+                  ACR_AK_SECRET) ACR_PASSWORD=$value ;;
+                  CHAT_*|IMAGE_*|VOICE_*|TTS_*|ASR_MODEL|VIDEO_*|APP_LOG_*|LOG_LEVEL|MONGO_URI|OSS_*|LANGFUSE_*)
+                    if printf "%s" "$value" | LC_ALL=C grep -q "[[:cntrl:]]"; then
+                      echo "control character in runtime value: $key" >&2
+                      exit 1
+                    fi
+                    printf "%s=%s\n" "$key" "$value" >> "$runtime_file"
+                    ;;
+                  *) echo "unexpected deployment key: $key" >&2; exit 1 ;;
+                esac
+              done
+              : "${ACR_USER:?}" "${ACR_PASSWORD:?}"
 
-          # 服务器 docker login ACR（用主账号固定密码，stdin 不入 log）
-          echo "${{ secrets.ACR_AK_SECRET }}" | \
-            ssh -o ServerAliveInterval=30 "$H" \
-            "docker login --username=${{ secrets.ACR_AK_ID }} --password-stdin ${{ env.ACR }} >/dev/null 2>&1"
+              printf "%s" "$ACR_PASSWORD" | docker --config "$docker_config_dir" login \
+                --username "$ACR_USER" --password-stdin registry.cn-beijing.aliyuncs.com >/dev/null
 
-          ssh -o ServerAliveInterval=30 "$H" /bin/bash -s << 'PULL'
-          set -e
-          IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
-          cd /opt/speakup
-          mkdir -p /opt/speakup/logs
+              IMG=registry.cn-beijing.aliyuncs.com/b4/speakup
+              cd /opt/speakup
+              mkdir -p /opt/speakup/logs
+              RUNNING=$(docker inspect speakup --format "{{.Image}}" 2>/dev/null || true)
+              if [ -n "$RUNNING" ]; then
+                docker tag "$RUNNING" "${IMG}:previous"
+                echo "tagged previous -> $RUNNING"
+              else
+                echo "no running speakup container, skip previous tag"
+              fi
 
-          # 把"当前正在跑的 image"标成 :previous（回滚锚点）。
-          # 一定在 pull 新版之前做：否则 :latest 已被新版覆盖，previous 会指向新版本身。
-          # 基于 running container 的 image ID 而不是 tag，确保抓到的是"实际在跑的"那一版。
-          RUNNING=$(docker inspect speakup --format '{{.Image}}' 2>/dev/null || true)
-          if [ -n "$RUNNING" ]; then
-            docker tag "$RUNNING" "${IMG}:previous"
-            echo "tagged previous -> $RUNNING"
-          else
-            echo "no running speakup container, skip previous tag"
-          fi
+              docker --config "$docker_config_dir" pull "${IMG}:latest"
+              docker compose --env-file "$runtime_file" down --remove-orphans 2>/dev/null || true
+              docker compose --env-file "$runtime_file" up -d --wait --wait-timeout 60
+              docker image prune -f
 
-          docker pull "${IMG}:latest"
-          docker compose down --remove-orphans 2>/dev/null || true
-          docker compose up -d --wait --wait-timeout 60
-          docker image prune -f
-          echo "=== deploy done ==="
-          docker compose ps
-          PULL
+              legacy_env=/opt/speakup/.env
+              if [ -e "$legacy_env" ] || [ -L "$legacy_env" ]; then
+                [ -f "$legacy_env" ] && [ ! -L "$legacy_env" ]
+                unlink "$legacy_env"
+              fi
+              legacy_registry=/home/ubuntu/.docker/config.json
+              if [ -e "$legacy_registry" ] || [ -L "$legacy_registry" ]; then
+                [ -f "$legacy_registry" ] && [ ! -L "$legacy_registry" ]
+                unlink "$legacy_registry"
+              fi
+              echo "=== deploy done ==="
+              docker compose --env-file "$runtime_file" ps
+            '
 
       - name: Smoke check
         run: |
           set -euo pipefail
+          runner_temp_resolved=$(cd "$RUNNER_TEMP" && pwd -P)
+          probe_file=$(mktemp "$runner_temp_resolved/speakup-probe.XXXXXX")
+          cleanup_probe() {
+            case "$probe_file" in
+              "$runner_temp_resolved"/speakup-probe.*) [ ! -e "$probe_file" ] || unlink "$probe_file" ;;
+            esac
+          }
+          trap cleanup_probe EXIT HUP INT TERM
           # 容器 healthcheck 已就绪才会到这；探 /api/health（不打 Mongo），仍重试覆盖网关刷新窗口
           for i in 1 2 3 4 5 6; do
-            if curl -fsS -m 15 "https://${{ secrets.DOMAIN }}/api/health" -o /tmp/probe.json; then
+            if curl -fsS -m 15 "https://${DOMAIN}/api/health" -o "$probe_file"; then
               echo "smoke ok (attempt $i)"
-              head -c 200 /tmp/probe.json; echo
+              head -c 200 "$probe_file"; echo
               exit 0
             fi
             echo "smoke attempt $i failed, sleep 5"
@@ -210,3 +265,21 @@ jobs:
           done
           echo "smoke check failed after 6 attempts"
           exit 1
+
+      - name: 清理临时 SSH 文件
+        if: always()
+        run: |
+          [ -n "${SSH_TMP_DIR:-}" ] || exit 0
+          runner_temp_resolved=$(cd "$RUNNER_TEMP" && pwd -P)
+          ssh_tmp_dir_resolved=$(cd "$SSH_TMP_DIR" && pwd -P)
+          case "$ssh_tmp_dir_resolved" in
+            "$runner_temp_resolved"/speakup-ssh.*)
+              [ -d "$ssh_tmp_dir_resolved" ]
+              [ ! -L "$ssh_tmp_dir_resolved" ]
+              rm -rf -- "$ssh_tmp_dir_resolved"
+              ;;
+            *)
+              echo "拒绝清理非 Runner 临时目录：$ssh_tmp_dir_resolved" >&2
+              exit 1
+              ;;
+          esac

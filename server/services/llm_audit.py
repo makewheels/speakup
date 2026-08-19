@@ -32,6 +32,8 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 from db.connection import get_db
+from services import llm_trace
+from utils.data_source import normalize_source_type
 from utils.id_generator import llm_call_id
 
 logger = logging.getLogger(__name__)
@@ -43,6 +45,7 @@ TEXT_PRICING = {
     "glm-5.2":          {"prompt": 0.0,  "completion": 0.0},
     "deepseek-v4-pro":  {"prompt": 0.0,  "completion": 0.0},
     "deepseek-v4-pro-260425": {"prompt": 0.0, "completion": 0.0},
+    "deepseek-v4-flash": {"prompt": 1.0, "completion": 2.0},
     "qwen3.7-plus":     {"prompt": 0.4,  "completion": 1.2},
     "qwen3-max":        {"prompt": 4.0,  "completion": 12.0},
     "qwen-plus":        {"prompt": 0.4,  "completion": 1.2},
@@ -85,11 +88,14 @@ def estimate_video_cost(model: str) -> float:
 
 # ---------- 写库（fire-and-forget 安全包装） ----------
 
-async def _safe_insert(doc: dict) -> None:
+async def _safe_insert(doc: dict, *, _trace: bool = True) -> None:
     try:
         await get_db().llmCalls.insert_one(doc)
     except Exception as e:
         logger.warning("llmCalls 写入失败（不影响主路径）: %s", e)
+    # 双写 Langfuse。audited_invoke 已用 start/finish 精确埋点的文档传 _trace=False 防重
+    if _trace:
+        llm_trace.log_call(doc)
 
 
 # ---------- 公共 API ----------
@@ -113,6 +119,42 @@ def content_to_text(content: Any) -> str:
     if isinstance(content, dict):
         return str(content.get("text") or content.get("content") or json.dumps(content, ensure_ascii=False))
     return str(content)
+
+
+def extract_usage(metadata: dict | None, usage: dict | None = None) -> tuple[str, int, int]:
+    """提取 (model, prompt_tokens, completion_tokens)。
+    流式开 stream_usage=True 时，langchain 把 usage 放 chunk 顶层 usage_metadata
+    （input_tokens/output_tokens 键）；非流式在 response_metadata.token_usage。
+    两者都传时优先 usage。都没开则返回 0。"""
+    tokens = usage or (metadata or {}).get("token_usage") or (metadata or {}).get("usage_metadata") or {}
+    model = (metadata or {}).get("model_name") or "?"
+    prompt_tok = int(tokens.get("prompt_tokens") or tokens.get("input_tokens") or 0)
+    completion_tok = int(tokens.get("completion_tokens") or tokens.get("output_tokens") or 0)
+    return model, prompt_tok, completion_tok
+
+
+# LangChain message.type → OpenAI 风格 role（审计按发送原文记录，role 只做归一）
+_ROLE_BY_TYPE = {"human": "user", "ai": "assistant", "system": "system", "tool": "tool"}
+
+
+def serialize_messages(messages: list) -> list[dict]:
+    """完整消息列表 → 可入库的 [{"role", "content"}]——发给 LLM 的原文，一条不丢。"""
+    out: list[dict] = []
+    for m in messages or []:
+        mtype = getattr(m, "type", None) or (m.get("role") if isinstance(m, dict) else None) or "unknown"
+        content = m.content if hasattr(m, "content") else (m.get("content") if isinstance(m, dict) else str(m))
+        out.append({"role": _ROLE_BY_TYPE.get(mtype, mtype), "content": content})
+    return out
+
+
+def client_params(client: Any) -> dict:
+    """提取客户端生成参数（model/temperature/max_tokens/extra_body）——防御式读取。"""
+    params: dict[str, Any] = {}
+    for attr in ("model_name", "temperature", "max_tokens", "extra_body", "model_kwargs"):
+        value = getattr(client, attr, None)
+        if value not in (None, "", {}):
+            params[attr] = value
+    return params
 
 async def audited_invoke(
     client: Any,
@@ -141,6 +183,14 @@ async def audited_invoke(
     metadata: dict | None = None
     error: str | None = None
     parsed: dict | None = None
+    # 完整请求记录：全量 messages（一条不丢）+ 生成参数——systemPrompt/userPrompt 保留兼容旧读取方
+    full_messages = serialize_messages(messages)
+    params = client_params(client)
+    tracer = llm_trace.start(
+        kind=kind,
+        link_to=link_to,
+        input={"messages": full_messages, "params": params},
+    )
 
     try:
         resp = await client.ainvoke(messages)
@@ -165,13 +215,16 @@ async def audited_invoke(
     doc = {
         "_id": llm_call_id(),
         "kind": kind,
+        "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
         "request": {
             "systemPrompt": messages[0].content if messages else "",
             "userPrompt": messages[1].content if len(messages) > 1 else "",
+            "messages": full_messages,   # 完整消息列表（含多轮历史），一字不少
+            "params": params,            # 生成参数（temperature/max_tokens/extra_body 等）
         },
         "response": {
-            "raw": (raw or "")[:8000],   # cap 8K 字符防爆库
+            "raw": raw or "",            # 完整响应，不截断
             "parsed": parsed,
         },
         "tokens": {"prompt": prompt_tok, "completion": completion_tok},
@@ -181,7 +234,8 @@ async def audited_invoke(
         "linkedTo": link_to or {},
         "createdAt": datetime.now(timezone.utc),
     }
-    await _safe_insert(doc)
+    llm_trace.finish(tracer, doc)
+    await _safe_insert(doc, _trace=False)
 
     return {
         "raw": raw,
@@ -208,8 +262,9 @@ async def log_image_call(
     doc = {
         "_id": llm_call_id(),
         "kind": "image",
+        "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
-        "request": {"prompt": (prompt or "")[:2000]},
+        "request": {"prompt": prompt or ""},  # 完整 prompt，不截断
         "response": {"sizeBytes": size_bytes},
         "tokens": {},
         "cost": round(cost, 6),
@@ -234,8 +289,9 @@ async def log_video_call(
     doc = {
         "_id": llm_call_id(),
         "kind": "video",
+        "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
-        "request": {"prompt": (prompt or "")[:2000], "taskId": metadata.get("taskId", "")},
+        "request": {"prompt": prompt or "", "taskId": metadata.get("taskId", "")},  # 完整 prompt，不截断
         "response": {"sizeBytes": metadata.get("sizeBytes", 0)},
         "tokens": {},
         "cost": round(cost, 6),

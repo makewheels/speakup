@@ -187,6 +187,9 @@ export const api = {
       timeout: 60_000,
     }),
 
+  // 自由说：抽一个该用户没说过的话题（池子用完后端自动补题）
+  nextFreeTopic: (userId) => request(`/free-topics/next?userId=${userId}`),
+
   createPractice: (data) => request("/practice-sessions", { method: "POST", body: data }),
   getPractice: (id) => request(`/practice-sessions/${id}`),
   listPractices: (userId, skip = 0) => request(`/practice-sessions?userId=${userId}&skip=${skip}`),
@@ -261,10 +264,14 @@ export const api = {
 
   addReviewItems: (userId, items) =>
     request("/review-items", { method: "POST", body: { userId, items } }),
-  listReviewItems: (userId, due = false) =>
-    request(`/review-items?userId=${userId}&due=${due}`),
+  listReviewItems: (userId, due = false, includeRetired = false) =>
+    request(`/review-items?userId=${userId}&due=${due}&includeRetired=${includeRetired}`),
   reviewItem: (id, userId, remembered) =>
     request(`/review-items/${id}/review?userId=${userId}`, { method: "POST", body: { remembered } }),
+  restoreReviewItem: (id, userId) =>
+    request(`/review-items/${id}/restore?userId=${userId}`, { method: "POST" }),
+  translateReviewItem: (id, userId) =>
+    request(`/review-items/${id}/translate?userId=${userId}`, { method: "POST" }),
   deleteReviewItem: (id, userId) =>
     request(`/review-items/${id}?userId=${userId}`, { method: "DELETE" }),
 

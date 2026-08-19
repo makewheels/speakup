@@ -29,6 +29,7 @@ def test_submit_practice_feedback_stores_snapshot(client, user_id, auth_headers,
     assert body["tags"] == ["score_too_strict"]
     assert body["practiceId"] == practice_id
     assert body["snapshot"]["score"] == 6.0
+    assert body["sourceType"] == "human"
     assert body["_id"].startswith("fb_")
 
 
@@ -47,8 +48,34 @@ def test_submit_general_feedback_has_no_practice(client, user_id, auth_headers):
     body = r.json()
     assert body["type"] == "general"
     assert body["rating"] is None
+    assert body["sourceType"] == "human"
     assert "practiceId" not in body
     assert body["tags"] == ["bug"]
+
+
+def test_ai_test_feedback_inherits_source(client, scenario_id):
+    login = client.post(
+        "/api/auth/login",
+        json={"phone": "13900009995", "sourceType": "ai_test"},
+    ).json()
+    headers = {"Authorization": f"Bearer {login['token']}"}
+    practice = client.post(
+        "/api/practice-sessions",
+        json={"userId": login["userId"], "scenarioId": scenario_id},
+        headers=headers,
+    ).json()
+
+    practice_feedback = _submit_practice(
+        client, login["userId"], headers, practice["_id"]
+    ).json()
+    general_feedback = client.post(
+        "/api/feedbacks",
+        json={"type": "general", "tags": ["bug"], "comment": "自动体验"},
+        headers=headers,
+    ).json()
+
+    assert practice_feedback["sourceType"] == "ai_test"
+    assert general_feedback["sourceType"] == "ai_test"
 
 
 def test_practice_feedback_rejects_other_users_practice(client, user_id, auth_headers, practice_id):

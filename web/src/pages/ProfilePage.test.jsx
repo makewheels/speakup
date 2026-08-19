@@ -18,6 +18,7 @@ function setup() {
         <Routes>
           <Route path="/me" element={<ProfilePage />} />
           <Route path="/me/practice-preferences" element={<PracticePreferencePage />} />
+          <Route path="/me/feedback" element={<div>Feedback page</div>} />
           <Route path="/login" element={<div>Login page</div>} />
         </Routes>
       </UserProvider>
@@ -63,6 +64,18 @@ describe("ProfilePage", () => {
       purpose: "work",
     });
     expect(screen.getByText("Set to Challenge · Work")).toBeInTheDocument();
+  });
+
+  it("shows feedback entry inside the settings section and navigates to feedback page", async () => {
+    setup();
+    const entry = screen.getByText("Send feedback").closest("button");
+    // 入口在设置区内（不再埋在页面底部）
+    expect(entry.closest(".profile-section")).toBeInTheDocument();
+
+    await userEvent.click(entry);
+    await waitFor(() =>
+      expect(screen.getByText("Feedback page")).toBeInTheDocument(),
+    );
   });
 
   it("navigates to /login after logout", async () => {

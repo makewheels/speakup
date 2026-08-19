@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
+from utils.data_source import normalize_source_type
 from utils.id_generator import practice_session_id
 from utils.mongo_ids import id_filter
 
@@ -34,19 +35,69 @@ async def _gen_unique_token() -> str:
 
 class CreatePracticeRequest(BaseModel):
     userId: str
-    scenarioId: str
+    scenarioId: str = ""          # 场景题必填；自由说留空
+    mode: str = "scenario"        # scenario 场景题 / free 自由说（历史缺省按场景题）
+    freeTopicId: str = ""         # 自由说话题 id（无话题自由说为空）
+    freeTopic: str = ""           # 自由说话题文本快照（无话题自由说为空）
 
 
 @router.post("")
 async def create_practice(req: CreatePracticeRequest, token_user_id: str = Depends(current_user_id)):
     assert_same_user(req.userId, token_user_id)
-    scenario = await get_db().scenarios.find_one({"_id": req.scenarioId})
-    if not scenario:
-        raise HTTPException(404, "场景不存在")
+    user = await get_db().users.find_one(id_filter(token_user_id), {"sourceType": 1})
+    source_type = normalize_source_type((user or {}).get("sourceType"))
 
-    doc = {
+    if req.mode == "free":
+        doc = _build_free_doc(req, source_type)
+    else:
+        scenario = await get_db().scenarios.find_one({"_id": req.scenarioId})
+        if not scenario:
+            raise HTTPException(404, "场景不存在")
+        doc = _build_scenario_doc(req, scenario, source_type)
+    await get_db().practiceSessions.insert_one(doc)
+    return _sign(doc)
+
+
+def _build_free_doc(req: CreatePracticeRequest, source_type: str) -> dict:
+    """自由说会话：无场景，快照里带 kind=free + 话题（可空），corrector 据此走自由说反馈。"""
+    topic = (req.freeTopic or "").strip()
+    title = topic or "自由说"      # 历史列表标题用
+    return {
         "_id": practice_session_id(),
         "userId": req.userId,
+        "sourceType": source_type,
+        "mode": "free",
+        "freeTopicId": req.freeTopicId or "",
+        "freeTopic": topic,
+        "scenarioId": "",
+        "kind": "free",
+        "title": title,
+        "topic": "",
+        "scenario": {
+            "kind": "free",
+            "title": title,
+            "freeTopic": topic,
+            "where": "",
+            "story": "",
+            "mission": "",
+            "points": [],
+            "targetWords": [],
+        },
+        "imageKey": "",
+        "videoKey": "",
+        "attempts": [],
+        "createdAt": datetime.now(timezone.utc),
+    }
+
+
+def _build_scenario_doc(req: CreatePracticeRequest, scenario: dict, source_type: str) -> dict:
+    return {
+        "_id": practice_session_id(),
+        "userId": req.userId,
+        "sourceType": source_type,
+        "mode": "scenario",
+        "freeTopicId": "",
+        "freeTopic": "",
         "scenarioId": req.scenarioId,
         "kind": scenario.get("kind", "task"),
         "title": scenario.get("title", ""),       # 历史列表标题用
@@ -67,8 +118,6 @@ async def create_practice(req: CreatePracticeRequest, token_user_id: str = Depen
         "attempts": [],
         "createdAt": datetime.now(timezone.utc),
     }
-    await get_db().practiceSessions.insert_one(doc)
-    return _sign(doc)
 
 
 def _sign(practice: dict) -> dict:

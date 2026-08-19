@@ -13,7 +13,7 @@ from typing import Any
 # corrector 用的类别枚举（跟 SYSTEM_PROMPT 一致）
 ALLOWED_CATEGORIES = {"task", "grammar", "naturalness", "vocabulary", "register"}
 ALLOWED_VERDICTS = {"passed", "improved", "stuck"}
-REQUIRED_FIELDS = {"summary", "nativeVersion", "gaps"}
+REQUIRED_FIELDS = {"summary", "nativeVersion", "standardAnswer", "gaps"}
 
 # 中文字符（粗略检测，含中日韩统一表意，够用）
 _CHINESE_RE = re.compile(r"[一-鿿]")
@@ -95,7 +95,7 @@ def gap_why_in_chinese(out: dict | None, _input: dict) -> tuple[bool, str]:
 
 
 def better_in_native_version(out: dict | None, _input: dict) -> tuple[bool, str]:
-    """硬约束：每条 gap.better 必须**逐字**出现在 nativeVersion 里。
+    """硬约束：每条 gap.better 必须逐字（忽略大小写）出现在 nativeVersion 里。
 
     这是 prompt 里写明的硬规则——回归最容易在这里发现 LLM 没按约束走。
     """
@@ -110,11 +110,50 @@ def better_in_native_version(out: dict | None, _input: dict) -> tuple[bool, str]
     missing = []
     for i, g in enumerate(out.get("gaps", [])):
         better = (g.get("better") or "").strip()
-        if better and better not in nv:
+        if better and better.casefold() not in nv.casefold():
             missing.append(f"gaps[{i}].better={better!r}")
     if missing:
         return False, f"better not in nativeVersion: {missing} | nv={nv!r}"
     return True, "all gap.better appear verbatim in nativeVersion"
+
+
+def standard_answer_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
+    """standardAnswer（标准答案）：非空、英文。脱离学习者原话的独立示范。
+
+    短输入 fast-path 时 nativeVersion/gaps 都空 → standardAnswer 也允许空。
+    """
+    if (fail := _no_llm_output(out)) is not None:
+        return fail
+    sa = (out.get("standardAnswer") or "").strip()
+    if not sa:
+        if not (out.get("nativeVersion") or "").strip() and not out.get("gaps"):
+            return True, "standardAnswer empty (fast-path OK)"
+        return False, "standardAnswer is empty but nativeVersion/gaps exist"
+    if _has_chinese(sa):
+        return False, f"standardAnswer has Chinese: {sa!r}"
+    return True, f"standardAnswer OK ({len(sa)} chars)"
+
+
+def note_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
+    """note（好表达笔记，可空）：存在时必须短（≤10 词）、英文、且不是整句抄 standardAnswer/nativeVersion。
+
+    用户诉求：笔记应是可复用的短表达/搭配，而不是整句。
+    """
+    if (fail := _no_llm_output(out)) is not None:
+        return fail
+    note = (out.get("note") or "").strip()
+    if not note:
+        return True, "note empty (allowed, 宁缺毋滥)"
+    if _has_chinese(note):
+        return False, f"note has Chinese: {note!r}"
+    words = note.split()
+    if len(words) > 10:
+        return False, f"note too long ({len(words)} words > 10): {note!r}"
+    sa = (out.get("standardAnswer") or "").strip()
+    nv = (out.get("nativeVersion") or "").strip()
+    if note.casefold() in (sa.casefold(), nv.casefold()) and len(words) > 6:
+        return False, f"note copies whole sentence: {note!r}"
+    return True, f"note OK ({len(words)} words)"
 
 
 def score_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
@@ -163,6 +202,8 @@ ALL = {
     "gaps_schema": gaps_schema,
     "gap_why_chinese": gap_why_in_chinese,
     "better_in_native": better_in_native_version,
+    "standard_answer": standard_answer_valid,
+    "note_valid": note_valid,
     "score_valid": score_valid,
     "progress_valid": progress_verdict_valid,
 }

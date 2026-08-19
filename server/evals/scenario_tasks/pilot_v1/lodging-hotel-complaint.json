@@ -1,0 +1,96 @@
+{
+  "familyId": "lodging-hotel-complaint",
+  "coordinate": {
+    "domain": "lodging",
+    "subId": "lodging.hotel_complain",
+    "kind": "task",
+    "difficulty": 2
+  },
+  "cases": [
+    {
+      "id": "lodging-hotel-complaint-positive",
+      "bucket": "positive",
+      "challenge": "不是笼统投诉，而是在满房情况下谈一个可执行补救方案",
+      "candidate": {
+        "title": "半夜空调漏水但酒店满房",
+        "where": "酒店前台",
+        "story": "凌晨一点，房间空调开始往床边漏水；前台说今晚已经没有同房型可换。",
+        "mission": "说明问题并谈妥今晚的解决办法",
+        "points": ["描述漏水位置和现在无法睡觉", "要求维修、升级房型或提供临时房间"]
+      },
+      "annotation": {
+        "verdict": "pass",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 5,
+          "task_clarity": 5,
+          "speakability": 5,
+          "specificity": 5,
+          "novelty": 4,
+          "difficulty_fit": 5,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": [],
+        "rationale": "具体故障、时间和满房限制让用户必须协商，不是只背一句 I want to change rooms。"
+      }
+    },
+    {
+      "id": "lodging-hotel-complaint-negative",
+      "bucket": "negative",
+      "challenge": "与正例只换几个词且标题完全相同，近重复检查应失败",
+      "referenceIds": ["lodging-hotel-complaint-positive"],
+      "candidate": {
+        "title": "半夜空调漏水但酒店满房",
+        "where": "宾馆前台",
+        "story": "凌晨两点，房间空调往床旁边滴水；工作人员说相同房型已经全部住满。",
+        "mission": "说明故障并要求安排解决方案",
+        "points": ["告诉前台漏水影响睡觉", "要求维修、升级或临时换房"]
+      },
+      "annotation": {
+        "verdict": "fail",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 4,
+          "task_clarity": 5,
+          "speakability": 5,
+          "specificity": 5,
+          "novelty": 1,
+          "difficulty_fit": 5,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": ["not_near_duplicate"],
+        "failureTags": ["near_duplicate"],
+        "rationale": "单题质量不差，但作为题库新增内容没有任何新练习价值，必须与参考题联合评测。"
+      }
+    },
+    {
+      "id": "lodging-hotel-complaint-boundary",
+      "bucket": "boundary",
+      "challenge": "酒店只能提供耳塞和明早换房，成功条件允许用户选择接受或继续协商",
+      "candidate": {
+        "title": "隔壁施工但今晚无房可换",
+        "where": "酒店夜班前台",
+        "story": "隔壁楼夜间施工让你无法入睡，酒店今晚满房，只能提供耳塞并承诺明早换房。",
+        "mission": "表达影响并决定是否接受补救",
+        "points": ["说明噪音已经影响休息", "接受方案或提出合理的费用补偿"]
+      },
+      "annotation": {
+        "verdict": "borderline",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 5,
+          "task_clarity": 4,
+          "speakability": 4,
+          "specificity": 5,
+          "novelty": 4,
+          "difficulty_fit": 4,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": ["open_success_state"],
+        "rationale": "开放选择更像真实对话，但 evaluator 不能把接受耳塞或要求补偿中的任一条误判成任务未完成。"
+      }
+    }
+  ]
+}

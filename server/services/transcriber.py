@@ -1,10 +1,11 @@
-"""音频转写服务：火山 openspeech Agent Plan Seed-ASR。
+"""音频转写服务：百炼 Qwen-ASR，保留火山 Seed-ASR 回退分支。
 
 前端浏览器录音格式不一致：iOS 录 m4a/mp4、Android 录 webm/ogg。
-服务器先用 ffmpeg 统一转成 16k mono raw PCM，再送 ASR WebSocket 接口。
+百炼分支用 ffmpeg 转为 16k mono WAV 后走 HTTP；火山分支仍转为 raw PCM。
 """
 
 import asyncio
+import base64
 import gzip
 import json
 import logging
@@ -13,9 +14,17 @@ import tempfile
 import uuid
 from pathlib import Path
 
+import httpx
 import websockets
 
-from config import ASR_MODEL, ASR_RESOURCE_ID, VOICE_API_KEY, VOICE_APP_KEY, VOICE_ASR_URL
+from config import (
+    ASR_MODEL,
+    ASR_RESOURCE_ID,
+    VOICE_API_KEY,
+    VOICE_APP_KEY,
+    VOICE_ASR_URL,
+    VOICE_PROVIDER,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,16 +179,53 @@ async def _to_pcm(audio_bytes: bytes, suffix: str) -> bytes:
         Path(dst_path).unlink(missing_ok=True)
 
 
-async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
-    """把任意主流浏览器录音转成英文文字。"""
-    suffix = ".webm"
-    if "mp4" in content_type or "m4a" in content_type or "aac" in content_type:
-        suffix = ".m4a"
-    elif "ogg" in content_type:
-        suffix = ".ogg"
-    elif "wav" in content_type:
-        suffix = ".wav"
+async def _to_wav(audio_bytes: bytes, suffix: str) -> bytes:
+    """ffmpeg 转 16k mono PCM WAV，供百炼 Base64 Data URL 输入。"""
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as src:
+        src.write(audio_bytes)
+        src_path = src.name
+    dst_path = src_path + ".wav"
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ffmpeg", "-y", "-i", src_path,
+            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
+            dst_path,
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed: {stderr.decode()[:200]}")
+        return Path(dst_path).read_bytes()
+    finally:
+        Path(src_path).unlink(missing_ok=True)
+        Path(dst_path).unlink(missing_ok=True)
 
+
+async def _transcribe_dashscope(audio_bytes: bytes, suffix: str) -> str:
+    wav = await _to_wav(audio_bytes, suffix)
+    data_uri = "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii")
+    payload = {
+        "model": ASR_MODEL,
+        "messages": [{
+            "role": "user",
+            "content": [{"type": "input_audio", "input_audio": {"data": data_uri}}],
+        }],
+        "stream": False,
+        "asr_options": {"language": "en", "enable_itn": True},
+    }
+    headers = {"Authorization": f"Bearer {VOICE_API_KEY}", "Content-Type": "application/json"}
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        response = await client.post(VOICE_ASR_URL, headers=headers, json=payload)
+    response.raise_for_status()
+    value = response.json()
+    try:
+        text = value["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError(f"ASR invalid response: {str(value)[:500]}") from exc
+    return _capitalize_sentences(str(text).strip())
+
+
+async def _transcribe_volcengine(audio_bytes: bytes, suffix: str) -> str:
     pcm = await _to_pcm(audio_bytes, suffix)
     headers = {
         "Authorization": f"Bearer {VOICE_API_KEY}",
@@ -215,6 +261,25 @@ async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
                 text = _text_from_response(data) or text
             if final:
                 break
+    return _capitalize_sentences(text)
+
+
+async def transcribe(audio_bytes: bytes, content_type: str = "") -> str:
+    """把任意主流浏览器录音转成英文文字。"""
+    suffix = ".webm"
+    if "mp4" in content_type or "m4a" in content_type or "aac" in content_type:
+        suffix = ".m4a"
+    elif "ogg" in content_type:
+        suffix = ".ogg"
+    elif "wav" in content_type:
+        suffix = ".wav"
+
+    if VOICE_PROVIDER == "dashscope":
+        text = await _transcribe_dashscope(audio_bytes, suffix)
+    elif VOICE_PROVIDER == "volcengine":
+        text = await _transcribe_volcengine(audio_bytes, suffix)
+    else:
+        raise RuntimeError(f"unsupported VOICE_PROVIDER: {VOICE_PROVIDER}")
 
     logger.info("ASR transcribed %d bytes -> %d chars", len(audio_bytes), len(text))
-    return _capitalize_sentences(text)
+    return text

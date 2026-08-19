@@ -6,8 +6,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
+from routes.review_items import reactivate_review_item
 from services.auth_tokens import assert_same_user, current_user_id
-from services.corrector import MAX_ROUNDS, correct_text, correct_text_stream, followup_chat_stream
+from services.corrector import correct_text, correct_text_stream
+from services.followup_chat import followup_chat_stream
+from utils.data_source import normalize_source_type
 from utils.id_generator import review_item_id
 from utils.mongo_ids import id_filter
 
@@ -18,6 +21,12 @@ class CorrectRequest(BaseModel):
     userId: str
     practiceId: str
     text: str
+    mode: str = "scenario"     # scenario 场景题 / free 自由说（历史缺省按场景题）
+    freeTopic: str = ""        # 自由说话题快照（无话题自由说为空）
+
+
+def _normalize_mode(value: object) -> str:
+    return "free" if value == "free" else "scenario"
 
 
 async def _load_practice(req: CorrectRequest, token_user_id: str) -> dict:
@@ -31,10 +40,10 @@ async def _load_practice(req: CorrectRequest, token_user_id: str) -> dict:
 
 
 def _round_context(practice: dict) -> tuple[dict | None, dict | None, int]:
-    """从练习取（场景, 上一轮 attempt, 本轮轮次）。轮次从 1 开始，封顶 MAX_ROUNDS。"""
+    """从练习取（场景, 上一轮 attempt, 本轮轮次）。轮次从 1 开始，不封顶（同一题可无限重说）。"""
     scenario = practice.get("scenario")
     attempts = practice.get("attempts", [])
-    round_no = min(len(attempts) + 1, MAX_ROUNDS)
+    round_no = len(attempts) + 1
     prev = attempts[-1] if attempts else None
     return scenario, prev, round_no
 
@@ -43,10 +52,16 @@ def _has_usable_feedback(result: dict) -> bool:
     return bool((result.get("nativeVersion") or "").strip() or result.get("gaps"))
 
 
-async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: int) -> int:
+async def _save_attempt_and_review(
+    req: CorrectRequest, practice: dict, result: dict, round_no: int
+) -> int:
     """写入练习的 attempts，并自动把 saveToReview=true 的 gap 存进 reviewItems（错题/复习项）。
     返回实际新增的复习项数量。
     """
+    source_type = normalize_source_type(practice.get("sourceType"))
+    # 模式以会话为准（创建时已定），请求里的 mode 仅兜底；话题快照优先取请求（前端从会话带）
+    mode = _normalize_mode(practice.get("mode") or req.mode)
+    free_topic = req.freeTopic or practice.get("freeTopic") or ""
     # 先自动收录 saveToReview 的 gap，把 reviewItemId 回写到 gap 上，
     # 再写入 attempt —— 这样存进库的 attempt 和回给前端的 result 都带 id。
     auto_saved = 0
@@ -60,17 +75,30 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
         existing = await get_db().reviewItems.find_one({"userId": req.userId, "expression": expression})
         if existing:
             gap["reviewItemId"] = str(existing["_id"])
+            if existing.get("status") == "retired":
+                # 已收纳的表达又说错 → 回到错题本
+                await reactivate_review_item(str(existing["_id"]), now)
+            if existing.get("kind") == "note":
+                # 记过笔记的表达又说错 → 升级为错题
+                await get_db().reviewItems.update_one(
+                    id_filter(str(existing["_id"])),
+                    {"$set": {"kind": "mistake", "original": gap.get("original", "")}},
+                )
             continue
         rid = review_item_id()
         await get_db().reviewItems.insert_one({
             "_id": rid,
             "userId": req.userId,
+            "sourceType": source_type,
+            "kind": "mistake",
             "title": gap.get("title", ""),
             "expression": expression,
             "original": gap.get("original", ""),
             "note": gap.get("why", ""),
+            "chinese": gap.get("chinese", ""),
             "contextSentence": result.get("nativeVersion", ""),
             "practiceId": req.practiceId,
+            "status": "active",
             "createdAt": now,
             "nextReviewAt": now,
             "reviewCount": 0,
@@ -80,11 +108,47 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
         gap["reviewItemId"] = rid
         auto_saved += 1
 
+    # 好表达笔记：LLM 挑出的可复用短表达，自动存 kind=note（宁缺毋滥，可空）。
+    # 与错题分开复习；记过笔记的表达后又说错会在上面 gap 循环里升级为错题。
+    note_expr = (result.get("note") or "").strip()
+    if note_expr:
+        existing = await get_db().reviewItems.find_one({"userId": req.userId, "expression": note_expr})
+        if existing:
+            result["noteReviewItemId"] = str(existing["_id"])
+            if existing.get("status") == "retired":
+                await reactivate_review_item(str(existing["_id"]), now)
+        else:
+            nrid = review_item_id()
+            await get_db().reviewItems.insert_one({
+                "_id": nrid,
+                "userId": req.userId,
+                "sourceType": source_type,
+                "kind": "note",
+                "expression": note_expr,
+                "original": "",
+                "note": "",
+                "chinese": (result.get("noteChinese") or "").strip(),
+                "contextSentence": result.get("standardAnswer", ""),
+                "practiceId": req.practiceId,
+                "status": "active",
+                "createdAt": now,
+                "nextReviewAt": now,
+                "reviewCount": 0,
+                "interval": 1,
+                "easiness": 2.5,
+            })
+            result["noteReviewItemId"] = nrid
+
     attempt = {
         "transcript": req.text,
         "round": round_no,
+        "mode": mode,
+        "freeTopic": free_topic if mode == "free" else "",
         "summary": result["summary"],
         "nativeVersion": result["nativeVersion"],
+        "standardAnswer": result.get("standardAnswer", ""),
+        "note": result.get("note", ""),
+        "noteChinese": result.get("noteChinese", ""),
         "score": result.get("score"),
         "gaps": result["gaps"],
         "progress": result.get("progress"),
@@ -101,11 +165,19 @@ async def _save_attempt_and_review(req: CorrectRequest, result: dict, round_no: 
 async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
     practice = await _load_practice(req, token_user_id)
     scenario, prev, round_no = _round_context(practice)
-    link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
+    mode = _normalize_mode(practice.get("mode") or req.mode)
+    link = {
+        "sessionId": req.practiceId,
+        "userId": req.userId,
+        "round": round_no,
+        "mode": mode,
+        "sourceType": normalize_source_type(practice.get("sourceType")),
+    }
+    # 自由说的 prompt 模式由场景快照 kind=free 携带（见 corrector.mode_of_scenario）
     result = await correct_text(req.text, scenario, prev, round_no, link_to=link)
     if not _has_usable_feedback(result):
         raise HTTPException(502, result.get("summary") or "AI 没有返回可用反馈，请重试")
-    auto_saved = await _save_attempt_and_review(req, result, round_no)
+    auto_saved = await _save_attempt_and_review(req, practice, result, round_no)
     return {"practiceId": req.practiceId, "autoSaved": auto_saved, "round": round_no, **result}
 
 
@@ -113,7 +185,14 @@ async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user
 async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
     practice = await _load_practice(req, token_user_id)
     scenario, prev, round_no = _round_context(practice)
-    link = {"sessionId": req.practiceId, "userId": req.userId, "round": round_no}
+    mode = _normalize_mode(practice.get("mode") or req.mode)
+    link = {
+        "sessionId": req.practiceId,
+        "userId": req.userId,
+        "round": round_no,
+        "mode": mode,
+        "sourceType": normalize_source_type(practice.get("sourceType")),
+    }
 
     async def generate():
         # 流式推 chunk 让前端显示字数动画，末尾推 done。
@@ -124,15 +203,18 @@ async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(curre
         ):
             if event_type == "chunk":
                 yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
+            elif event_type == "usage":
+                yield f"data: {json.dumps({'type': 'usage', **data})}\n\n"
             elif event_type == "error":
                 yield f"data: {json.dumps({'type': 'error', 'message': data['message']})}\n\n"
                 return
             elif event_type == "done":
                 result = data
         if not result or not _has_usable_feedback(result):
-            yield f"data: {json.dumps({'type': 'error', 'message': (result or {}).get('summary') or 'AI 没有返回可用反馈，请重试'})}\n\n"
+            message = (result or {}).get('summary') or 'AI 没有返回可用反馈，请重试'
+            yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
             return
-        auto_saved = await _save_attempt_and_review(req, result, round_no)
+        auto_saved = await _save_attempt_and_review(req, practice, result, round_no)
         yield f"data: {json.dumps({'type': 'done', 'result': result, 'autoSaved': auto_saved, 'round': round_no})}\n\n"
 
     return StreamingResponse(
@@ -153,7 +235,7 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat/stream")
-async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(current_user_id)):
+async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(current_user_id)):  # noqa: C901
     """用户拿到反馈后，基于本次练习上下文继续追问 AI（SSE 纯文本流）。
     把问答历史存进对应 attempt 的 chat 数组，刷新/历史页可回看。
     """
@@ -174,7 +256,12 @@ async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(cur
     attempt = attempts[idx]
     scenario = practice.get("scenario")
     history = attempt.get("chat", [])
-    link = {"sessionId": req.practiceId, "userId": req.userId, "attemptIndex": idx}
+    link = {
+        "sessionId": req.practiceId,
+        "userId": req.userId,
+        "attemptIndex": idx,
+        "sourceType": normalize_source_type(practice.get("sourceType")),
+    }
 
     async def generate():
         full = ""
@@ -185,6 +272,8 @@ async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(cur
             if event_type == "chunk":
                 full += data["text"]
                 yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
+            elif event_type == "usage":
+                yield f"data: {json.dumps({'type': 'usage', **data})}\n\n"
             elif event_type == "error":
                 errored = True
                 yield f"data: {json.dumps({'type': 'error', 'message': data['message']})}\n\n"

@@ -6,6 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f6f5f0" />
     <title>SpeakUp · Speaking Coach</title>
+    <script>
+      // 首屏前就定好主题，避免一闪（auto 用固定日出日落时间估算，应用内会用定位细化）
+      (function () {
+        try {
+          var mode = localStorage.getItem("english-speak-theme-mode");
+          var theme = mode === "light" || mode === "dark" ? mode : null;
+          if (!theme) {
+            var d = new Date();
+            var h = d.getHours() + d.getMinutes() / 60;
+            theme = h >= 6.5 && h < 18.5 ? "light" : "dark";
+          }
+          document.documentElement.dataset.theme = theme;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", theme === "dark" ? "#1c1c1e" : "#f6f5f0");
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

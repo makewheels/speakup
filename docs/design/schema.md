@@ -7,9 +7,13 @@
   "_id":       "u_1781276...",
   "phone":     "13800001234",
   "nickname":  "用户名",
+  "sourceType": "human | ai_test",  // 数据来源；普通用户默认 human，自动体验专用账号为 ai_test
   "createdAt": datetime
 }
 ```
+
+`sourceType` 在用户首次创建时确定，后续普通登录不改写。历史缺字段用户按 `human` 处理。
+生产分析排除自动体验数据时使用 `{sourceType: {$ne: "ai_test"}}`，以兼容历史记录。
 
 ## authSessions（登录会话）
 
@@ -43,6 +47,7 @@
   "videoPrompt": "5-second silent video of the same scene, ...",
   "videoStatus": "ready | skipped | failed | pending",
   "ownerUserId": null,                     // null=公共题；u_xxx=只派给该用户的定制题
+  "sourceType":  "human | ai_test",       // 仅定制题写入，从 owner 用户冗余；公共题可缺省
   "category":    { "domain": "travel", "subId": "travel.airport_checkin" },  // 公共题：从 server/data/scenario_taxonomy.yaml 落 (domainShort, subId)；定制题不写
   "targetWords": ["could you take a look"], // 定制题：必须逼用户用上的弱点表达
   "status":      "active | archived",
@@ -58,6 +63,7 @@
 {
   "_id":         "ps_1781276...",
   "userId":      "u_1781276...",
+  "sourceType":  "human | ai_test",             // 从 users 冗余，便于生产数据直接过滤
   "scenarioId":  "sc_...",
   "kind":        "task",
   "title":       "咖啡店给错咖啡",          // 历史列表标题
@@ -67,11 +73,12 @@
   "videoKey":    "scenarios/sc_.../cover.mp4",  // 从题目复制的场景视频 key，读取时现签；前端视频优先、图片兜底
   "attempts": [
     {
-      "round":         1,                  // 第几轮重说（最多 3）
-      "transcript":    "I ordered a hot latte but...",
-      "summary":       "...",
-      "score":         6.5,                // 雅思口语 band，0~9，0.5 进制
-      "nativeVersion": "...",
+      "round":          1,                 // 第几轮重说（不封顶，同一题可无限重说）
+      "transcript":     "I ordered a hot latte but...",
+      "summary":        "...",
+      "score":          6.5,               // 雅思口语 band，0~9，0.5 进制
+      "nativeVersion":  "...",             // 基于学习者原话的 native 改写
+      "standardAnswer": "...",             // 标准答案：脱离学习者原话，native 完成场景任务的完整说法（可空=旧数据）
       "gaps": [
         { "original": "...", "better": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
       ],
@@ -99,17 +106,23 @@
 
 > 命名：用 `reviewItems` 而非 `vocabulary`——错题不只是单词，更多是短语/句式；字段也用 `expression` 而非 `word`。
 
-每个 saveToReview 的 gap 落一行（大模型纠正出的点）；SM-2 间隔重复字段调度复习，也是因材施教反向出题的来源。
+两类来源（`kind`）：saveToReview 的 gap 落一行（错题 mistake），反馈页标准答案「记为笔记」落一行（好表达笔记 note）；SM-2 字段调度复习，也是因材施教反向出题的来源。行为细节见 [../业务/1-错题本与复习.md](../业务/1-错题本与复习.md)。
 
 ```json
 {
   "_id":           "rv_1781276...",
   "userId":        "u_1781276...",
-  "expression":    "Could you take a look?",   // 地道说法（来自 gap.better），词/短语/句式皆可
-  "original":      "you see this",             // 用户原来的说法
+  "sourceType":    "human | ai_test",           // 从 users 冗余
+  "kind":          "mistake | note",           // 错题本拆分两类：mistake=说错的点（gap 收录），note=好表达笔记（标准答案整句记入）；历史无此字段按 mistake 归一
+  "expression":    "Could you take a look?",   // 地道说法（来自 gap.better 或标准答案），词/短语/句式/整句皆可
+  "original":      "you see this",             // 用户原来的说法（仅留档，复习卡不再展示）
   "note":          "更礼貌的请求",
+  "chinese":       "能帮我看看吗？",            // expression 的中文提示词：复习卡正面主动回忆用；新项由 corrector 产出，历史缺项走 translate 接口惰性补齐
   "contextSentence": "Could you take a look at this for me?",
   "practiceId":    "ps_1781276...",            // 来源练习，供复习卡展示场景图 + 原题重练
+  "status":        "active | retired",         // 会说即收纳（retired）：复习队列/出题取材不再出现；列表可恢复；历史无此字段按 active 兼容
+  "retiredAt":     datetime,                    // 收纳时间（仅 retired）
+  "retiredBy":     "self",                      // 收纳来源：self=复习卡「会说」（预留 practice=练习达标）
   "createdAt":     datetime,
   "nextReviewAt":  datetime,
   "reviewCount":   0,
@@ -124,6 +137,27 @@
 - `scenarios`: `{slug}` 唯一索引（脚本幂等）
 - `practiceSessions`: `{userId, createdAt}` 复合索引（历史列表）
 
+## feedbacks（产品与结果反馈）
+
+```json
+{
+  "_id":          "fb_1781276...",
+  "userId":       "u_1781276...",
+  "sourceType":   "human | ai_test",  // 从用户或所属练习冗余
+  "type":         "practice | general",
+  "rating":       "good | bad | null",
+  "tags":         ["gap_wrong"],
+  "comment":      "...",
+  "practiceId":   "ps_...",           // practice 类型才有
+  "attemptIndex": 0,                    // practice 类型才有
+  "createdAt":    datetime,
+  "updatedAt":    datetime
+}
+```
+
+`scripts.export_feedbacks` 默认用 `{sourceType: {$ne: "ai_test"}}` 只导出真实用户反馈；
+仅在排查自动体验时显式传 `--include-ai-test`。
+
 ## llmCalls（LLM/图片调用审计日志）
 
 每次调文字模型 / 图片 / 视频都写一行，记 prompt + response + tokens + 估算成本，挂到对应业务实体（scenarioId / sessionId / userId）。诊断"为什么这道题烂 / 为什么 corrector 没抓到 thief"用。
@@ -132,6 +166,7 @@
 {
   "_id":         "llm_1781276...",
   "kind":        "scenario_gen_public",  // scenario_gen_public / scenario_gen_custom / correct / correct_retry / correct_stream / image / video
+  "sourceType":  "human | ai_test",      // 用户链路继承来源；公共/历史链路默认 human
   "model":       "qwen3.7-plus",          // 真实用的模型名（来自 response_metadata，不是配置里写的）
   "request": {
     "systemPrompt": "...",

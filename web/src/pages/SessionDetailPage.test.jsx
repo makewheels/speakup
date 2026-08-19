@@ -103,6 +103,32 @@ describe("SessionDetailPage", () => {
     );
   });
 
+  it("shows a Free talk badge for free-mode sessions and topic card", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      scenarioId: "",
+      mode: "free",
+      freeTopic: "Your favorite breakfast",
+      title: "Your favorite breakfast",
+      scenario: { kind: "free", title: "Your favorite breakfast", freeTopic: "Your favorite breakfast" },
+    });
+    setup();
+    // 标题和徽章同在一个容器里，用正则匹配标题文本
+    await waitFor(() =>
+      expect(screen.getByText(/Your favorite breakfast/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Free talk")).toBeInTheDocument();
+  });
+
+  it("does not show Free talk badge for scenario sessions", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue(SESSION);
+    setup();
+    await waitFor(() => screen.getByText("Coffee shop"));
+    expect(screen.queryByText("Free talk")).not.toBeInTheDocument();
+  });
+
   it("renders formatted datetime", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);
@@ -139,6 +165,19 @@ describe("SessionDetailPage", () => {
     await waitFor(() =>
       expect(screen.getByText("I attempted to place an order.")).toBeInTheDocument(),
     );
+  });
+
+  it("renders the standard answer when the attempt has one", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [
+        { ...SESSION.attempts[0], standardAnswer: "Could I get a large coffee to go, please?" },
+      ],
+    });
+    setup();
+    await waitFor(() => expect(screen.getByText("Native")).toBeInTheDocument());
+    expect(screen.getByText("Could I get a large coffee to go, please?")).toBeInTheDocument();
   });
 
   it("renders IELTS score", async () => {
@@ -277,7 +316,7 @@ describe("SessionDetailPage", () => {
       expect(screen.getByText("Ask the coach")).toBeInTheDocument(),
     );
 
-    const input = screen.getByRole("textbox");
+    const input = screen.getByPlaceholderText(/Ask about this feedback/);
     await userEvent.type(input, "Why this change?");
     // 输入框旁的发送按钮（只含图标，无文字）
     const sendBtn = input.parentElement.querySelector("button");
@@ -303,7 +342,7 @@ describe("SessionDetailPage", () => {
     setup();
     await waitFor(() => expect(screen.getByText("Ask the coach")).toBeInTheDocument());
 
-    const input = screen.getByRole("textbox");
+    const input = screen.getByPlaceholderText(/Ask about this feedback/);
     await userEvent.type(input, "More examples?{Enter}");
 
     await waitFor(() => expect(chatStream).toHaveBeenCalled());
@@ -333,15 +372,15 @@ describe("SessionDetailPage", () => {
     );
 
     // 最新一轮有输入框
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ask about this feedback/)).toBeInTheDocument();
 
-    // 切到旧轮 → 只读 chat，无输入框
+    // 切到旧轮 → coach 追问只读、无追问输入框（反馈条仍在，可对该轮反馈）
     const tab1 = screen.getAllByText("Attempt 1").find((el) => el.tagName === "BUTTON");
     await userEvent.click(tab1);
     await waitFor(() => {
       expect(screen.getByText("old question")).toBeInTheDocument();
       expect(screen.getByText("old answer")).toBeInTheDocument();
     });
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Ask about this feedback/)).not.toBeInTheDocument();
   });
 });

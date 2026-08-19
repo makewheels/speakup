@@ -1,22 +1,57 @@
-// 朗读：点击时调后端 /api/tts（DashScope CosyVoice，自然音）。
-// 后端按 (practiceId, 文本) hash 把 mp3 存到 practiceSessions/{practiceId}/tts/，
+// 朗读：点击时先调后端 /api/tts（DashScope Qwen TTS，自然音），
+// 云端不可用时在当前页面降级到浏览器 speechSynthesis。
+// 后端按 (practiceId, 文本) hash 把 wav 存到 practiceSessions/{practiceId}/tts/，
 // 这样所有 session 资源都在 practiceSessions/ 下；session 内重听同一段命中 OSS 缓存不重花钱。
 import { api } from "../api/client.js";
 
 const urlCache = new Map(); // "{practiceId}:{text}" -> oss url
+const BROWSER_TTS = Symbol("browser-tts");
 let current = null; // 当前播放的 Audio，切歌/停止时停掉
+let backendUnavailable = false;
 
 const _key = (text, practiceId) => `${practiceId || ""}:${(text || "").trim()}`;
 
 export function isCached(text, practiceId) {
-  return urlCache.has(_key(text, practiceId));
+  return backendUnavailable || urlCache.has(_key(text, practiceId));
+}
+
+function browserSpeak(text) {
+  const synth = globalThis.speechSynthesis;
+  const Utterance = globalThis.SpeechSynthesisUtterance;
+  if (!synth || !Utterance) throw new Error("Browser speech synthesis unavailable");
+
+  const listeners = new Map();
+  const emit = (event) => {
+    for (const listener of listeners.get(event) || []) listener();
+  };
+  const utterance = new Utterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 0.95;
+  utterance.onend = () => emit("ended");
+  utterance.onerror = () => emit("error");
+
+  const playback = {
+    addEventListener(event, listener) {
+      const entries = listeners.get(event) || [];
+      entries.push(listener);
+      listeners.set(event, entries);
+    },
+    pause() {
+      synth.cancel();
+      emit("pause");
+    },
+  };
+  synth.cancel();
+  synth.speak(utterance);
+  return playback;
 }
 
 // 停止当前播放（会触发该 Audio 的 pause 事件，调用方据此复位 UI）
 export function stop() {
   if (current) {
-    current.pause();
+    const active = current;
     current = null;
+    active.pause();
   }
 }
 
@@ -29,13 +64,27 @@ export async function speak(text, practiceId) {
   stop();
   const k = _key(text, practiceId);
   let url = urlCache.get(k);
+  if (url === BROWSER_TTS || (!url && backendUnavailable)) {
+    const playback = browserSpeak(text);
+    current = playback;
+    return playback;
+  }
   if (!url) {
     // 合成加 30s 超时兜底，网络挂死也不会让按钮永远 loading
-    url = await Promise.race([
-      api.tts(text, practiceId),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("TTS timeout")), 30000)),
-    ]);
-    urlCache.set(k, url);
+    try {
+      url = await Promise.race([
+        api.tts(text, practiceId),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("TTS timeout")), 30000)),
+      ]);
+      urlCache.set(k, url);
+    } catch (error) {
+      if (!globalThis.speechSynthesis || !globalThis.SpeechSynthesisUtterance) throw error;
+      backendUnavailable = true;
+      urlCache.set(k, BROWSER_TTS);
+      const playback = browserSpeak(text);
+      current = playback;
+      return playback;
+    }
   }
   const audio = new Audio(url);
   current = audio;

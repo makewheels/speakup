@@ -54,9 +54,9 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot }) {
 
   const submit = async (rating) => {
     setBusy(true);
-    // good 反馈不带原因标签和评论
+    // 原因标签仅 bad 有意义；文字输入两种评价都可带
     const submitTags = rating === "bad" ? tags : [];
-    const submitComment = rating === "bad" ? comment : "";
+    const submitComment = comment.trim();
     try {
       const res = await api.submitFeedback({
         type: "practice",
@@ -104,6 +104,14 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot }) {
   return (
     <div className="fb-bar">
       <div className="fb-bar-q">{t("feedback.practiceQ")}</div>
+      <textarea
+        className="fb-bar-input"
+        rows={2}
+        value={comment}
+        placeholder={t("feedback.commentPh")}
+        onChange={(e) => setComment(e.target.value)}
+        disabled={busy}
+      />
       <div className="fb-bar-thumbs">
         <button className="fb-thumb" onClick={() => submit("good")} disabled={busy} aria-label={t("feedback.good")}>
           👍
@@ -130,13 +138,6 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot }) {
               </button>
             ))}
           </div>
-          <textarea
-            className="fb-bar-input"
-            rows={2}
-            value={comment}
-            placeholder={t("feedback.commentPh")}
-            onChange={(e) => setComment(e.target.value)}
-          />
           <button className="su-btn su-btn-primary" onClick={() => submit("bad")} disabled={busy}>
             {t("feedback.submit")}
           </button>

@@ -1,0 +1,95 @@
+{
+  "familyId": "travel-train-rebooking",
+  "coordinate": {
+    "domain": "travel",
+    "subId": "travel.train_rebooking",
+    "kind": "task",
+    "difficulty": 2
+  },
+  "cases": [
+    {
+      "id": "travel-train-rebooking-positive",
+      "bucket": "positive",
+      "challenge": "有明确时间压力、替代方案和费用问题，能逼出真实改签表达",
+      "candidate": {
+        "title": "错过末班前的转车",
+        "where": "火车站票务窗口",
+        "story": "你的上一班火车晚点，原票已经赶不上；今晚还有一班车，但只剩价格更高的座位。",
+        "mission": "改签到今晚并确认需要补多少钱",
+        "points": ["说明误车是上一班晚点造成的", "询问今晚班次和补票金额"]
+      },
+      "annotation": {
+        "verdict": "pass",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 5,
+          "task_clarity": 5,
+          "speakability": 5,
+          "specificity": 5,
+          "novelty": 4,
+          "difficulty_fit": 5,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": [],
+        "rationale": "冲突、时间和价格都具体，两条提示能直接变成英语请求，符合 B1-B2 真实交易场景。"
+      }
+    },
+    {
+      "id": "travel-train-rebooking-negative",
+      "bucket": "negative",
+      "challenge": "结构完整但带明显口语考试腔，自动硬规则应直接拦截",
+      "candidate": {
+        "title": "谈谈火车改签",
+        "where": "模拟考场",
+        "story": "考官要求你模拟一次车票改签，并分别从时间、价格和个人感受三个方面进行阐述。",
+        "mission": "完成一次口语考试式陈述",
+        "points": ["介绍改签的三个方面", "总结自己的感受"]
+      },
+      "annotation": {
+        "verdict": "fail",
+        "scores": {
+          "real_world_use": 2,
+          "speaking_motivation": 1,
+          "task_clarity": 4,
+          "speakability": 3,
+          "specificity": 2,
+          "novelty": 1,
+          "difficulty_fit": 2,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": ["no_exam_smell"],
+        "failureTags": ["exam_smell", "low_motivation"],
+        "rationale": "形式像考试指令，不是用户真的会遇到的对话；即使字段齐全也不应进入生产题库。"
+      }
+    },
+    {
+      "id": "travel-train-rebooking-boundary",
+      "bucket": "boundary",
+      "challenge": "场景真实但一次塞入改签、住宿和报销三件事，可能超过 difficulty 2",
+      "candidate": {
+        "title": "暴雨打乱最后一程",
+        "where": "火车站服务中心",
+        "story": "暴雨让你错过当天最后一班接驳车，工作人员可以改到明早，但你今晚没有住处。",
+        "mission": "确认改签并询问能否安排住宿",
+        "points": ["接受或确认明早的新班次", "询问铁路公司是否承担住宿"]
+      },
+      "annotation": {
+        "verdict": "borderline",
+        "scores": {
+          "real_world_use": 5,
+          "speaking_motivation": 5,
+          "task_clarity": 4,
+          "speakability": 4,
+          "specificity": 5,
+          "novelty": 4,
+          "difficulty_fit": 3,
+          "cultural_safety": 5
+        },
+        "expectedHardFailures": [],
+        "failureTags": ["difficulty_review"],
+        "rationale": "题本身很好，但住宿赔付会引入政策协商；需要人工决定仍标 2 级还是升到 3 级。"
+      }
+    }
+  ]
+}
