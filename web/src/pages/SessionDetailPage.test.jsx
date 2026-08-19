@@ -150,7 +150,7 @@ describe("SessionDetailPage", () => {
       ],
     });
     setup();
-    await waitFor(() => expect(screen.getByText("Reference answer")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Native")).toBeInTheDocument());
     expect(screen.getByText("Could I get a large coffee to go, please?")).toBeInTheDocument();
   });
 

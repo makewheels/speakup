@@ -8,6 +8,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-19 08:26
+
+- **fix(web)**：深色主题录音按钮不再发灰——新增 `--rec`/`--rec-glow` 专用红 token（两种主题都保持红色，录音键通用语义），替换原来复用 `--ink`（深色下反转为浅灰、显得像被禁用）；录音中呼吸动画同步用 `--rec-glow`
+- **fix(web)**：深色主题 gap 序号徽章不再"浅灰底白字"看不清——新增 `--gap-num-bg`/`--gap-num-ink` token（深色下中灰底白字），替换复用 `--ink` 做底；空反馈卡片边框/背景也改用语义 token
+- **add(web)**：gap 卡片展示 LLM 返回的更多字段——类别徽章（task/grammar/naturalness/vocabulary/register，复用既有 `.fb-gap-cat` 死样式）、要点标题 `title`、中文意思 `chinese`、例句 `example`（带朗读）；结果页与历史详情页两处渲染器同步
+- **change(web)**：两个答案板块改名为「纠正 / Native」——`nativeVersion`（基于原话的纠正）显示为"纠正/Correction"，`standardAnswer`（抛开原话的最 native 说法）显示为"Native"；标题不入库、纯 i18n，老数据自动跟随，无需改库；反馈标签 `native_unnatural` 文案同步
+- **test**：同步更新结果页/详情页对「Correction / Native」文案与 gap 新字段的断言
+
 ### 2026-08-18 16:31
 
 - **change(feedback)**：「反馈建议」入口从我的页底部挪进**设置区**（与语言 / 主题 / 练习偏好并列），不再埋在退出登录按钮上方；反馈页本身不变（标签 + 文字输入）

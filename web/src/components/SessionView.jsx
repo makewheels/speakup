@@ -159,6 +159,8 @@ export default function SessionView({
                   <div key={j} className="fb-gap-card">
                     <div className="fb-gap-head">
                       <span className="fb-gap-num">{j + 1}</span>
+                      {g.category && <span className="fb-gap-cat">{t(`practice.gapCat.${g.category}`)}</span>}
+                      {g.title && <span className="fb-gap-title">{g.title}</span>}
                     </div>
                     <div className="fb-gap-table">
                       <div className="fb-gap-line is-said">
@@ -170,6 +172,19 @@ export default function SessionView({
                         <span className="fb-gap-fix">{g.better}</span>
                         {canSpeak && <SpeakBtn text={g.better} practiceId={practiceId} />}
                       </div>
+                      {g.chinese && (
+                        <div className="fb-gap-line">
+                          <span className="fb-gap-tag">{t("practice.gapMeaning")}</span>
+                          <span className="fb-gap-meaning">{g.chinese}</span>
+                        </div>
+                      )}
+                      {g.example && (
+                        <div className="fb-gap-line is-fix">
+                          <span className="fb-gap-tag">{t("practice.gapExample")}</span>
+                          <span className="fb-gap-example">{g.example}</span>
+                          {canSpeak && <SpeakBtn text={g.example} practiceId={practiceId} />}
+                        </div>
+                      )}
                       {g.why && (
                         <div className="fb-gap-line">
                           <span className="fb-gap-tag">{t("practice.gapWhy")}</span>
