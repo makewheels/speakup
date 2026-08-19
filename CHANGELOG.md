@@ -8,6 +8,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-19 09:57
+
+- **add(practice)**：新增「自由说」练习模式——练习页顶部模式切换（场景题/自由说，URL `?mode=free` 可刷新还原）；默认抽一个该用户**没说过**的话题，另提供「不用题目，随便说」与「换一个话题」入口；点录音才建会话（没开口不留空记录），录音/转写/评估复用现有链路
+- **add(free-topics)**：新集合 `freeTopics`（ft_ id，slug 幂等键）+ `GET /api/free-topics/next?userId=`；`services/free_practice.py` 负责抽题/去重/补题——池子用完自动一次 LLM 批量生成 20 个（≤12 词日常短句，slug 去重入库），补题失败返 404 前端仍可无话题开口
+- **change(corrector)**：自由说走独立 `FREE_SYSTEM_PROMPT`——不判任务完成度，gap 类别只用 grammar/naturalness/vocabulary/register（解析层把漏网的 task 归一 naturalness），逐点纠正不整段重写，nativeVersion=原话改地道，standardAnswer 可空；重说用去掉任务措辞的 `FREE_RETRY_PROMPT`；四个 prompt 拆到 `services/corrector_prompts.py`（质量门禁 ≤500 行）
+- **change(sessions)**：`practiceSessions` 新增 `mode`（scenario/free，旧数据按 scenario 归一）、`freeTopicId`、`freeTopic` 快照，自由说会话 `kind=free`、标题=话题；correct 的 attempt 同步落 `mode`/`freeTopic`；`POST /api/correct` 与建会话接口接受可选 `mode/freeTopicId/freeTopic`
+- **add(web)**：历史页/详情页给 `mode=free` 会话打「自由说」徽章（i18n），自由说缩略图用占位；结果页自由说话题卡替代场景卡、`standardAnswer` 为空时笔记独立成行、「下一个」变「下一个话题」
+- **add(scripts)**：`seed_free_topics.py` 内置 60 个手写日常话题（英文+中文），按 slug 幂等 upsert，默认执行插入；`--llm-topup N` 才调外部 LLM 补到约 100；`--prod` 塞生产（PROD_SYNC_MONGO_URI）
+- **test**：free_topics 抽题/去重/补题/鉴权集成测试，correct 自由说落库与快照透传，建会话/历史 mode 字段；前端自由说抽题、建会话、评估透传 mode、结果页、历史徽章用例
+- **docs**：新增 `docs/业务/3-自由录入.md`（模式/纠正差异/题库/API/种子脚本）
+
 ### 2026-08-19 08:50
 
 - **change(corrector)**：好表达笔记改由 LLM 自动产出——新增 `note`/`noteChinese` 字段：挑一个可跨场景复用的**短表达/搭配**（≤8 词，宁缺毋滥、可空），不再整句抄 standardAnswer；prompt 附完整示例

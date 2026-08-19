@@ -43,6 +43,21 @@ const SESSION_A2 = {
   createdAt: "2026-06-03T10:00:00Z",
 };
 
+// 自由说会话：mode=free，无 scenarioId（按 _id 单独成组），标题=话题
+const SESSION_FREE = {
+  _id: "s4",
+  userId: "u_1",
+  scenarioId: "",
+  mode: "free",
+  freeTopicId: "ft_1",
+  freeTopic: "Your favorite breakfast",
+  title: "Your favorite breakfast",
+  topic: "",
+  imageUrl: "",
+  attempts: [{ round: 1, transcript: "I like eggs", gaps: [{ original: "eggs", better: "some eggs" }] }],
+  createdAt: "2026-06-04T09:00:00Z",
+};
+
 function setup() {
   localStorage.setItem("english-speak-user", JSON.stringify(USER));
   return render(
@@ -224,5 +239,43 @@ describe("HistoryPage navigation regressions", () => {
 
     await waitFor(() => expect(screen.getByText("Airport check-in")).toBeInTheDocument());
     expect(screen.queryByText("Load more")).not.toBeInTheDocument();
+  });
+});
+
+describe("HistoryPage 自由说徽章", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
+
+  it("shows a Free talk badge on free-mode sessions", async () => {
+    const { api } = await import("../api/client.js");
+    api.listPractices.mockResolvedValue([SESSION_FREE]);
+    setup();
+    await waitFor(() =>
+      expect(screen.getByText("Your favorite breakfast")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Free talk")).toBeInTheDocument();
+  });
+
+  it("does not show the Free talk badge on scenario sessions (incl. legacy no-mode)", async () => {
+    const { api } = await import("../api/client.js");
+    api.listPractices.mockResolvedValue([SESSION_A, SESSION_B]);
+    setup();
+    await waitFor(() => screen.getByText("Coffee shop"));
+    expect(screen.queryByText("Free talk")).not.toBeInTheDocument();
+  });
+
+  it("free and scenario sessions coexist, free grouped by its own id", async () => {
+    const { api } = await import("../api/client.js");
+    api.listPractices.mockResolvedValue([SESSION_A, SESSION_FREE]);
+    setup();
+    await waitFor(() => {
+      expect(screen.getByText("Coffee shop")).toBeInTheDocument();
+      expect(screen.getByText("Your favorite breakfast")).toBeInTheDocument();
+    });
+    // 两类各占一行：1 个场景 + 1 个自由说 = 2 个条目
+    expect(screen.getByText("2 scenarios")).toBeInTheDocument();
+    expect(screen.getByText("Free talk")).toBeInTheDocument();
   });
 });

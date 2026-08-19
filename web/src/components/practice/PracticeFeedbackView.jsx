@@ -4,6 +4,7 @@ import RecordingPlayBtn from "../RecordingPlayBtn.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
+import PracticeFreeCard from "./PracticeFreeCard.jsx";
 import FeedbackBar from "./FeedbackBar.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
@@ -32,6 +33,7 @@ export default function PracticeFeedbackView({
   chat,
   chatBusy,
   chatInput,
+  modeSwitch,
   recordingUrl,
   result,
   retrySame,
@@ -49,6 +51,7 @@ export default function PracticeFeedbackView({
   const gaps = result.gaps ?? [];
   const progress = result.progress;
   const passed = progress?.verdict === "passed";
+  const isFree = session?.mode === "free";
 
   // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看。
   // 挂载瞬间上方的大图/视频高度可能尚未定型（加载失败会塌缩、慢加载会位移），
@@ -80,14 +83,17 @@ export default function PracticeFeedbackView({
 
   return (
     <div className="practice-page fb-page fade-in">
-      {(session?.videoUrl || session?.imageUrl) && (
+      {modeSwitch}
+      {!isFree && (session?.videoUrl || session?.imageUrl) && (
         <PracticeMedia
           className="fb-img"
           imageUrl={session.imageUrl}
           videoUrl={session.videoUrl}
         />
       )}
-      <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />
+      {isFree
+        ? <PracticeFreeCard freeTopic={scenario?.freeTopic || session?.freeTopic || ""} t={t} />
+        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
 
       <div ref={scoreAnchorRef} className="fb-score-anchor">
         <div>
@@ -156,6 +162,15 @@ export default function PracticeFeedbackView({
               <b>{result.note}</b>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 自由说 standardAnswer 可空：只有笔记时也展示出来，别丢 */}
+      {!result.standardAnswer && result.note && (
+        <div className="fb-note-line fb-note-standalone">
+          <Icon name="save" size={13} />
+          <span>{t("practice.autoNote")}</span>
+          <b>{result.note}</b>
         </div>
       )}
 
@@ -268,7 +283,7 @@ export default function PracticeFeedbackView({
           <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain", { n: (round ?? 1) + 1 })}
         </button>
         <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
-          {t(passed ? "practice.nextScenario" : "practice.next")}&nbsp;<Icon name="next" size={16} />
+          {t(isFree ? "practice.nextTopic" : passed ? "practice.nextScenario" : "practice.next")}&nbsp;<Icon name="next" size={16} />
         </button>
       </div>
     </div>

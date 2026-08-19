@@ -3054,3 +3054,107 @@ button { font-family: inherit; }
   border: 1px solid var(--rule);
   border-radius: 16px;
 }
+
+/* ──────────────────────────────────────────────
+   练习模式切换（场景题 / 自由说）
+   ────────────────────────────────────────────── */
+
+.mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 auto 14px;
+  width: fit-content;
+  background: var(--bg-mute);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+}
+
+.mode-switch-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.mode-switch-btn.active {
+  background: var(--bg-elev);
+  color: var(--ink);
+  box-shadow: 0 1px 3px oklch(0.2 0 0 / 0.08);
+}
+
+/* ──────────────────────────────────────────────
+   自由说话题卡片
+   ────────────────────────────────────────────── */
+
+.free-card {
+  padding: 16px 18px;
+}
+
+.free-card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.free-card-topic {
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.free-card-zh {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.free-card-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* 话题操作区：换一个话题 + 不用题目随便说 */
+.free-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.free-actions .su-skip { margin-top: 18px; }
+
+.free-no-topic {
+  width: min(320px, 86%);
+  height: 44px;
+}
+
+/* 自由说徽章（历史列表 / 详情页） */
+.chip.free { background: var(--accent-soft); color: var(--accent); }
+
+.free-badge {
+  margin-left: 8px;
+  vertical-align: 2px;
+  height: 22px;
+  font-size: 11px;
+}
+
+/* 自由说 standardAnswer 为空时，笔记独立成行 */
+.fb-note-standalone {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}

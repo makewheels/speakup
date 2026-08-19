@@ -187,6 +187,9 @@ export const api = {
       timeout: 60_000,
     }),
 
+  // 自由说：抽一个该用户没说过的话题（池子用完后端自动补题）
+  nextFreeTopic: (userId) => request(`/free-topics/next?userId=${userId}`),
+
   createPractice: (data) => request("/practice-sessions", { method: "POST", body: data }),
   getPractice: (id) => request(`/practice-sessions/${id}`),
   listPractices: (userId, skip = 0) => request(`/practice-sessions?userId=${userId}&skip=${skip}`),

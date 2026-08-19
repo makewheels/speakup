@@ -178,6 +178,22 @@ describe("api/client 各方法 URL/method/body", () => {
     expect(opts.body).toBe(JSON.stringify({ userId: "u1", scenarioId: "sc_1" }));
   });
 
+  it("createPractice 透传自由说字段（mode/freeTopicId/freeTopic）", async () => {
+    await api.createPractice({
+      userId: "u1", mode: "free", freeTopicId: "ft_1", freeTopic: "Your hometown",
+    });
+    const [, opts] = callArgs();
+    expect(opts.body).toBe(
+      JSON.stringify({ userId: "u1", mode: "free", freeTopicId: "ft_1", freeTopic: "Your hometown" }),
+    );
+  });
+
+  it("nextFreeTopic GET 拼 userId", async () => {
+    await api.nextFreeTopic("u1");
+    const [url] = callArgs();
+    expect(url).toBe("/api/free-topics/next?userId=u1");
+  });
+
   it("listPractices 拼 userId + skip", async () => {
     await api.listPractices("u1", 20);
     expect(callArgs()[0]).toBe("/api/practice-sessions?userId=u1&skip=20");

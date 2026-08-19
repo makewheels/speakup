@@ -11,6 +11,7 @@ import { savePracticePreferences } from "../lib/practicePreferences.js";
 vi.mock("../api/client.js", () => ({
   api: {
     nextScenario: vi.fn(),
+    nextFreeTopic: vi.fn(),
     createPractice: vi.fn(),
     getPractice: vi.fn(),
     transcribeAudio: vi.fn(),
@@ -143,6 +144,7 @@ describe("PracticePage", () => {
     vi.clearAllMocks();
     const { api } = await import("../api/client.js");
     api.nextScenario.mockResolvedValue(SCENARIO_B);
+    api.nextFreeTopic.mockResolvedValue({ _id: "ft_1", text: "A topic", zh: "话题" });
     api.createPractice.mockResolvedValue(SESSION_B);
     api.getPractice.mockResolvedValue(SESSION);
     api.transcribeAudio.mockResolvedValue({ text: "Can you redo my latte" });
@@ -517,3 +519,4 @@ describe("PracticePage", () => {
   });
 
 });
+
