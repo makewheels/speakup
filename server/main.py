@@ -19,6 +19,7 @@ from routes import (
     scenarios,
     transcribe,
     tts,
+    version,
 )
 
 configure_logging()
@@ -43,6 +44,7 @@ app.include_router(feedbacks.router)
 app.include_router(transcribe.router)
 app.include_router(tts.router)
 app.include_router(free_topics.router)
+app.include_router(version.router)
 
 
 @app.get("/api/health")
