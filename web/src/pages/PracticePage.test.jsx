@@ -174,6 +174,14 @@ describe("PracticePage", () => {
     );
   });
 
+  it("hides the attempt badge on the first attempt", async () => {
+    setup("/practice/sess_abc");
+    await waitFor(() =>
+      expect(screen.getByText("You got the wrong drink.")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Attempt #1")).not.toBeInTheDocument();
+  });
+
   it("does NOT show feedback (shows ready) when attempts exist but URL lacks ?result=1", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({

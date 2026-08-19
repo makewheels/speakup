@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-19 12:15
+
+- **fix(web)**：首页题目第一次尝试不再展示「第 N 次尝试」徽章（第 1 次是默认状态、无需标注），重说回到题目页（round≥2）才显示
+- **test**：新增「首次不显示徽章 / 第二次显示 Attempt #2」用例
+
 ### 2026-08-19 10:16
 
 - **chore(docs)**：文档重构——顶层 `design/` 归入 `docs/原型设计/`；`docs/design/` 按业务模块分组（场景练习/）；新增 `docs/评测/`（evals + 发音纠正选型调研）、`docs/changelog/`（追加式变更档案：背景/权衡/验证，只增不改）、`docs/脚本说明.md`（两处 scripts/ 用途）
