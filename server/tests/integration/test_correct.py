@@ -259,7 +259,8 @@ def test_correct_reactivates_retired_expression(client, user_id, auth_headers, p
         headers=auth_headers,
     )
     # 错题收纳后只剩自动笔记，错题队列为空
-    assert [i for i in client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json() if i["kind"] == "mistake"] == []
+    after = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
+    assert [i for i in after if i["kind"] == "mistake"] == []
 
     with _mock_correct():
         resp = client.post(
