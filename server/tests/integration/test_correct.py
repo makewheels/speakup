@@ -7,6 +7,8 @@ FAKE_AI_RESULT = {
     "summary": "请求语气太硬，催促方式不像母语者。",
     "nativeVersion": "Could you remake it? I'm kind of in a rush.",
     "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a bit of a rush.",
+    "note": "I'm in a bit of a rush",
+    "noteChinese": "我有点赶时间",
     "gaps": [
         {
             "original": "please change it fast",
@@ -140,8 +142,26 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     assert a["gaps"][0]["better"] == FAKE_AI_RESULT["gaps"][0]["better"]
     assert a["gaps"][0]["reviewItemId"]            # saveToReview=True → 自动收录并回写 id
     assert "reviewItemId" not in a["gaps"][1]       # saveToReview=False → 不收录、不回写
+    assert a["note"] == FAKE_AI_RESULT["note"]
     assert a["round"] == 1
-    assert "createdAt" in a
+
+
+def test_correct_auto_saves_llm_note_as_kind_note(client, user_id, auth_headers, practice_id):
+    with _mock_correct() as mock:
+        resp = client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "test text here ok"},
+            headers=auth_headers,
+        )
+    data = resp.json()
+    # LLM 产出的短表达自动存为 kind=note，并回写 noteReviewItemId
+    assert data["note"] == "I'm in a bit of a rush"
+    assert data["noteReviewItemId"]
+    rv = client.get(f"/api/review-items?userId={user_id}", headers=auth_headers).json()
+    notes = [r for r in rv if r["kind"] == "note"]
+    assert len(notes) == 1
+    assert notes[0]["expression"] == "I'm in a bit of a rush"   # 短表达，非整句
+    assert notes[0]["chinese"] == "我有点赶时间"
 
 
 def test_second_call_passes_prev_attempt_and_round2(client, user_id, auth_headers, practice_id):
@@ -217,9 +237,10 @@ def test_correct_autosaves_flagged_gaps_to_vocabulary(client, user_id, auth_head
     assert resp.json()["autoSaved"] == 1  # only gap[0] has saveToReview=True
 
     items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
-    assert len(items) == 1
-    assert items[0]["expression"] == "Could you remake it?"
-    assert items[0]["chinese"] == "能重做一下吗？"  # 中文提示词随 gap 落库
+    mistakes = [i for i in items if i["kind"] == "mistake"]
+    assert len(mistakes) == 1
+    assert mistakes[0]["expression"] == "Could you remake it?"
+    assert mistakes[0]["chinese"] == "能重做一下吗？"  # 中文提示词随 gap 落库
 
 
 def test_correct_reactivates_retired_expression(client, user_id, auth_headers, practice_id):
@@ -231,13 +252,14 @@ def test_correct_reactivates_retired_expression(client, user_id, auth_headers, p
             headers=auth_headers,
         )
     items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
-    rid = items[0]["_id"]
+    rid = [i for i in items if i["kind"] == "mistake"][0]["_id"]
     client.post(
         f"/api/review-items/{rid}/review?userId={user_id}",
         json={"remembered": True},
         headers=auth_headers,
     )
-    assert client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json() == []
+    # 错题收纳后只剩自动笔记，错题队列为空
+    assert [i for i in client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json() if i["kind"] == "mistake"] == []
 
     with _mock_correct():
         resp = client.post(
@@ -247,9 +269,8 @@ def test_correct_reactivates_retired_expression(client, user_id, auth_headers, p
         )
     assert resp.json()["autoSaved"] == 0  # 表达已存在，不新建
     items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
-    assert len(items) == 1
-    assert items[0]["_id"] == rid
-    assert items[0]["status"] == "active"
+    reactivated = [i for i in items if i["_id"] == rid][0]
+    assert reactivated["status"] == "active"
 
 
 def test_correct_autosaved_item_is_mistake_kind(client, user_id, auth_headers, practice_id):
@@ -261,7 +282,8 @@ def test_correct_autosaved_item_is_mistake_kind(client, user_id, auth_headers, p
             headers=auth_headers,
         )
     items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
-    assert items[0]["kind"] == "mistake"
+    gap_item = [i for i in items if i["expression"] == "Could you remake it?"][0]
+    assert gap_item["kind"] == "mistake"
 
 
 def test_correct_upgrades_note_to_mistake(client, user_id, auth_headers, practice_id):
@@ -281,9 +303,9 @@ def test_correct_upgrades_note_to_mistake(client, user_id, auth_headers, practic
         )
     assert resp.json()["autoSaved"] == 0  # 表达已存在，不新建
     items = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
-    assert len(items) == 1
-    assert items[0]["kind"] == "mistake"
-    assert items[0]["original"] == "please change it fast"
+    upgraded = [i for i in items if i["expression"] == "Could you remake it?"][0]
+    assert upgraded["kind"] == "mistake"
+    assert upgraded["original"] == "please change it fast"
 
 
 def test_correct_no_duplicate_vocab_on_retry(client, user_id, auth_headers, practice_id):

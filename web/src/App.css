@@ -1892,21 +1892,24 @@ button { font-family: inherit; }
 }
 .fb-gap-add.added { color: var(--ok); background: var(--ok-soft); }
 .fb-gap-add:disabled { cursor: default; }
-/* 标准答案卡「记为笔记」（好表达笔记，kind=note） */
-.fb-note-add {
-  margin-left: 8px;
-  display: inline-flex;
+/* 自动记入的好表达笔记（LLM 产出的短表达，非整句） */
+.fb-note-line {
+  margin-top: 10px;
+  display: flex;
   align-items: center;
+  gap: 6px;
   font-family: var(--ff-cn);
   font-size: 13px;
   color: var(--ok);
   background: var(--ok-soft);
-  border: 0;
   border-radius: 8px;
-  padding: 5px 10px;
-  cursor: pointer;
+  padding: 6px 10px;
 }
-.fb-note-add.added { color: var(--ink-3); background: var(--bg-mute); }
+.fb-note-line b {
+  font-family: var(--ff-en);
+  font-weight: 700;
+  color: var(--ok);
+}
 /* 三行做成表格：细分隔线分隔 You said / Say this / Why */
 .fb-gap-table {
   display: flex;

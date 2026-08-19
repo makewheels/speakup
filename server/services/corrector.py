@@ -45,6 +45,8 @@ class CorrectResult(BaseModel):
     summary: str = ""
     nativeVersion: str = ""
     standardAnswer: str = ""  # 标准答案：脱离学习者原话，native 完成场景任务的完整说法
+    note: str = ""  # 好表达笔记：可跨场景复用的短表达/搭配（自动收录，可空）
+    noteChinese: str = ""
     score: float | None = None  # 雅思口语级别 0~9，0.5 进制
     gaps: list[GapItem] = Field(default_factory=list)
     progress: ProgressInfo | None = None
@@ -93,17 +95,24 @@ nativeVersion 和 standardAnswer 分工不同，都要输出：
 - nativeVersion：基于学习者原话的改写——保留他想表达的内容和意图，只改成 native 的说法。
 - standardAnswer：标准答案——完全脱离学习者原话，native 在这个场景里完成任务会怎么开口。覆盖 mission 和 points 的所有必要信息，最多 3 句；不要迁就学习者说了什么、说了多少，也不要复用他的句式。学习者漏掉的任务话术，standardAnswer 里必须有完整示范。
 
+note（好表达笔记，自动收录，宁缺毋滥）：
+- 从本次反馈里挑**一个**最值得记、可跨场景复用的短表达/地道搭配/小句式（≤8 个词，如 "I'd like ... please"、"to go"、"keep the change"），作为 note；没有值得记的就留空字符串。
+- 不要整句抄 standardAnswer/nativeVersion；不要一次性任务话术（具体物品/数字/时间）；不要过于基础的词汇。
+- noteChinese 是 note 的中文意思，口语化、≤20字；note 为空时 noteChinese 也为空。
+
 输出 JSON 前做两次硬检查：
 1. 每个 gap.better 都必须逐字（忽略大小写）出现在 nativeVersion 中；如果没有，重写 nativeVersion 或删除该 gap。
 2. 如果有 task gap，nativeVersion 必须覆盖 scenario mission 和 points 的所有必要信息。standardAnswer 任何时候都必须覆盖。
 score 是 IELTS speaking 0-9、0.5 步进。典型中国学习者 5.0-6.5，跑题/太短要低。
-语言：summary 中文≤25字；nativeVersion/standardAnswer/original/better/example 英文；why 中文≤30字；chinese 是 better 的中文意思（复习时当提示词用，用户看着它说英文），口语化、≤20字。
+语言：summary 中文≤25字；nativeVersion/standardAnswer/original/better/example/note 英文；why 中文≤30字；chinese 是 better 的中文意思（复习时当提示词用，用户看着它说英文），口语化、≤20字。
 
 JSON schema:
 {
   "summary": "",
   "nativeVersion": "",
   "standardAnswer": "",
+  "note": "",
+  "noteChinese": "",
   "score": 6.0,
   "gaps": [
     {
@@ -131,6 +140,8 @@ saveToReview 从严判断，宁缺毋滥（复习项太多会淹没重点）：
   "summary": "任务办成，表达不够自然",
   "nativeVersion": "I'd like a large coffee, please.",
   "standardAnswer": "Hi, could I get a large coffee to go, please?",
+  "note": "I'd like ... please",
+  "noteChinese": "我想要……，谢谢（礼貌点单句式）",
   "score": 5.5,
   "gaps": [
     {
@@ -298,6 +309,8 @@ def _coerce_result(data: dict) -> dict:
         "summary": str(data.get("summary") or ""),
         "nativeVersion": str(data.get("nativeVersion") or data.get("native_version") or ""),
         "standardAnswer": str(data.get("standardAnswer") or data.get("standard_answer") or ""),
+        "note": str(data.get("note") or ""),
+        "noteChinese": str(data.get("noteChinese") or data.get("note_chinese") or ""),
         "score": score,
         "gaps": gaps,
         "progress": progress,

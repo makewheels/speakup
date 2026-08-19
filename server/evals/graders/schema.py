@@ -134,6 +134,28 @@ def standard_answer_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
     return True, f"standardAnswer OK ({len(sa)} chars)"
 
 
+def note_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
+    """note（好表达笔记，可空）：存在时必须短（≤10 词）、英文、且不是整句抄 standardAnswer/nativeVersion。
+
+    用户诉求：笔记应是可复用的短表达/搭配，而不是整句。
+    """
+    if (fail := _no_llm_output(out)) is not None:
+        return fail
+    note = (out.get("note") or "").strip()
+    if not note:
+        return True, "note empty (allowed, 宁缺毋滥)"
+    if _has_chinese(note):
+        return False, f"note has Chinese: {note!r}"
+    words = note.split()
+    if len(words) > 10:
+        return False, f"note too long ({len(words)} words > 10): {note!r}"
+    sa = (out.get("standardAnswer") or "").strip()
+    nv = (out.get("nativeVersion") or "").strip()
+    if note.casefold() in (sa.casefold(), nv.casefold()) and len(words) > 6:
+        return False, f"note copies whole sentence: {note!r}"
+    return True, f"note OK ({len(words)} words)"
+
+
 def score_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
     """score 要么 None，要么 0-9 之间，要么 0.5 步进。"""
     if (fail := _no_llm_output(out)) is not None:
@@ -181,6 +203,7 @@ ALL = {
     "gap_why_chinese": gap_why_in_chinese,
     "better_in_native": better_in_native_version,
     "standard_answer": standard_answer_valid,
+    "note_valid": note_valid,
     "score_valid": score_valid,
     "progress_valid": progress_verdict_valid,
 }

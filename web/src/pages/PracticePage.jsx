@@ -40,9 +40,9 @@ export default function PracticePage() {
   const [transcriptionError, setTranscriptionError] = useState(false);
   const [elapsed, setElapsed] = useState("0:00");
   const [result, setResult] = useState(null);
-  // 错题本收录：gap 收录（错题）+ 标准答案记笔记（好表达笔记）
+  // 错题本收录：gap 收录（错题）；好表达笔记由后端自动收录
   const {
-    savedMap, setSavedMap, noteSavedId, resetReviewCollection, toggleGap, toggleNote,
+    savedMap, setSavedMap, resetReviewCollection, toggleGap,
   } = useReviewCollection(session, result);
   const [autoSaved, setAutoSaved] = useState(0);
   const [round, setRound] = useState(1);
@@ -137,6 +137,8 @@ export default function PracticePage() {
             summary: last.summary,
             nativeVersion: last.nativeVersion,
             standardAnswer: last.standardAnswer ?? "",
+            note: last.note ?? "",
+            noteChinese: last.noteChinese ?? "",
             score: last.score,
             gaps: last.gaps ?? [],
             progress: last.progress ?? null,
@@ -474,7 +476,6 @@ export default function PracticePage() {
         chat={chat}
         chatBusy={chatBusy}
         chatInput={chatInput}
-        noteSavedId={noteSavedId}
         recordingUrl={recordingUrl}
         result={result}
         retrySame={retrySame}
@@ -488,7 +489,6 @@ export default function PracticePage() {
         actionsDisabled={feedbackActionsDisabled}
         t={t}
         toggleGap={toggleGap}
-        toggleNote={toggleNote}
         transcript={transcript}
       />
     );

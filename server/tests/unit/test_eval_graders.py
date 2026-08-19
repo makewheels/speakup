@@ -1,4 +1,9 @@
-from evals.graders.schema import better_in_native_version, required_fields, standard_answer_valid
+from evals.graders.schema import (
+    better_in_native_version,
+    note_valid,
+    required_fields,
+    standard_answer_valid,
+)
 
 
 def test_required_fields_include_standard_answer():
@@ -53,3 +58,26 @@ def test_better_in_native_still_rejects_missing_phrase():
     passed, reason = better_in_native_version(output, {})
     assert not passed
     assert "lost consciousness" in reason
+
+
+def test_note_empty_allowed():
+    passed, reason = note_valid({"note": ""}, {})
+    assert passed
+    assert "allowed" in reason
+
+
+def test_note_short_english_ok():
+    passed, _ = note_valid({"note": "I'd like ... please"}, {})
+    assert passed
+
+
+def test_note_rejects_chinese():
+    passed, reason = note_valid({"note": "我想要一杯咖啡"}, {})
+    assert not passed
+    assert "Chinese" in reason
+
+
+def test_note_rejects_too_long():
+    passed, reason = note_valid({"note": "one two three four five six seven eight nine ten eleven"}, {})
+    assert not passed
+    assert "too long" in reason
