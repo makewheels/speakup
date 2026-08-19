@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-19 10:16
+
+- **chore(docs)**：文档重构——顶层 `design/` 归入 `docs/原型设计/`；`docs/design/` 按业务模块分组（场景练习/）；新增 `docs/评测/`（evals + 发音纠正选型调研）、`docs/changelog/`（追加式变更档案：背景/权衡/验证，只增不改）、`docs/脚本说明.md`（两处 scripts/ 用途）
+- **chore(docs)**：同步更新 docs/README（目录结构+地图）、AGENTS.md（代码地图）、CONTRIBUTING（changelog 机制+路径），修复移动后的内部链接
+
 ### 2026-08-19 09:57
 
 - **add(practice)**：新增「自由说」练习模式——练习页顶部模式切换（场景题/自由说，URL `?mode=free` 可刷新还原）；默认抽一个该用户**没说过**的话题，另提供「不用题目，随便说」与「换一个话题」入口；点录音才建会话（没开口不留空记录），录音/转写/评估复用现有链路
