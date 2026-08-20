@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-20 21:16
+
+- **chore(docs)**：docs/README API 端点表补齐 `/api/free-topics/next`（自由说抽题）与 `/api/version`（只读版本探针），此前已实现但漏登记
+
 ### 2026-08-19 12:15
 
 - **fix(web)**：首页题目第一次尝试不再展示「第 N 次尝试」徽章（第 1 次是默认状态、无需标注），重说回到题目页（round≥2）才显示

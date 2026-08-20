@@ -88,7 +88,9 @@ graph TB
 | `/api/tts` | POST | 文本转自然语音并缓存到 OSS | 百炼 Qwen TTS + OSS |
 | `/api/review-items` | GET/POST | 错题本（错题 mistake / 好表达笔记 note）；收纳/恢复/惰性翻译等子路由见 [业务/1-错题本与复习.md](业务/1-错题本与复习.md) | MongoDB（translate 另走文本模型） |
 | `/api/feedbacks` | POST/GET | 用户反馈（练习结果点赞踩 + 全局反馈），带 AI 反馈快照 | MongoDB |
+| `/api/free-topics/next` | GET | 自由说抽题：抽一个该用户没说过的话题，池子用完自动调 LLM 补一批 | MongoDB（补题走文本模型） |
 | `/api/health` | GET | 健康检查 | — |
+| `/api/version` | GET | 只读版本探针：返回版本号与状态，不依赖数据库或外部服务 | — |
 
 ## 数据流（一次练习）
 
