@@ -8,6 +8,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-23 20:39
+
+- **fix(history)**：历史详情和公开分享页的已作答场景视频不再挤进 `80×80` 缩略框，改为内容区全宽 `16:9` 播放器；静态图片继续使用紧凑缩略图
+- **test**：新增已作答视频全宽容器、图片缩略图和分享页布局回归覆盖；前端 280 项测试及覆盖率、构建通过
+- **chore(docs)**：新增历史与分享当前行为说明，以及包含全部需求、状态和安全边界的持续交接文档
+
 ### 2026-08-23 20:01
 
 - **fix(deploy)**：CI 将当前 commit SHA 注入容器 `APP_VERSION`，部署烟测同时校验 `/api/version`，不再把返回 `dev` 的旧版本探针当作上线成功

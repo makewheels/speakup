@@ -75,6 +75,8 @@ describe("SharePage", () => {
     const video = await screen.findByLabelText("scene video");
     expect(video).toHaveAttribute("src", "https://oss.example/cover.mp4");
     expect(video).toHaveAttribute("poster", "https://oss.example/cover.jpg");
+    expect(video.closest(".session-practice-media")).toHaveClass("session-detail-video");
+    expect(video.closest(".detail-hero-media")).toBeNull();
   });
 
   it("renders an unattempted shared practice as a playable prompt preview", async () => {

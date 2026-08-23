@@ -103,6 +103,38 @@ describe("SessionDetailPage", () => {
     );
   });
 
+  it("renders an attempted session video in the full-width media container", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      imageUrl: "https://oss.example/cover.jpg",
+      videoUrl: "https://oss.example/cover.mp4",
+    });
+    const { container } = setup();
+
+    const video = await screen.findByLabelText("scene video");
+    const media = video.closest(".session-practice-media");
+    expect(media).toHaveClass("session-detail-video");
+    expect(video.closest(".detail-hero-media")).toBeNull();
+    expect(video.closest(".detail-hero")).toBeNull();
+    expect(container.querySelector(".detail-hero")?.nextElementSibling).toHaveClass("share-bar");
+    expect(container.querySelector(".share-bar")?.nextElementSibling).toBe(media);
+  });
+
+  it("keeps an attempted session image as the compact hero thumbnail", async () => {
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      imageUrl: "https://oss.example/cover.jpg",
+      videoUrl: "",
+    });
+    setup();
+
+    const image = await screen.findByAltText("scene");
+    expect(image.closest(".detail-hero-media")).toBeInTheDocument();
+    expect(image.closest(".session-detail-video")).toBeNull();
+  });
+
   it("shows a Free talk badge for free-mode sessions and topic card", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({

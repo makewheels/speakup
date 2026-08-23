@@ -53,7 +53,8 @@ export default function SessionView({
   const rawAttempts = session?.attempts || [];
   const recordings = session?.recordings || [];
   const hasMedia = session?.videoUrl || session?.imageUrl;
-  const showHeaderMedia = hasMedia && rawAttempts.length > 0;
+  const showAttemptVideo = Boolean(session?.videoUrl && rawAttempts.length > 0);
+  const showHeaderImage = Boolean(session?.imageUrl && !showAttemptVideo && rawAttempts.length > 0);
   const scenario = session?.scenario || session;
 
   // 默认选中最新一轮
@@ -67,13 +68,12 @@ export default function SessionView({
   return (
     <div className="session-view">
       <div className="detail-hero">
-        {showHeaderMedia ? (
+        {showHeaderImage ? (
           <PracticeMedia
             className="detail-hero-media"
             imageUrl={session.imageUrl}
-            videoUrl={session.videoUrl}
           />
-        ) : rawAttempts.length > 0 ? (
+        ) : rawAttempts.length > 0 && !showAttemptVideo ? (
           <div className="detail-hero-placeholder" />
         ) : null}
         <div className="detail-hero-info">
@@ -89,6 +89,14 @@ export default function SessionView({
       </div>
 
       {belowHero}
+
+      {showAttemptVideo && (
+        <PracticeMedia
+          className="session-practice-media session-detail-video"
+          imageUrl={session.imageUrl}
+          videoUrl={session.videoUrl}
+        />
+      )}
 
       {rawAttempts.length === 0 ? (
         <div className="session-practice-preview">
