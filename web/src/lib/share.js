@@ -17,3 +17,19 @@ export async function copyShare(session, token) {
   await navigator.clipboard.writeText(text);
   return text;
 }
+
+// 手机优先调系统分享面板；不支持 Web Share 时退回复制完整文案。
+export async function shareOrCopy(session, token) {
+  const text = buildShareText(session, token);
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share({ text });
+      return "shared";
+    } catch (error) {
+      if (error?.name === "AbortError") return "cancelled";
+      // 某些浏览器声明支持但实际拒绝文本分享，继续走剪贴板兜底。
+    }
+  }
+  await navigator.clipboard.writeText(text);
+  return "copied";
+}

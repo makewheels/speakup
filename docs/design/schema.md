@@ -78,9 +78,9 @@
       "summary":        "...",
       "score":          6.5,               // 雅思口语 band，0~9，0.5 进制
       "nativeVersion":  "...",             // 基于学习者原话的 native 改写
-      "standardAnswer": "...",             // 标准答案：脱离学习者原话，native 完成场景任务的完整说法（可空=旧数据）
+      "standardAnswer": "...",             // 独立标准答案：单独请求只看题目白名单快照，不看 transcript/纠正/历史（可空=旧数据或单路降级）
       "gaps": [
-        { "original": "...", "better": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
+        { "title": "...", "original": "...", "better": "...", "chinese": "...", "example": "...", "exampleChinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
       ],
       "progress":      { "verdict": "passed | improved | stuck", "fixed": [], "remaining": [], "comment": "" },  // 第 2 轮起
       "chat": [        // 追问对话：用户拿到反馈后基于本次上下文继续问 AI（可空）
@@ -91,14 +91,16 @@
     }
   ],
   "recordings": [ { "key": "...", "attemptIndex": 0, "createdAt": datetime } ],
-  "shareToken":  "Ab3xK9_random",          // 分享链接 token（开启分享才有，取消分享时清除）；URL = /s/{shareToken}
-  "shared":      true,                       // 是否正在分享；取消分享置 false 并 unset shareToken，旧链接立即失效
+  "shareToken":  "Ab3xK9random",           // 12 位纯字母数字 token；取消分享时保留，再开启可复用；URL = /s/{shareToken}
+  "shared":      true,                       // 是否正在分享；取消时置 false，旧链接立即不可读
   "sharedAt":    datetime,                    // 最近一次开启分享时间
   "createdAt": datetime
 }
 ```
 
-> 分享：`POST /api/practice-sessions/{pid}/share` 生成 token（幂等），`DELETE /api/practice-sessions/{pid}/share?userId=` 撤销。公开读取走 `GET /api/share/{token}`（无鉴权，额外返回 `ownerNickname`）。token 用 `secrets.token_urlsafe`，不可枚举。
+> 分享：`POST /api/practice-sessions/{pid}/share` 生成或复用 token（幂等），`DELETE /api/practice-sessions/{pid}/share?userId=` 撤销当前公开状态但保留 token。公开读取走 `GET /api/share/{token}`（无鉴权，额外返回 `ownerNickname`）。token 为 12 位纯字母数字并做唯一性校验，不可枚举。
+
+> 新 attempt 不再由纠正模型生成好表达笔记；为了兼容历史数据，API 仍可读到空的 `note/noteChinese` 字段。
 
 > 图片、视频与录音库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。
 
@@ -106,18 +108,18 @@
 
 > 命名：用 `reviewItems` 而非 `vocabulary`——错题不只是单词，更多是短语/句式；字段也用 `expression` 而非 `word`。
 
-两类来源（`kind`）：saveToReview 的 gap 落一行（错题 mistake），反馈页标准答案「记为笔记」落一行（好表达笔记 note）；SM-2 字段调度复习，也是因材施教反向出题的来源。行为细节见 [../业务/1-错题本与复习.md](../业务/1-错题本与复习.md)。
+两类来源（`kind`）：`saveToReview` 的 gap 落一行（错题 `mistake`）；用户在结果页/历史详情手动选中文字后落一行（好表达笔记 `note`）。SM-2 字段调度复习，也是因材施教反向出题的来源。行为细节见 [../业务/1-错题本与复习.md](../业务/1-错题本与复习.md)。
 
 ```json
 {
   "_id":           "rv_1781276...",
   "userId":        "u_1781276...",
   "sourceType":    "human | ai_test",           // 从 users 冗余
-  "kind":          "mistake | note",           // 错题本拆分两类：mistake=说错的点（gap 收录），note=好表达笔记（标准答案整句记入）；历史无此字段按 mistake 归一
-  "expression":    "Could you take a look?",   // 地道说法（来自 gap.better 或标准答案），词/短语/句式/整句皆可
+  "kind":          "mistake | note",           // mistake=说错的点（gap 收录），note=用户手动选中的文字；历史无此字段按 mistake 归一
+  "expression":    "Could you take a look?",   // 来自 gap.better 或用户选区，词/短语/句式/整句皆可
   "original":      "you see this",             // 用户原来的说法（仅留档，复习卡不再展示）
   "note":          "更礼貌的请求",
-  "chinese":       "能帮我看看吗？",            // expression 的中文提示词：复习卡正面主动回忆用；新项由 corrector 产出，历史缺项走 translate 接口惰性补齐
+  "chinese":       "能帮我看看吗？",            // expression 的中文提示词：错题可由 corrector 产出，手动笔记/历史缺项走 translate 接口惰性补齐
   "contextSentence": "Could you take a look at this for me?",
   "practiceId":    "ps_1781276...",            // 来源练习，供复习卡展示场景图 + 原题重练
   "status":        "active | retired",         // 会说即收纳（retired）：复习队列/出题取材不再出现；列表可恢复；历史无此字段按 active 兼容
@@ -133,7 +135,7 @@
 
 索引建议：
 - `reviewItems`: `{userId, nextReviewAt}` 复合索引（复习查询）
-- `reviewItems`: `{userId, expression}` 唯一索引（去重）
+- `reviewItems`: `{userId, expression, kind}` 唯一索引（同一类型内去重；迁移前应先把历史缺失 `kind` 的记录补为 `mistake`）
 - `scenarios`: `{slug}` 唯一索引（脚本幂等）
 - `practiceSessions`: `{userId, createdAt}` 复合索引（历史列表）
 
@@ -165,7 +167,7 @@
 ```json
 {
   "_id":         "llm_1781276...",
-  "kind":        "scenario_gen_public",  // scenario_gen_public / scenario_gen_custom / correct / correct_retry / correct_stream / image / video
+  "kind":        "scenario_gen_public",  // 另有 correct / correct_retry / correct_stream / standard_answer / image / video 等
   "sourceType":  "human | ai_test",      // 用户链路继承来源；公共/历史链路默认 human
   "model":       "qwen3.7-plus",          // 真实用的模型名（来自 response_metadata，不是配置里写的）
   "request": {

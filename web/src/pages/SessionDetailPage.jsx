@@ -146,6 +146,7 @@ export default function SessionDetailPage() {
         setChatInput={setChatInput}
         onSend={sendChat}
         chatBusy={chatBusy}
+        noteUserId={user.userId}
       />
 
       {toast && <div className="su-toast">{toast}</div>}

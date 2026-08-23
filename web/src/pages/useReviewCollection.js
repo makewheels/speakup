@@ -3,7 +3,7 @@ import { useUser } from "../context/useUser.js";
 import { useT } from "../i18n/useI18n.js";
 import { api } from "../api/client.js";
 
-// 错题本收录：gap 加入/取消（错题）。好表达笔记改由后端按 LLM 产出的短表达自动收录。
+// 错题本收录：gap 加入/取消（错题）。好表达笔记由用户在结果文字中选中后手动添加。
 export function useReviewCollection(session, result) {
   const { user } = useUser();
   const t = useT();

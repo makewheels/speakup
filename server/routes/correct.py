@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
-from routes.review_items import reactivate_review_item
+from routes.review_items import reactivate_review_item, review_kind_filter
 from services.auth_tokens import assert_same_user, current_user_id
 from services.corrector import correct_text, correct_text_stream
 from services.followup_chat import followup_chat_stream
@@ -49,7 +49,11 @@ def _round_context(practice: dict) -> tuple[dict | None, dict | None, int]:
 
 
 def _has_usable_feedback(result: dict) -> bool:
-    return bool((result.get("nativeVersion") or "").strip() or result.get("gaps"))
+    return bool(
+        (result.get("nativeVersion") or "").strip()
+        or (result.get("standardAnswer") or "").strip()
+        or result.get("gaps")
+    )
 
 
 async def _save_attempt_and_review(
@@ -62,6 +66,10 @@ async def _save_attempt_and_review(
     # 模式以会话为准（创建时已定），请求里的 mode 仅兜底；话题快照优先取请求（前端从会话带）
     mode = _normalize_mode(practice.get("mode") or req.mode)
     free_topic = req.freeTopic or practice.get("freeTopic") or ""
+    # 新笔记改为用户手动选中文字添加。兼容旧字段，但绝不接受/保存纠正模型产出的笔记。
+    result["note"] = ""
+    result["noteChinese"] = ""
+    result.pop("noteReviewItemId", None)
     # 先自动收录 saveToReview 的 gap，把 reviewItemId 回写到 gap 上，
     # 再写入 attempt —— 这样存进库的 attempt 和回给前端的 result 都带 id。
     auto_saved = 0
@@ -72,18 +80,29 @@ async def _save_attempt_and_review(
         expression = gap.get("better", "").strip()
         if not expression:
             continue
-        existing = await get_db().reviewItems.find_one({"userId": req.userId, "expression": expression})
-        if existing:
-            gap["reviewItemId"] = str(existing["_id"])
-            if existing.get("status") == "retired":
+        base_filter = {"userId": req.userId, "expression": expression}
+        mistake = await get_db().reviewItems.find_one(
+            {**base_filter, **review_kind_filter("mistake")}
+        )
+        if mistake:
+            gap["reviewItemId"] = str(mistake["_id"])
+            if mistake.get("status") == "retired":
                 # 已收纳的表达又说错 → 回到错题本
-                await reactivate_review_item(str(existing["_id"]), now)
-            if existing.get("kind") == "note":
-                # 记过笔记的表达又说错 → 升级为错题
-                await get_db().reviewItems.update_one(
-                    id_filter(str(existing["_id"])),
-                    {"$set": {"kind": "mistake", "original": gap.get("original", "")}},
-                )
+                await reactivate_review_item(str(mistake["_id"]), now)
+            continue
+
+        note = await get_db().reviewItems.find_one(
+            {**base_filter, **review_kind_filter("note")}
+        )
+        if note:
+            gap["reviewItemId"] = str(note["_id"])
+            if note.get("status") == "retired":
+                await reactivate_review_item(str(note["_id"]), now)
+            # 只有笔记而没有错题时，沿用历史行为：原记录升级为错题。
+            await get_db().reviewItems.update_one(
+                id_filter(str(note["_id"])),
+                {"$set": {"kind": "mistake", "original": gap.get("original", "")}},
+            )
             continue
         rid = review_item_id()
         await get_db().reviewItems.insert_one({
@@ -107,37 +126,6 @@ async def _save_attempt_and_review(
         })
         gap["reviewItemId"] = rid
         auto_saved += 1
-
-    # 好表达笔记：LLM 挑出的可复用短表达，自动存 kind=note（宁缺毋滥，可空）。
-    # 与错题分开复习；记过笔记的表达后又说错会在上面 gap 循环里升级为错题。
-    note_expr = (result.get("note") or "").strip()
-    if note_expr:
-        existing = await get_db().reviewItems.find_one({"userId": req.userId, "expression": note_expr})
-        if existing:
-            result["noteReviewItemId"] = str(existing["_id"])
-            if existing.get("status") == "retired":
-                await reactivate_review_item(str(existing["_id"]), now)
-        else:
-            nrid = review_item_id()
-            await get_db().reviewItems.insert_one({
-                "_id": nrid,
-                "userId": req.userId,
-                "sourceType": source_type,
-                "kind": "note",
-                "expression": note_expr,
-                "original": "",
-                "note": "",
-                "chinese": (result.get("noteChinese") or "").strip(),
-                "contextSentence": result.get("standardAnswer", ""),
-                "practiceId": req.practiceId,
-                "status": "active",
-                "createdAt": now,
-                "nextReviewAt": now,
-                "reviewCount": 0,
-                "interval": 1,
-                "easiness": 2.5,
-            })
-            result["noteReviewItemId"] = nrid
 
     attempt = {
         "transcript": req.text,

@@ -1688,6 +1688,10 @@ button { font-family: inherit; }
   line-height: 1.6;
   color: var(--ink);
   margin: 0;
+  text-align: justify;
+  text-align-last: left;
+  text-justify: inter-word;
+  overflow-wrap: anywhere;
 }
 .fb-native-text {
   font-family: var(--ff-en);
@@ -1751,6 +1755,25 @@ button { font-family: inherit; }
   line-height: 1.6;
   text-align: center;
 }
+.fb-result-share-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 38px;
+  margin: -2px 0 14px;
+}
+.fb-result-share-row .share-btn {
+  min-height: 38px;
+  padding: 8px 14px;
+}
+.fb-result-share-status {
+  max-width: 52%;
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
 .fb-gaps-section { margin-top: 22px; margin-bottom: 8px; }
 
 .fb-empty-feedback {
@@ -1800,13 +1823,13 @@ button { font-family: inherit; }
 }
 .fb-chat-typing { color: var(--ink-3); }
 .fb-chat-input {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
+  position: relative;
+  display: block;
   margin-top: 4px;
 }
 .fb-chat-input textarea {
-  flex: 1;
+  display: block;
+  width: 100%;
   font-family: var(--ff-cn);
   font-size: 16px;
   line-height: 1.5;
@@ -1814,20 +1837,25 @@ button { font-family: inherit; }
   background: var(--bg-elev);
   border: 1px solid var(--rule);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 12px 58px 12px 14px;
   resize: none;
-  min-height: 96px;
+  min-height: 112px;
   max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
+.fb-chat-input textarea::-webkit-scrollbar { display: none; }
 .fb-chat-input textarea:focus {
   outline: none;
   border-color: var(--accent);
 }
 .fb-chat-input .su-btn {
-  height: 48px;
-  width: 48px;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  height: 40px;
+  width: 40px;
   padding: 0;
-  flex: none;
 }
 /* 差距点：编号卡片 + 三行表格（我说的 / 应该说 / 为什么）*/
 .fb-gap-card {
@@ -1838,7 +1866,8 @@ button { font-family: inherit; }
   margin-bottom: 10px;
 }
 .fb-gap-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding-bottom: 10px;
@@ -1858,18 +1887,24 @@ button { font-family: inherit; }
   font-size: 13px;
   font-weight: 700;
 }
+.fb-gap-heading {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: var(--ff-cn);
+  line-height: 1.4;
+}
 .fb-gap-cat {
   font-family: var(--ff-cn);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 650;
   color: var(--ink-3);
-  background: var(--bg-mute);
-  border-radius: 6px;
-  padding: 2px 8px;
   white-space: nowrap;
 }
+.fb-gap-heading-dot { color: var(--ink-4); }
 /* gap 要点标题（title，中文短语） */
 .fb-gap-title {
-  flex: 1 1 auto;
   min-width: 0;
   font-family: var(--ff-cn);
   font-size: 13px;
@@ -1892,26 +1927,8 @@ button { font-family: inherit; }
 }
 .fb-gap-add.added { color: var(--ok); background: var(--ok-soft); }
 .fb-gap-add:disabled { cursor: default; }
-/* 自动记入的好表达笔记（LLM 产出的短表达，非整句） */
-.fb-note-line {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--ff-cn);
-  font-size: 13px;
-  color: var(--ok);
-  background: var(--ok-soft);
-  border-radius: 8px;
-  padding: 6px 10px;
-}
-.fb-note-line b {
-  font-family: var(--ff-en);
-  font-weight: 700;
-  color: var(--ok);
-}
 /* 三行做成表格：细分隔线分隔 You said / Say this / Why */
-.fb-gap-table {
+.fb-gap-core {
   display: flex;
   flex-direction: column;
 }
@@ -1922,7 +1939,7 @@ button { font-family: inherit; }
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
 }
-.fb-gap-line:last-child { border-bottom: none; padding-bottom: 0; }
+.fb-gap-core .fb-gap-line:last-child { border-bottom: none; padding-bottom: 10px; }
 /* Say this 行带喇叭按钮：居中对齐，且把按钮压扁不撑高整行（之前 40px 按钮把这行顶高了） */
 .fb-gap-line.is-fix { align-items: center; }
 .fb-gap-line .spk-btn {
@@ -1945,7 +1962,7 @@ button { font-family: inherit; }
 .fb-gap-said {
   font-family: var(--ff-en);
   font-size: 16px;
-  color: var(--ink-2);
+  color: var(--warn);
 }
 .fb-gap-fix {
   font-family: var(--ff-en);
@@ -1959,20 +1976,86 @@ button { font-family: inherit; }
   color: var(--ink-2);
   line-height: 1.55;
 }
-/* better 的中文意思（chinese，复习提示词同源） */
-.fb-gap-meaning {
-  font-family: var(--ff-cn);
-  font-size: 14px;
-  color: var(--ink-3);
-  line-height: 1.5;
+/* 例句移入可展开区域，首屏只保留「你说 / 这样说 / 为什么」三行。 */
+.fb-gap-example-details {
+  border-top: 1px solid var(--rule);
+  padding-top: 9px;
 }
-/* 例句（example，英文，次要于 better） */
+.fb-gap-example-details summary {
+  width: fit-content;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+  user-select: none;
+}
+.fb-gap-example-body {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--bg-mute);
+}
+.fb-gap-example-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .fb-gap-example {
+  flex: 1;
   font-family: var(--ff-en);
   font-size: 15px;
   color: var(--ink-2);
   line-height: 1.5;
 }
+.fb-gap-example-row .spk-btn {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 5px;
+}
+.fb-gap-example-zh {
+  margin: 5px 0 0;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+/* 选中文本后手动加入笔记：浮条固定在底部导航上方，兼容手机原生选区手柄。 */
+.note-selection-bar {
+  position: fixed;
+  z-index: 180;
+  left: 50%;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--bg-elev);
+  box-shadow: 0 10px 32px color-mix(in oklch, var(--ink) 18%, transparent);
+}
+.note-selection-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--ff-en);
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.note-selection-bar .su-btn {
+  flex: none;
+  min-height: 38px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.note-selection-toast { bottom: calc(132px + env(safe-area-inset-bottom)); }
 
 /* ── 反馈页：gap 对比卡片 ──────────────────────────────────────── */
 .hero-gap {
@@ -3148,13 +3231,4 @@ button { font-family: inherit; }
   vertical-align: 2px;
   height: 22px;
   font-size: 11px;
-}
-
-/* 自由说 standardAnswer 为空时，笔记独立成行 */
-.fb-note-standalone {
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  background: var(--bg-elev);
-  border: 1px solid var(--rule);
-  border-radius: 12px;
 }

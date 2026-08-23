@@ -6,6 +6,8 @@ import PracticeMedia from "./practice/PracticeMedia.jsx";
 import PracticeScenarioCard from "./practice/PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./practice/PracticeFreeCard.jsx";
 import FeedbackBar from "./practice/FeedbackBar.jsx";
+import FeedbackGapList from "./practice/FeedbackGapList.jsx";
+import SelectableNoteText from "./practice/SelectableNoteText.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
 
@@ -44,6 +46,7 @@ export default function SessionView({
   setChatInput = () => {},
   onSend = () => {},
   chatBusy = false,
+  noteUserId = "",
 }) {
   const t = useT();
   const practiceId = session?._id;
@@ -134,75 +137,38 @@ export default function SessionView({
 
             {attempt.summary && <p className="fb-summary-line">{attempt.summary}</p>}
 
-            {attempt.transcript && (
-              <div className="fb-transcript-card">
-                <div className="fb-card-label">{t("practice.youSaid")}</div>
-                <p className="fb-transcript-text">{attempt.transcript}</p>
-              </div>
-            )}
+            <SelectableNoteText practiceId={practiceId} userId={readOnly ? "" : noteUserId}>
+              {attempt.transcript && (
+                <div className="fb-transcript-card" data-note-context={attempt.transcript}>
+                  <div className="fb-card-label">{t("practice.youSaid")}</div>
+                  <p className="fb-transcript-text">{attempt.transcript}</p>
+                </div>
+              )}
 
-            {attempt.nativeVersion && (
-              <div className="fb-native-card">
-                <div className="fb-card-label native">{t("practice.nativeVersion")}{canSpeak && <SpeakBtn text={attempt.nativeVersion} practiceId={practiceId} />}</div>
-                {splitSentences(attempt.nativeVersion).map((s, k) => (
-                  <p key={k} className="fb-native-text">{s}</p>
-                ))}
-              </div>
-            )}
+              {attempt.nativeVersion && (
+                <div className="fb-native-card" data-note-context={attempt.nativeVersion}>
+                  <div className="fb-card-label native">{t("practice.nativeVersion")}{canSpeak && <SpeakBtn text={attempt.nativeVersion} practiceId={practiceId} />}</div>
+                  {splitSentences(attempt.nativeVersion).map((s, k) => (
+                    <p key={k} className="fb-native-text">{s}</p>
+                  ))}
+                </div>
+              )}
 
-            {attempt.standardAnswer && (
-              <div className="fb-native-card fb-standard-card">
-                <div className="fb-card-label standard">{t("practice.standardAnswer")}{canSpeak && <SpeakBtn text={attempt.standardAnswer} practiceId={practiceId} />}</div>
-                {splitSentences(attempt.standardAnswer).map((s, k) => (
-                  <p key={k} className="fb-native-text">{s}</p>
-                ))}
-              </div>
-            )}
+              {attempt.standardAnswer && (
+                <div className="fb-native-card fb-standard-card" data-note-context={attempt.standardAnswer}>
+                  <div className="fb-card-label standard">{t("practice.standardAnswer")}{canSpeak && <SpeakBtn text={attempt.standardAnswer} practiceId={practiceId} />}</div>
+                  {splitSentences(attempt.standardAnswer).map((s, k) => (
+                    <p key={k} className="fb-native-text">{s}</p>
+                  ))}
+                </div>
+              )}
 
-            {attempt.gaps?.length > 0 && (
-              <div className="fb-gaps-section">
-                <div className="fb-section-label">{t("practice.gapsTitle", { n: attempt.gaps.length })}</div>
-                {attempt.gaps.map((g, j) => (
-                  <div key={j} className="fb-gap-card">
-                    <div className="fb-gap-head">
-                      <span className="fb-gap-num">{j + 1}</span>
-                      {g.category && <span className="fb-gap-cat">{t(`practice.gapCat.${g.category}`)}</span>}
-                      {g.title && <span className="fb-gap-title">{g.title}</span>}
-                    </div>
-                    <div className="fb-gap-table">
-                      <div className="fb-gap-line is-said">
-                        <span className="fb-gap-tag">{t("practice.gapYouSaid")}</span>
-                        <span className="fb-gap-said">{g.original}</span>
-                      </div>
-                      <div className="fb-gap-line is-fix">
-                        <span className="fb-gap-tag">{t("practice.gapSayThis")}</span>
-                        <span className="fb-gap-fix">{g.better}</span>
-                        {canSpeak && <SpeakBtn text={g.better} practiceId={practiceId} />}
-                      </div>
-                      {g.chinese && (
-                        <div className="fb-gap-line">
-                          <span className="fb-gap-tag">{t("practice.gapMeaning")}</span>
-                          <span className="fb-gap-meaning">{g.chinese}</span>
-                        </div>
-                      )}
-                      {g.example && (
-                        <div className="fb-gap-line is-fix">
-                          <span className="fb-gap-tag">{t("practice.gapExample")}</span>
-                          <span className="fb-gap-example">{g.example}</span>
-                          {canSpeak && <SpeakBtn text={g.example} practiceId={practiceId} />}
-                        </div>
-                      )}
-                      {g.why && (
-                        <div className="fb-gap-line">
-                          <span className="fb-gap-tag">{t("practice.gapWhy")}</span>
-                          <span className="fb-gap-whytext">{g.why}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              <FeedbackGapList
+                canSpeak={canSpeak}
+                gaps={attempt.gaps || []}
+                practiceId={practiceId}
+              />
+            </SelectableNoteText>
 
             {!readOnly && isLatest ? (
               <div className="fb-chat">

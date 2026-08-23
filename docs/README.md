@@ -105,9 +105,15 @@ sequenceDiagram
     S-->>W: 场景（图 + 情境 + 任务）
     U->>W: 开口说（语音识别转文本 + 录音）
     W->>S: POST /correct/stream
-    S->>Q: 场景文案 + 口述文本（第2轮起带上一轮）
-    Q-->>S: summary / nativeVersion / standardAnswer / gaps / progress
+    par 纠正请求
+        S->>Q: 题目 + 用户原话（第2轮起可带上一轮）
+        Q-->>S: summary / nativeVersion / gaps / progress
+    and 独立标准答案请求
+        S->>Q: 只含题目白名单快照
+        Q-->>S: standardAnswer
+    end
     S-->>W: SSE 流式返回，错点入 reviewItems（错题本）
+    U->>W: 可选中结果文字手动加入笔记
     W->>S: 录音传 OSS（异步）
     S->>S: 后台：弱点表达反向生成定制题
     U->>W: 再说一遍（不封顶）或下一个场景

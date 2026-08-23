@@ -6,6 +6,8 @@ import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./PracticeFreeCard.jsx";
 import FeedbackBar from "./FeedbackBar.jsx";
+import FeedbackGapList from "./FeedbackGapList.jsx";
+import SelectableNoteText from "./SelectableNoteText.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
 const splitSentences = (s = "") =>
@@ -34,6 +36,7 @@ export default function PracticeFeedbackView({
   chatBusy,
   chatInput,
   modeSwitch,
+  onShare,
   recordingUrl,
   result,
   retrySame,
@@ -43,15 +46,21 @@ export default function PracticeFeedbackView({
   sendChat,
   session,
   setChatInput,
+  shareBusy = false,
+  shareStatus = "",
   startNewRound,
   t,
   toggleGap,
   transcript,
+  userId,
 }) {
   const gaps = result.gaps ?? [];
   const progress = result.progress;
   const passed = progress?.verdict === "passed";
   const isFree = session?.mode === "free";
+  const hasAnswer = Boolean(
+    (result.nativeVersion || "").trim() || (result.standardAnswer || "").trim(),
+  );
 
   // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看。
   // 挂载瞬间上方的大图/视频高度可能尚未定型（加载失败会塌缩、慢加载会位移），
@@ -104,6 +113,14 @@ export default function PracticeFeedbackView({
 
       {result.summary && <p className="fb-summary-line">{result.summary}</p>}
 
+      <div className="fb-result-share-row">
+        <button className="su-btn su-btn-tertiary share-btn" type="button" onClick={onShare} disabled={shareBusy}>
+          <Icon name="share" size={16} />
+          {shareBusy ? t("practice.sharingResult") : t("practice.shareResult")}
+        </button>
+        {shareStatus && <span className="fb-result-share-status" role="status">{shareStatus}</span>}
+      </div>
+
       {passed && <div className="fb-passed">{t("practice.soundedNative")}</div>}
 
       {progress && (
@@ -124,115 +141,51 @@ export default function PracticeFeedbackView({
         </div>
       )}
 
-      {transcript && (
-        <div className="fb-transcript-card">
-          <div className="fb-card-label">
-            {t("practice.youSaid")}
-            {recordingUrl && <RecordingPlayBtn src={recordingUrl} />}
-          </div>
-          <p className="fb-transcript-text">{transcript}</p>
-        </div>
-      )}
-
-      {result.nativeVersion && (
-        <div className="fb-native-card">
-          <div className="fb-card-label native">
-            {t("practice.nativeVersion")}
-            <SpeakBtns text={result.nativeVersion} practiceId={session?._id} />
-          </div>
-          {splitSentences(result.nativeVersion).map((s, i) => (
-            <p key={i} className="fb-native-text">{s}</p>
-          ))}
-        </div>
-      )}
-
-      {result.standardAnswer && (
-        <div className="fb-native-card fb-standard-card">
-          <div className="fb-card-label standard">
-            {t("practice.standardAnswer")}
-            <SpeakBtns text={result.standardAnswer} practiceId={session?._id} />
-          </div>
-          {splitSentences(result.standardAnswer).map((s, i) => (
-            <p key={i} className="fb-native-text">{s}</p>
-          ))}
-          {result.note && (
-            <div className="fb-note-line">
-              <Icon name="save" size={13} />
-              <span>{t("practice.autoNote")}</span>
-              <b>{result.note}</b>
+      <SelectableNoteText practiceId={session?._id} userId={userId}>
+        {transcript && (
+          <div className="fb-transcript-card" data-note-context={transcript}>
+            <div className="fb-card-label">
+              {t("practice.youSaid")}
+              {recordingUrl && <RecordingPlayBtn src={recordingUrl} />}
             </div>
-          )}
-        </div>
-      )}
+            <p className="fb-transcript-text">{transcript}</p>
+          </div>
+        )}
 
-      {/* 自由说 standardAnswer 可空：只有笔记时也展示出来，别丢 */}
-      {!result.standardAnswer && result.note && (
-        <div className="fb-note-line fb-note-standalone">
-          <Icon name="save" size={13} />
-          <span>{t("practice.autoNote")}</span>
-          <b>{result.note}</b>
-        </div>
-      )}
+        {result.nativeVersion && (
+          <div className="fb-native-card" data-note-context={result.nativeVersion}>
+            <div className="fb-card-label native">
+              {t("practice.nativeVersion")}
+              <SpeakBtns text={result.nativeVersion} practiceId={session?._id} />
+            </div>
+            {splitSentences(result.nativeVersion).map((s, i) => (
+              <p key={i} className="fb-native-text">{s}</p>
+            ))}
+          </div>
+        )}
 
-      {gaps.length > 0 && (
-        <div className="fb-gaps-section">
-          <div className="fb-section-label">{t("practice.gapsTitle", { n: gaps.length })}</div>
-          {gaps.map((g, i) => {
-            const added = Boolean(savedMap[i]);
-            return (
-              <div key={i} className="fb-gap-card">
-                <div className="fb-gap-head">
-                  <span className="fb-gap-num">{i + 1}</span>
-                  {g.category && <span className="fb-gap-cat">{t(`practice.gapCat.${g.category}`)}</span>}
-                  {g.title && <span className="fb-gap-title">{g.title}</span>}
-                  <button
-                    className={"fb-gap-add" + (added ? " added" : "")}
-                    onClick={() => toggleGap(g, i)}
-                    title={added ? t("practice.removeTitle") : t("practice.addTitle")}
-                  >
-                    {added
-                      ? <><Icon name="check" size={14} />&nbsp;{t("practice.inReview")}</>
-                      : <><Icon name="plus" size={14} />&nbsp;{t("practice.addToReview")}</>}
-                  </button>
-                </div>
-                <div className="fb-gap-table">
-                  <div className="fb-gap-line is-said">
-                    <span className="fb-gap-tag">{t("practice.gapYouSaid")}</span>
-                    <span className="fb-gap-said">{g.original}</span>
-                  </div>
-                  <div className="fb-gap-line is-fix">
-                    <span className="fb-gap-tag">{t("practice.gapSayThis")}</span>
-                    <span className="fb-gap-fix">{g.better}</span>
-                    <SpeakBtns text={g.better} practiceId={session?._id} />
-                  </div>
-                  {g.chinese && (
-                    <div className="fb-gap-line">
-                      <span className="fb-gap-tag">{t("practice.gapMeaning")}</span>
-                      <span className="fb-gap-meaning">{g.chinese}</span>
-                    </div>
-                  )}
-                  {g.example && (
-                    <div className="fb-gap-line is-fix">
-                      <span className="fb-gap-tag">{t("practice.gapExample")}</span>
-                      <span className="fb-gap-example">{g.example}</span>
-                      <SpeakBtns text={g.example} practiceId={session?._id} />
-                    </div>
-                  )}
-                  {g.why && (
-                    <div className="fb-gap-line">
-                      <span className="fb-gap-tag">{t("practice.gapWhy")}</span>
-                      <span className="fb-gap-whytext">{g.why}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+        {result.standardAnswer && (
+          <div className="fb-native-card fb-standard-card" data-note-context={result.standardAnswer}>
+            <div className="fb-card-label standard">
+              {t("practice.standardAnswer")}
+              <SpeakBtns text={result.standardAnswer} practiceId={session?._id} />
+            </div>
+            {splitSentences(result.standardAnswer).map((s, i) => (
+              <p key={i} className="fb-native-text">{s}</p>
+            ))}
+          </div>
+        )}
+
+        <FeedbackGapList
+          gaps={gaps}
+          onToggleGap={toggleGap}
+          practiceId={session?._id}
+          savedMap={savedMap}
+        />
+      </SelectableNoteText>
       {gaps.length === 0 && (
         <div className="fb-empty-feedback">
-          {result.nativeVersion
+          {hasAnswer
             ? t("practice.noGaps")
             : t("practice.noUsableFeedback")}
         </div>

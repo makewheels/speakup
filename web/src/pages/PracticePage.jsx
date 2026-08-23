@@ -16,6 +16,7 @@ import { useReviewCollection } from "./useReviewCollection.js";
 import useFreeTopic from "./useFreeTopic.js";
 import useFollowupChat from "./useFollowupChat.js";
 import usePressGuard from "./usePressGuard.js";
+import useResultShare from "./useResultShare.js";
 
 export default function PracticePage() {
   const { practiceId } = useParams();
@@ -40,12 +41,15 @@ export default function PracticePage() {
   const [transcriptionError, setTranscriptionError] = useState(false);
   const [elapsed, setElapsed] = useState("0:00");
   const [result, setResult] = useState(null);
-  // 错题本收录：gap 收录（错题）；好表达笔记由后端自动收录
+  // 错题本收录：gap 作为错题收录；好表达笔记从结果文字中手动选中添加
   const {
     savedMap, setSavedMap, resetReviewCollection, toggleGap,
   } = useReviewCollection(session, result);
   const [autoSaved, setAutoSaved] = useState(0);
   const [round, setRound] = useState(1);
+  const { resetShare, shareBusy, shareResult, shareStatus } = useResultShare({
+    result, round, session, setSession, t, userId: user.userId,
+  });
   const [hintGaps, setHintGaps] = useState([]);
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
@@ -69,7 +73,11 @@ export default function PracticePage() {
   const discardRef = useRef(false);    // 重录丢弃本次录音：onstop 里据此跳过转写/评估
 
   const hasUsableFeedback = (res) =>
-    Boolean((res?.nativeVersion || "").trim() || (res?.gaps ?? []).length > 0);
+    Boolean(
+      (res?.nativeVersion || "").trim()
+      || (res?.standardAnswer || "").trim()
+      || (res?.gaps ?? []).length > 0,
+    );
 
   // 本会话「看过但跳过」的 scenarioId（sessionStorage 跨刷新保留，不串号到其他用户）
   const skipKey = `skipped:${user.userId}`;
@@ -85,6 +93,7 @@ export default function PracticePage() {
     setTranscript("");
     setTranscriptionError(false);
     setAutoSaved(0);
+    resetShare();
     setRound(1);
     setHintGaps([]);
     resetReviewCollection();
@@ -249,6 +258,7 @@ export default function PracticePage() {
     setTranscript("");
     setTranscriptionError(false);
     setAutoSaved(0);
+    resetShare();
     setRound((r) => r + 1);
     resetReviewCollection();
     setPhase("ready");
@@ -519,9 +529,13 @@ export default function PracticePage() {
         startNewRound={handleFeedbackNext}
         actionsDisabled={feedbackActionsDisabled}
         modeSwitch={modeSwitch}
+        onShare={shareResult}
         t={t}
         toggleGap={toggleGap}
         transcript={transcript}
+        userId={user.userId}
+        shareBusy={shareBusy}
+        shareStatus={shareStatus}
       />
     );
   }

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { shareUrl, buildShareText, copyShare } from "./share.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildShareText, copyShare, shareOrCopy, shareUrl } from "./share.js";
 
 const SESSION = {
   title: "Coffee shop",
@@ -10,6 +10,10 @@ const SESSION = {
 describe("lib/share", () => {
   beforeEach(() => {
     vi.stubGlobal("window", { location: { origin: "https://speak.example" } });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("shareUrl builds /s/<token> from current origin", () => {
@@ -41,5 +45,35 @@ describe("lib/share", () => {
     const text = await copyShare(SESSION, "tok_1");
     expect(writeText).toHaveBeenCalledWith(text);
     expect(text).toContain("https://speak.example/s/tok_1");
+  });
+
+  it("uses the mobile share sheet when Web Share is available", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn();
+    vi.stubGlobal("navigator", { share, clipboard: { writeText } });
+
+    await expect(shareOrCopy(SESSION, "tok_1")).resolves.toBe("shared");
+    expect(share).toHaveBeenCalledWith({ text: expect.stringContaining("/s/tok_1") });
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it("falls back to copying when the share sheet fails", async () => {
+    const share = vi.fn().mockRejectedValue(new Error("not supported here"));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share, clipboard: { writeText } });
+
+    await expect(shareOrCopy(SESSION, "tok_1")).resolves.toBe("copied");
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/s/tok_1"));
+  });
+
+  it("does not copy when the user cancels the share sheet", async () => {
+    const error = new Error("cancelled");
+    error.name = "AbortError";
+    const share = vi.fn().mockRejectedValue(error);
+    const writeText = vi.fn();
+    vi.stubGlobal("navigator", { share, clipboard: { writeText } });
+
+    await expect(shareOrCopy(SESSION, "tok_1")).resolves.toBe("cancelled");
+    expect(writeText).not.toHaveBeenCalled();
   });
 });

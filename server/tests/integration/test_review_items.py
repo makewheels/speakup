@@ -102,6 +102,55 @@ def test_add_dedups_same_expression_for_same_user(client, user_id, auth_headers)
     assert r2.json()["ids"] == r1.json()["ids"]  # 重复表达返回已存在记录的同一个 id
 
 
+def test_add_dedups_within_kind_but_keeps_note_and_mistake_separate(
+    client, user_id, auth_headers
+):
+    """同一表达可同时是手动笔记和错题；各 kind 内仍只保留一条。"""
+    mistake = _add(client, user_id, auth_headers, expression="x", kind="mistake").json()
+    note = _add(client, user_id, auth_headers, expression="x", kind="note").json()
+    duplicate_note = _add(
+        client, user_id, auth_headers, expression="x", kind="note", note="updated"
+    ).json()
+
+    assert mistake["added"] == 1
+    assert note["added"] == 1
+    assert mistake["ids"] != note["ids"]
+    assert duplicate_note == {"added": 0, "ids": note["ids"]}
+
+    items = client.get(
+        f"/api/review-items/?userId={user_id}", headers=auth_headers
+    ).json()
+    same_expression = [item for item in items if item["expression"] == "x"]
+    assert {item["kind"] for item in same_expression} == {"mistake", "note"}
+    assert len(same_expression) == 2
+
+
+def test_add_treats_legacy_missing_kind_as_mistake_for_dedup(
+    client, user_id, auth_headers
+):
+    existing = _add(client, user_id, auth_headers, expression="legacy").json()
+    rid = existing["ids"][0]
+    mc = MongoClient("mongodb://localhost:27017/")
+    mc[TEST_DB_NAME].reviewItems.update_one({"_id": rid}, {"$unset": {"kind": ""}})
+    mc.close()
+
+    duplicate_mistake = _add(
+        client, user_id, auth_headers, expression="legacy", kind="mistake"
+    ).json()
+    note = _add(client, user_id, auth_headers, expression="legacy", kind="note").json()
+
+    assert duplicate_mistake == {"added": 0, "ids": [rid]}
+    assert note["added"] == 1
+    assert note["ids"] != [rid]
+    items = client.get(
+        f"/api/review-items/?userId={user_id}", headers=auth_headers
+    ).json()
+    assert sorted(item["kind"] for item in items if item["expression"] == "legacy") == [
+        "mistake",
+        "note",
+    ]
+
+
 def test_add_reactivates_retired_expression(client, user_id, auth_headers):
     """已收纳的表达又被收录（再次说错）→ 重新激活，立即待复习。"""
     _add(client, user_id, auth_headers, expression="x")

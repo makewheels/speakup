@@ -21,6 +21,18 @@ AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`�
 
 更新 Infisical 后，从 Actions 页手动运行 `CI / CD` 工作流。任务只在部署期间创建受限临时文件，`docker compose` 完成环境解析后立即删除；生产机不再保留应用 `.env`。不要重跑更新前的旧任务，旧任务可能仍使用当时的密钥快照。
 
+## 功能完成邮件通知
+
+`.github/workflows/feature-notify.yml` 是与部署解耦的手动工作流：只允许从默认分支运行，输入一行标题、简短说明、最多 6 个功能点与可选链接，然后发送手机友好的 HTML + 纯文本邮件。它不随 deploy 自动触发，防止失败重跑或回滚时重复打扰收件人。
+
+通知配置通过 GitHub OIDC 从 Infisical `speakup-secrets/prod/notifications` 读取，不使用 GitHub Secrets，也不在仓库记录收件人或凭据：
+
+- 通用：`EMAIL_PROVIDER`、`MAIL_FROM_NAME`、`MAIL_FROM_ADDRESS`、`FEATURE_MAIL_TO`
+- SMTP：`SMTP_HOST`、`SMTP_PORT`、`SMTP_USERNAME`、`SMTP_PASSWORD`
+- Resend：`RESEND_API_KEY`
+
+发送程序为 `scripts/send_feature_email.py`；SMTP 使用证书校验的隐式 TLS，Resend 请求带幂等键。两种 provider 的日志都只报成功数或脱敏错误，不输出地址、密码或 API key。
+
 **多服务部署的核心约定**（这台机以后会跑多个服务）：
 
 - `/opt/caddy/` 是**唯一**占 80/443 的网关，独立 compose，独立 Caddyfile，由人工/单独的 caddy 仓库维护
