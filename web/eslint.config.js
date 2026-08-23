@@ -24,4 +24,10 @@ export default defineConfig([
       complexity: ['warn', 15],
     },
   },
+  {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])
