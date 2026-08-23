@@ -16,10 +16,16 @@ CHECK_PATHS = [
     Path("utils"),
 ]
 
+# 自动化测试只纳入行数门禁；参数上限是业务代码的可维护性约束，不管测试夹具
+TEST_LINE_PATHS = [
+    Path("tests"),
+    Path("scripts"),
+]
 
-def iter_python_files() -> list[Path]:
+
+def iter_python_files(paths: list[Path]) -> list[Path]:
     files: list[Path] = []
-    for path in CHECK_PATHS:
+    for path in paths:
         if path.is_file():
             files.append(path)
         elif path.is_dir():
@@ -43,7 +49,7 @@ def count_params(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
 
 def main() -> int:
     problems: list[str] = []
-    for path in iter_python_files():
+    for path in iter_python_files(CHECK_PATHS):
         source = path.read_text(encoding="utf-8")
         line_count = len(source.splitlines())
         if line_count > MAX_FILE_LINES:
@@ -55,6 +61,11 @@ def main() -> int:
                 params = count_params(node)
                 if params > MAX_PARAMS:
                     problems.append(f"{path}:{node.lineno} {node.name} has {params} params > {MAX_PARAMS}")
+
+    for path in iter_python_files(TEST_LINE_PATHS):
+        line_count = len(path.read_text(encoding="utf-8").splitlines())
+        if line_count > MAX_FILE_LINES:
+            problems.append(f"{path}: {line_count} lines > {MAX_FILE_LINES}")
 
     if problems:
         print("Code quality check failed:")
