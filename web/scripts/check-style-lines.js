@@ -2,7 +2,8 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-export const MAX_STYLE_LINES = 500;
+export const MAX_SOURCE_LINES = 500;
+export const CHECKED_EXTENSIONS = [".css", ".js", ".jsx", ".ts", ".tsx"];
 
 export function countPhysicalLines(source) {
   if (!source) return 0;
@@ -10,15 +11,15 @@ export function countPhysicalLines(source) {
   return /(?:\r\n|\r|\n)$/.test(source) ? lines - 1 : lines;
 }
 
-async function listCssFiles(directory) {
+async function listSourceFiles(directory, extensions) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
 
   for (const entry of entries) {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await listCssFiles(entryPath));
-    } else if (entry.isFile() && entry.name.endsWith(".css")) {
+      files.push(...await listSourceFiles(entryPath, extensions));
+    } else if (entry.isFile() && extensions.includes(path.extname(entry.name))) {
       files.push(entryPath);
     }
   }
@@ -26,8 +27,8 @@ async function listCssFiles(directory) {
   return files.sort();
 }
 
-export async function inspectStyleLines(rootDirectory, limit = MAX_STYLE_LINES) {
-  const files = await listCssFiles(rootDirectory);
+export async function inspectSourceLines(rootDirectory, limit = MAX_SOURCE_LINES, extensions = CHECKED_EXTENSIONS) {
+  const files = await listSourceFiles(rootDirectory, extensions);
   const oversized = [];
 
   for (const file of files) {
@@ -45,19 +46,30 @@ export async function inspectStyleLines(rootDirectory, limit = MAX_STYLE_LINES) 
 }
 
 async function main() {
-  const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-  const { files, oversized } = await inspectStyleLines(sourceRoot);
+  const webRoot = fileURLToPath(new URL("../", import.meta.url));
+  const scanRoots = [path.join(webRoot, "src"), path.join(webRoot, "scripts")];
+  const allFiles = [];
+  const oversized = [];
+
+  for (const root of scanRoots) {
+    const result = await inspectSourceLines(root);
+    allFiles.push(...result.files.map((file) => path.relative(webRoot, path.join(root, file))));
+    oversized.push(...result.oversized.map((item) => ({
+      ...item,
+      file: path.relative(webRoot, path.join(root, item.file)),
+    })));
+  }
 
   if (oversized.length > 0) {
-    console.error(`CSS physical line limit exceeded (max ${MAX_STYLE_LINES}):`);
-    for (const item of oversized) {
+    console.error(`Source physical line limit exceeded (max ${MAX_SOURCE_LINES}):`);
+    for (const item of oversized.sort((a, b) => a.file.localeCompare(b.file))) {
       console.error(`- ${item.file}: ${item.lines} lines`);
     }
     process.exitCode = 1;
     return;
   }
 
-  console.log(`CSS line check passed: ${files.length} files <= ${MAX_STYLE_LINES} physical lines`);
+  console.log(`Source line check passed: ${allFiles.length} files <= ${MAX_SOURCE_LINES} physical lines`);
 }
 
 const invokedUrl = process.argv[1]

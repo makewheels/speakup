@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "pnpm run lint:styles && eslint .",
-    "lint:styles": "node scripts/check-style-lines.js",
+    "lint": "pnpm run lint:lines && eslint .",
+    "lint:lines": "node scripts/check-style-lines.js",
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

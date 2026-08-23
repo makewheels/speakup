@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { countPhysicalLines, inspectStyleLines } from "./check-style-lines.js";
+import { countPhysicalLines, inspectSourceLines } from "./check-style-lines.js";
 
 const createdDirectories = [];
 
@@ -33,18 +33,35 @@ describe("check-style-lines", () => {
     expect(countPhysicalLines("a\r\nb")).toBe(2);
   });
 
-  it("reports only CSS files above the configured limit", async () => {
+  it("reports only CSS files above the configured limit when scanning CSS only", async () => {
     const root = await createTaskTempDirectory();
     await mkdir(path.join(root, "nested"));
     await writeFile(path.join(root, "ok.css"), "a {}\n".repeat(3));
     await writeFile(path.join(root, "nested", "too-long.css"), "a {}\n".repeat(6));
     await writeFile(path.join(root, "ignored.js"), "x\n".repeat(20));
 
-    const result = await inspectStyleLines(root, 5);
+    const result = await inspectSourceLines(root, 5, [".css"]);
 
     expect(result.files).toHaveLength(2);
     expect(result.oversized).toEqual([
       { file: path.join("nested", "too-long.css"), lines: 6 },
+    ]);
+  });
+
+  it("checks CSS, JS and JSX sources by default and skips other extensions", async () => {
+    const root = await createTaskTempDirectory();
+    await mkdir(path.join(root, "nested"));
+    await writeFile(path.join(root, "ok.jsx"), "export default 1;\n".repeat(3));
+    await writeFile(path.join(root, "nested", "too-long.js"), "x\n".repeat(6));
+    await writeFile(path.join(root, "nested", "too-long.css"), "a {}\n".repeat(7));
+    await writeFile(path.join(root, "ignored.md"), "x\n".repeat(30));
+
+    const result = await inspectSourceLines(root, 5);
+
+    expect(result.files).toHaveLength(3);
+    expect(result.oversized).toEqual([
+      { file: path.join("nested", "too-long.css"), lines: 7 },
+      { file: path.join("nested", "too-long.js"), lines: 6 },
     ]);
   });
 });
