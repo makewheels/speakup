@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../api/client.js";
 import Icon from "../Icon.jsx";
 import { useT } from "../../i18n/useI18n.js";
+import { track } from "../../lib/analytics.js";
 import { selectionFrom } from "./noteSelection.js";
 
 const MAX_NOTE_LENGTH = 500;
@@ -65,6 +66,7 @@ export default function SelectableNoteText({ children, practiceId, userId }) {
         practiceId,
       }]);
       flash(response?.added === 0 ? t("practice.noteAlreadySaved") : t("practice.noteSaved"));
+      if (response?.added > 0) track("note_added", { userId });
       window.getSelection?.()?.removeAllRanges?.();
       setSelection(null);
     } catch (error) {

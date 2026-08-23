@@ -18,6 +18,7 @@ import useFollowupChat from "./useFollowupChat.js";
 import usePressGuard from "./usePressGuard.js";
 import usePracticeRecorder from "./usePracticeRecorder.js";
 import useResultShare from "./useResultShare.js";
+import { track } from "../lib/analytics.js";
 
 export default function PracticePage() {
   const { practiceId } = useParams();
@@ -287,6 +288,13 @@ export default function PracticePage() {
             return;
           }
           setResult(res);
+          track("practice_result", {
+            mode: active.mode === "free" ? "free" : "scenario",
+            score: res.score ?? null,
+            gaps: (res.gaps ?? []).length,
+            round: r ?? round,
+            userId: user.userId,
+          });
           // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
           const init = {};
           (res.gaps ?? []).forEach((g, i) => { if (g.reviewItemId) init[i] = g.reviewItemId; });
@@ -370,13 +378,14 @@ export default function PracticePage() {
     setAutoSaved(0);
     setPhase("recording");
 
-    await startCapture({
+    const started = await startCapture({
       onComplete: (blob) => transcribeAndEvaluate(blob, sess),
       onMicError: (err) => {
         alert(t("practice.micFailed", { msg: err.message }));
         setPhase("ready");
       },
     });
+    if (started) track("practice_recording_started", { mode, userId: user.userId });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, t, session, mode, freeTopic, startCapture]);
 

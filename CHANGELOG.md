@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-23 22:54
+
+- **add(analytics)**：接入自建 Umami 产品统计（独立子域 umami.a4.fit，无 cookie）；仅生产构建注入脚本，事件含自动 pageview 与开始录音/练习结果/分享/错题收录/笔记摘录/追问 6 个业务事件，属性仅标量与不透明 userId；事件字典与隐私边界见 `docs/业务/数据埋点.md`
+
 ### 2026-08-23 21:44
 
 - **refactor(web)**：`PracticePage.jsx` 的录音机逻辑（计时/暂停/重录丢弃/回放 URL）抽成 `usePracticeRecorder` 钩子，页面 576→484 物理行，行为不变

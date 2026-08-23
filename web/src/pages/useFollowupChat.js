@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { chatStream } from "../api/client.js";
+import { track } from "../lib/analytics.js";
 
 /**
  * 追问教练对话：基于本次练习反馈继续问 AI（SSE 流式）。
@@ -22,6 +23,7 @@ export default function useFollowupChat(userId, practiceId) {
     // 先把用户问题和一个空的 assistant 占位推进去，流式往占位里填
     setChat((c) => [...c, { role: "user", content: q }, { role: "assistant", content: "" }]);
     setChatBusy(true);
+    track("followup_asked", { userId });
     controllerRef.current = chatStream(
       { userId, practiceId, question: q },
       {
