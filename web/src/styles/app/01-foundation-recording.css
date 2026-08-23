@@ -1,0 +1,479 @@
+/* ──────────────────────────────────────────────
+   SpeakUp · design tokens
+   ────────────────────────────────────────────── */
+
+:root {
+  --ff-serif:  "Newsreader", "Source Serif Pro", Georgia, serif;
+  --ff-sans:   "Geist", "Helvetica Neue", Helvetica, system-ui, sans-serif;
+  --ff-mono:   "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ff-cn:     "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, sans-serif;
+  /* 学习内容统一英文字体，反馈/复习里不再 serif/mono 混排 */
+  --ff-en:     -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+  --bg:         oklch(0.985 0.005 75);
+  --bg-elev:    #ffffff;
+  --bg-mute:    oklch(0.955 0.006 75);
+  --bg-deep:    oklch(0.925 0.008 75);
+
+  --ink:        oklch(0.20 0.012 60);
+  --ink-2:      oklch(0.42 0.010 60);
+  --ink-3:      oklch(0.62 0.008 60);
+  --ink-4:      oklch(0.78 0.006 60);
+  --rule:       oklch(0.90 0.008 60);
+
+  --accent:     oklch(0.45 0.085 245);
+  --accent-soft:oklch(0.94 0.025 245);
+  --warn:       oklch(0.52 0.135 25);
+  --warn-soft:  oklch(0.95 0.025 25);
+  --ok:         oklch(0.50 0.085 155);
+  --ok-soft:    oklch(0.95 0.025 155);
+
+  /* 录音按钮专用红：两种主题下都保持红色（录音键的通用语义），
+     不复用 --ink（深色主题下 ink 反转为浅色，按钮会显得像被置灰禁用） */
+  --rec:        oklch(0.55 0.20 27);
+  --rec-glow:   oklch(0.55 0.20 27 / 0.35);
+
+  /* gap 序号徽章：深底白字。不能复用 --ink 做底——深色主题下 ink 反转为浅色，
+     会变成"浅灰底 + 白字"看不清 */
+  --gap-num-bg: oklch(0.20 0.012 60);
+  --gap-num-ink:#fff;
+
+  /* 「试着用上」提示条（默认浅色值，深色主题覆盖） */
+  --hint-bg:    oklch(0.97 0.03 90);
+  --hint-rule:  oklch(0.88 0.06 90);
+}
+
+/* ──────────────────────────────────────────────
+   深色主题：按日出日落自动切换（见 lib/theme.js），
+   只覆盖语义 token，组件内引用 token 处自动跟随
+   ────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:         oklch(0.20 0.008 60);
+  --bg-elev:    oklch(0.25 0.010 60);
+  --bg-mute:    oklch(0.28 0.011 60);
+  --bg-deep:    oklch(0.16 0.008 60);
+
+  --ink:        oklch(0.93 0.006 75);
+  --ink-2:      oklch(0.76 0.008 75);
+  --ink-3:      oklch(0.58 0.008 75);
+  --ink-4:      oklch(0.44 0.008 75);
+  --rule:       oklch(0.34 0.010 60);
+
+  --accent:     oklch(0.72 0.10 245);
+  --accent-soft:oklch(0.33 0.05 245);
+  --warn:       oklch(0.70 0.13 25);
+  --warn-soft:  oklch(0.33 0.05 25);
+  --ok:         oklch(0.72 0.10 155);
+  --ok-soft:    oklch(0.33 0.04 155);
+
+  /* 深色下录音红略提亮，保证在深底上的对比度 */
+  --rec:        oklch(0.63 0.19 27);
+  --rec-glow:   oklch(0.63 0.19 27 / 0.35);
+
+  /* 深色下序号徽章用中灰底 + 白字，避免"浅底白字"看不清 */
+  --gap-num-bg: oklch(0.46 0.008 75);
+  --gap-num-ink:#fff;
+
+  --hint-bg:    oklch(0.28 0.02 80);
+  --hint-rule:  oklch(0.38 0.03 80);
+}
+
+/* 图片占位条纹 & 半透明标签：深色下压低亮度 */
+:root[data-theme="dark"] .su-img,
+:root[data-theme="dark"] .mistake-row .thumb,
+:root[data-theme="dark"] .history-thumb,
+:root[data-theme="dark"] .detail-hero-placeholder,
+:root[data-theme="dark"] .review-card-img {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.27 0.012 70) 0 12px,
+      oklch(0.30 0.008 70) 12px 24px
+    );
+}
+:root[data-theme="dark"] .su-img.loading {
+  background:
+    linear-gradient(110deg, oklch(0.27 0.01 70) 8%, oklch(0.31 0.008 70) 18%, oklch(0.27 0.01 70) 33%);
+  background-size: 200% 100%;
+}
+:root[data-theme="dark"] .media-loading { background: rgba(0, 0, 0, 0.6); color: var(--ink-2); }
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff-sans), var(--ff-cn);
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button { font-family: inherit; }
+
+/* ──────────────────────────────────────────────
+   SHELL · mobile-first, 720px cap for desktop
+   ────────────────────────────────────────────── */
+
+.app-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.app-main {
+  flex: 1;
+  padding: 24px 18px 100px;
+}
+
+/* ──────────────────────────────────────────────
+   BOTTOM TAB BAR
+   ────────────────────────────────────────────── */
+
+.su-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 720px;
+  height: 84px;
+  padding: 8px 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+  background: var(--bg);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  align-items: stretch;
+  z-index: 100;
+}
+
+.su-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: var(--ff-cn);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  cursor: pointer;
+  position: relative;
+  text-decoration: none;
+}
+
+.su-tab.active { color: var(--ink); }
+
+.su-tab .badge {
+  position: absolute;
+  top: 6px;
+  left: calc(50% + 10px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--warn);
+  color: #fff;
+  font-family: var(--ff-sans);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0;
+}
+
+/* ──────────────────────────────────────────────
+   TYPOGRAPHY helpers
+   ────────────────────────────────────────────── */
+
+.eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+}
+
+.serif {
+  font-family: var(--ff-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+.mono { font-family: var(--ff-mono); }
+
+/* ──────────────────────────────────────────────
+   BUTTONS
+   ────────────────────────────────────────────── */
+
+.su-btn {
+  font-family: var(--ff-cn);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.su-btn-primary {
+  height: 52px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--bg);
+  width: 100%;
+}
+
+.su-btn-primary[disabled],
+.su-btn-primary.disabled {
+  background: var(--ink-4);
+  color: var(--bg);
+  cursor: not-allowed;
+}
+
+.su-btn-secondary {
+  height: 52px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  width: 100%;
+}
+
+.su-btn-tertiary {
+  height: 44px;
+  border-radius: 10px;
+  background: var(--bg-mute);
+  color: var(--ink-2);
+  padding: 0 16px;
+}
+
+.su-btn-danger {
+  height: 48px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--warn);
+  width: 100%;
+}
+
+/* ──────────────────────────────────────────────
+   CARDS
+   ────────────────────────────────────────────── */
+
+.su-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.su-card .card-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.su-card .en {
+  font-family: var(--ff-serif);
+  font-size: 17px;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* ──────────────────────────────────────────────
+   IMAGE + skeleton
+   ────────────────────────────────────────────── */
+
+.su-img {
+  width: calc(100% - 20px);
+  aspect-ratio: 1 / 1;
+  border-radius: 18px;
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto 16px;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      oklch(0.93 0.013 70) 0 12px,
+      oklch(0.96 0.008 70) 12px 24px
+    );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.su-img.loading {
+  background:
+    linear-gradient(110deg, oklch(0.93 0.01 70) 8%, oklch(0.96 0.008 70) 18%, oklch(0.93 0.01 70) 33%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.su-img img,
+.su-img video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.su-img .caption {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(6px);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.su-skip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 42px;
+  margin-top: 22px;
+  padding: 0 22px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--ink-2);
+  font-family: var(--ff-cn);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s, background 0.12s, color 0.12s;
+}
+.su-skip:hover { background: var(--accent-soft); color: var(--accent); }
+.su-skip:active { transform: scale(0.97); }
+
+/* ──────────────────────────────────────────────
+   RECORD button
+   ────────────────────────────────────────────── */
+
+.su-rec-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.su-rec {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--rec);
+  color: var(--bg);
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.su-rec:active { transform: scale(0.97); }
+.su-rec:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.su-rec.recording {
+  background: var(--rec);
+  animation: pulse 1.4s ease-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--rec-glow); }
+  50%      { box-shadow: 0 0 0 14px oklch(0.55 0.20 27 / 0); }
+}
+
+/* 录音中：暂停(左) + 完成(中大) + 重录(右) 一行 */
+.su-rec-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+}
+
+.su-rec-side {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid var(--rule);
+  background: var(--bg-elev);
+  color: var(--ink-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.su-rec-side:active { transform: scale(0.93); }
+
+/* 暂停态：大按钮灰色、停掉呼吸动画 */
+.su-rec.recording.paused {
+  background: var(--ink-3);
+  animation: none;
+}
+
+.su-rec-label {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  color: var(--ink-2);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.su-rec-hint {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: center;
+  margin-top: 4px;
+  letter-spacing: 0;
+}
+
+.su-prompt {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-2);
+  text-align: center;
+  margin: 18px 0 14px;
+  letter-spacing: 0;
+}

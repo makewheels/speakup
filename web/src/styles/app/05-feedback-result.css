@@ -1,0 +1,444 @@
+
+/* ──────────────────────────────────────────────
+   Loading / status
+   ────────────────────────────────────────────── */
+
+.spin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: -2px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.fade-in { animation: fadeIn .25s ease both; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.page-msg {
+  text-align: center;
+  color: var(--ink-3);
+  padding: 60px 20px;
+  font-size: 14px;
+  font-family: var(--ff-cn);
+}
+
+.saved-msg {
+  color: var(--ok);
+  font-size: 13px;
+  margin: 8px 0 0;
+  text-align: center;
+  font-family: var(--ff-cn);
+}
+
+/* ── 反馈页：新布局 ────────────────────────────────────────────── */
+.fb-transcript-card {
+  background: transparent;
+  border: 1.5px solid var(--rule);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.fb-native-card {
+  background: var(--bg-elev);
+  border: 1.5px solid var(--accent);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+.fb-card-label {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+}
+.fb-card-label.native { color: var(--accent); display: flex; align-items: center; }
+/* 标准答案卡：与 native 版（蓝）同构，绿色描边区分 */
+.fb-card-label.standard { color: var(--ok); display: flex; align-items: center; }
+.fb-standard-card { border-color: var(--ok); }
+/* You said —— 与 native version 同字号(19)，无底色，区别只在颜色（黑 vs 蓝） */
+.fb-transcript-text {
+  font-family: var(--ff-en);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--ink);
+  margin: 0;
+  text-align: justify;
+  text-align-last: left;
+  text-justify: inter-word;
+  overflow-wrap: anywhere;
+}
+.fb-native-text {
+  font-family: var(--ff-en);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--accent);
+  margin: 0 0 4px;
+}
+.fb-native-text:last-child { margin-bottom: 0; }
+
+/* 雅思评分：大字号展示 */
+.fb-score {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0 14px;
+}
+.fb-score-num {
+  font-family: var(--ff-en);
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+}
+.fb-score-unit {
+  font-family: var(--ff-en);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.fb-score-cap {
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  color: var(--ink-4);
+  margin-left: 4px;
+  align-self: center;
+}
+
+/* 第 N 次尝试徽章：练习页顶部 + 结果页分数上方 */
+.attempt-badge-row { text-align: center; margin-bottom: 10px; }
+.attempt-badge {
+  display: inline-block;
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  background: var(--bg-mute);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+.fb-score-anchor { text-align: center; }
+.fb-score-anchor .attempt-badge { margin-bottom: 6px; }
+.fb-summary-line {
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  color: var(--ink-3);
+  margin: 0 0 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+.fb-result-share-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 38px;
+  margin: -2px 0 14px;
+}
+.fb-result-share-row .share-btn {
+  min-height: 38px;
+  padding: 8px 14px;
+}
+.fb-result-share-status {
+  max-width: 52%;
+  font-family: var(--ff-cn);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.fb-gaps-section { margin-top: 22px; margin-bottom: 8px; }
+
+.fb-empty-feedback {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  color: var(--ink-2);
+  background: var(--bg-mute);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.fb-section-label {
+  font-family: var(--ff-cn);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+
+/* 继续追问 AI：基于本次反馈的流式对话 */
+.fb-chat {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+.fb-chat-msg {
+  font-family: var(--ff-cn);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fb-chat-msg.user {
+  background: var(--accent-soft);
+  border-color: transparent;
+  margin-left: 28px;
+}
+.fb-chat-msg.assistant {
+  margin-right: 12px;
+}
+.fb-chat-typing { color: var(--ink-3); }
+.fb-chat-input {
+  position: relative;
+  display: block;
+  margin-top: 4px;
+}
+.fb-chat-input textarea {
+  display: block;
+  width: 100%;
+  font-family: var(--ff-cn);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 12px 58px 12px 14px;
+  resize: none;
+  min-height: 112px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.fb-chat-input textarea::-webkit-scrollbar { display: none; }
+.fb-chat-input textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.fb-chat-input .su-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  height: 40px;
+  width: 40px;
+  padding: 0;
+}
+/* 差距点：编号卡片 + 三行表格（我说的 / 应该说 / 为什么）*/
+.fb-gap-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.fb-gap-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.fb-gap-num {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gap-num-bg);
+  color: var(--gap-num-ink);
+  border-radius: 6px;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 700;
+}
+.fb-gap-heading {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-family: var(--ff-cn);
+  line-height: 1.4;
+}
+.fb-gap-cat {
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.fb-gap-heading-dot { color: var(--ink-4); }
+/* gap 要点标题（title，中文短语） */
+.fb-gap-title {
+  min-width: 0;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.fb-gap-add {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.fb-gap-add.added { color: var(--ok); background: var(--ok-soft); }
+.fb-gap-add:disabled { cursor: default; }
+/* 三行做成表格：细分隔线分隔 You said / Say this / Why */
+.fb-gap-core {
+  display: flex;
+  flex-direction: column;
+}
+.fb-gap-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.fb-gap-core .fb-gap-line:last-child { border-bottom: none; padding-bottom: 10px; }
+/* Say this 行带喇叭按钮：居中对齐，且把按钮压扁不撑高整行（之前 40px 按钮把这行顶高了） */
+.fb-gap-line.is-fix { align-items: center; }
+.fb-gap-line .spk-btn {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 5px;
+  margin-left: 6px;
+}
+.fb-gap-tag {
+  flex: 0 0 64px;
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+/* 局部红：只把 You said 这行的标签标红，正文保持中性，不整行飘红 */
+.fb-gap-line.is-said .fb-gap-tag { color: var(--warn); }
+.fb-gap-line.is-fix  .fb-gap-tag { color: var(--accent); }
+/* 三列正文字号统一 16px，差异只靠颜色/粗细 */
+.fb-gap-said {
+  font-family: var(--ff-en);
+  font-size: 16px;
+  color: var(--warn);
+}
+.fb-gap-fix {
+  font-family: var(--ff-en);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.fb-gap-whytext {
+  font-family: var(--ff-cn);
+  font-size: 16px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+/* 例句移入可展开区域，首屏只保留「你说 / 这样说 / 为什么」三行。 */
+.fb-gap-example-details {
+  border-top: 1px solid var(--rule);
+  padding-top: 9px;
+}
+.fb-gap-example-details summary {
+  width: fit-content;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+  user-select: none;
+}
+.fb-gap-example-body {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--bg-mute);
+}
+.fb-gap-example-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fb-gap-example {
+  flex: 1;
+  font-family: var(--ff-en);
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+.fb-gap-example-row .spk-btn {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 5px;
+}
+.fb-gap-example-zh {
+  margin: 5px 0 0;
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+/* 选中文本后手动加入笔记：浮条固定在底部导航上方，兼容手机原生选区手柄。 */
+.note-selection-bar {
+  position: fixed;
+  z-index: 180;
+  left: 50%;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--bg-elev);
+  box-shadow: 0 10px 32px color-mix(in oklch, var(--ink) 18%, transparent);
+}
+.note-selection-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--ff-en);
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.note-selection-bar .su-btn {
+  flex: none;
+  min-height: 38px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.note-selection-toast { bottom: calc(132px + env(safe-area-inset-bottom)); }
