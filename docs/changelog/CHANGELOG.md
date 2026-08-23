@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-23 23:16
+
+- **fix(web)**：结果页雅思分数下的结论文字（如「任务完成，表达有中式痕迹」）从 14px 浅灰调为 17px 加粗主文字色，浅色主题下近黑、深色主题下近白，更醒目
+
 ### 2026-08-23 23:13
 
 - **chore(docs)**：changelog 归一——根目录 `CHANGELOG.md` 迁入 `docs/changelog/CHANGELOG.md`，全仓库只留这一份；`CONTRIBUTING.md`、`docs/README.md` 等引用与约定同步更新
