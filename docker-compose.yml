@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       - APP_ENV=production
+      - APP_VERSION=${APP_VERSION:-dev}
       - PORT=3001
       - APP_LOG_DIR=/app/logs
       - APP_LOG_ROTATE_WHEN=${APP_LOG_ROTATE_WHEN:-midnight}

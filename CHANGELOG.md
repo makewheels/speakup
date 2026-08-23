@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-23 20:01
+
+- **fix(deploy)**：CI 将当前 commit SHA 注入容器 `APP_VERSION`，部署烟测同时校验 `/api/version`，不再把返回 `dev` 的旧版本探针当作上线成功
+
 ### 2026-08-23 19:52
 
 - **change(notes)**：删除 AI 自动笔记；结果页和本人历史详情支持选中文字后手动加入笔记，保留来源上下文，公开分享页只读；同一表达可分别保留错题与笔记并在各类型内去重
