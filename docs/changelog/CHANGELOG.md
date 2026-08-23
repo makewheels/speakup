@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-23 23:13
+
+- **chore(docs)**：changelog 归一——根目录 `CHANGELOG.md` 迁入 `docs/changelog/CHANGELOG.md`，全仓库只留这一份；`CONTRIBUTING.md`、`docs/README.md` 等引用与约定同步更新
+
 ### 2026-08-23 22:54
 
 - **add(analytics)**：接入自建 Umami 产品统计（独立子域 umami.a4.fit，无 cookie）；仅生产构建注入脚本，事件含自动 pageview 与开始录音/练习结果/分享/错题收录/笔记摘录/追问 6 个业务事件，属性仅标量与不透明 userId；事件字典与隐私边界见 `docs/业务/数据埋点.md`

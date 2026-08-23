@@ -121,4 +121,4 @@ uv run python scripts/sync_public_scenarios.py --to prod
 
 - `docs/design/schema.md` — scenarios 集合 schema（含 `category` 字段）
 - `docs/design/场景练习/scenario-mode.md` — 场景模式总览（前端→后端→AI）
-- `CHANGELOG.md` 2026-06-19 段落 — 这套坐标系的引入记录
+- `docs/changelog/CHANGELOG.md` 2026-06-19 段落 — 这套坐标系的引入记录
