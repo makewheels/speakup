@@ -8,6 +8,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-23 21:44
+
+- **refactor(web)**：`PracticePage.jsx` 的录音机逻辑（计时/暂停/重录丢弃/回放 URL）抽成 `usePracticeRecorder` 钩子，页面 576→484 物理行，行为不变
+- **refactor(server)**：726 行 `test_corrector_logic.py` 按主题拆为核心逻辑 / 流式 / 追问对话三个测试文件，共享 fake 提取到 `corrector_fakes.py`；552 行 `test_correct.py` 的自由说段移到 `test_correct_free.py`
+- **add(quality)**：500 物理行门禁从 CSS 扩展到全源码——前端覆盖 `web/src/**` 与 `web/scripts/**` 的 CSS/JS/JSX/TS/TSX，后端新增 `tests/` 与 `scripts/` 行数检查，均接入现有 CI；不删空行、不豁免存量
+- **chore(docs)**：贡献指南与交接文档同步全源码行数口径
+
 ### 2026-08-23 21:09
 
 - **fix(privacy)**：移除网站启动时的地理位置请求和纬度缓存；主题功能不再读取定位信息，也不会触发浏览器位置权限提示
