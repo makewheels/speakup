@@ -17,7 +17,7 @@ cd web && pnpm test                           # vitest（前端行为测试，�
 cd web && pnpm test:coverage                  # 覆盖率门槛检查（lines/functions/statements≥60%，branches≥50%）
 cd web && pnpm run build                      # 前端构建（捕捉类型/import 错误）
 
-# 4. 更新 CHANGELOG.md（## [Unreleased] 段，见下方格式）
+# 4. 更新 docs/changelog/CHANGELOG.md（## [Unreleased] 段，见下方格式）
 
 # 5. 提 PR
 git add <files> && git commit -m "type: 简短描述"
@@ -47,7 +47,7 @@ git checkout master && git pull
 - **测试要是代码**：不靠 curl 一次性脚本。
 - **源码不超过 500 物理行**：前端 `pnpm run lint:lines` 递归检查 `web/src/**` 与 `web/scripts/**` 的 CSS/JS/JSX/TS/TSX；后端 `uv run python scripts/check_code_quality.py` 对业务源码查行数+参数个数、对 `tests/` 与 `scripts/` 只查行数。两者均已接入 CI。`App.css` 只负责按顺序导入 `styles/app/*.css`，后面的文件允许有意覆盖前面的选择器，拆分或重排时必须保持级联顺序并运行生产构建。超限时按主题拆文件，不允许删空行、压缩代码或豁免存量文件绕过。
 - **批量调 LLM / 文生图很贵**：默认一次 ≤5 个；先 `--dry-run` 验证文案，再花生图钱。详见 `docs/design/场景练习/scenario-taxonomy.md`。
-- **文档随代码一起改**：`docs/业务/*.md` 记录**当前已实现**行为（一个模块一篇），任何对外行为变更必须在同一次 PR 里同步更新对应业务文档（没有就新建一篇）+ `CHANGELOG.md`；数据模型变更同步 `docs/design/schema.md`。设计稿（`docs/design/`）落地后回写进展。重要改动另在 `docs/changelog/<时间戳>-<名字>/` 追加一条详细记录（背景/权衡/验证，只增不改）。文档地图见 `docs/README.md`。
+- **文档随代码一起改**：`docs/业务/*.md` 记录**当前已实现**行为（一个模块一篇），任何对外行为变更必须在同一次 PR 里同步更新对应业务文档（没有就新建一篇）+ `docs/changelog/CHANGELOG.md`（全仓库唯一 changelog）；数据模型变更同步 `docs/design/schema.md`。设计稿（`docs/design/`）落地后回写进展。重要改动另在 `docs/changelog/<时间戳>-<名字>/` 追加一条详细记录（背景/权衡/验证，只增不改）。文档地图见 `docs/README.md`。
 
 ## 新增服务 / 路由时的 checklist
 
@@ -56,7 +56,7 @@ git checkout master && git pull
 - [ ] `docs/业务/*.md` 同步更新（行为变更必选；新模块新建一篇）
 - [ ] `docs/design/schema.md` 同步更新（如有新集合或字段变更）
 - [ ] `docs/design/storage.md` 同步更新（如有新 OSS 路径）
-- [ ] `CHANGELOG.md` 更新（格式见下）
+- [ ] `docs/changelog/CHANGELOG.md` 更新（格式见下）
 - [ ] 重要改动在 `docs/changelog/<时间戳>-<名字>/README.md` 追加详细记录（只增不改）
 - [ ] 对应 `.test.jsx` 覆盖新增页面 / 组件的 happy path 及关键交互（前端改动必选）
 - [ ] `pnpm test` 全绿，`pnpm test:coverage` 门槛通过（前端改动必选）
@@ -64,7 +64,7 @@ git checkout master && git pull
 
 ## CHANGELOG 格式
 
-写在 `## [Unreleased]` 段。**一天多次改动按时间倒序分组**，每段标题用 `### YYYY-MM-DD HH:MM`（**北京时间 UTC+8**，精确到分钟，从 commit 时间取，例如 `TZ='Asia/Shanghai' git show -s --format=%cd --date=format-local:'%Y-%m-%d %H:%M'`）。段下扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。最新放最上。
+写在 `docs/changelog/CHANGELOG.md` 的 `## [Unreleased]` 段（全仓库唯一 changelog，根目录不再放）。**一天多次改动按时间倒序分组**，每段标题用 `### YYYY-MM-DD HH:MM`（**北京时间 UTC+8**，精确到分钟，从 commit 时间取，例如 `TZ='Asia/Shanghai' git show -s --format=%cd --date=format-local:'%Y-%m-%d %H:%M'`）。段下扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。最新放最上。
 
 ```markdown
 ## [Unreleased]

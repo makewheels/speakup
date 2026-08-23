@@ -36,7 +36,7 @@ docs/
 | `docs/deploy.md` | 部署指南（架构 / 首次部署 / 回滚 / 运维命令） | 部署形态变化时同步 |
 | `docs/langfuse.md` | Langfuse 自托管部署、埋点与踩坑记录 | 部署/埋点变化时同步 |
 | `server/evals/README.md` | 评测集跑法 / 任务文件格式 / Langfuse 回写 | evals 代码变化时同步 |
-| `CHANGELOG.md` | 变更记录（北京时间倒序，一行式） | 每次改动必须追加 |
+| `docs/changelog/CHANGELOG.md` | 变更记录（北京时间倒序，一行式，全仓库唯一 changelog） | 每次改动必须追加 |
 | `CONTRIBUTING.md` | 开发流程 / 测试分层 / CHANGELOG 格式（人 + agent 共用） | 流程变化时同步 |
 | `AGENTS.md` | AI agent 入口：代码地图 / 敏感信息约定 / 部署运维 | 结构变化时同步 |
 
