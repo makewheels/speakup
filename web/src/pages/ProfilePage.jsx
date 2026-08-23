@@ -24,7 +24,7 @@ export default function ProfilePage() {
   const chooseTheme = (mode) => {
     setThemeMode(mode);
     setThemeModeState(mode);
-    // 立即生效；auto 的日出日落细化由 initTheme 的定时器接管
+    // 立即生效；auto 会跟随系统深浅色设置
     applyTheme(resolveTheme(mode));
   };
 

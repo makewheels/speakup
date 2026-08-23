@@ -275,7 +275,7 @@
     "langEn": "English",
     "theme": "Theme",
     "themeAuto": "Auto",
-    "themeAutoTitle": "Switches automatically at local sunrise and sunset",
+    "themeAutoTitle": "Follows your system light or dark appearance",
     "themeLight": "Light",
     "themeDark": "Dark",
     "practicePreference": "Practice preference",
