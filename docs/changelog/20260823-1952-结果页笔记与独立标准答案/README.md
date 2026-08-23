@@ -1,7 +1,7 @@
 # 结果页笔记、独立标准答案与通知
 
 - 时间：2026-08-23 19:52（北京）
-- 关联 PR：待创建
+- 关联 PR：[#164](https://github.com/makewheels/speakup/pull/164)
 
 ## 背景
 
