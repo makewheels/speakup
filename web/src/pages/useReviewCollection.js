@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useUser } from "../context/useUser.js";
 import { useT } from "../i18n/useI18n.js";
 import { api } from "../api/client.js";
+import { track } from "../lib/analytics.js";
 
 // 错题本收录：gap 加入/取消（错题）。好表达笔记由用户在结果文字中选中后手动添加。
 export function useReviewCollection(session, result) {
@@ -36,7 +37,10 @@ export function useReviewCollection(session, result) {
         practiceId: session._id,
       }]);
       const id = ids?.[0];
-      if (id) setSavedMap((m) => ({ ...m, [i]: id }));
+      if (id) {
+        setSavedMap((m) => ({ ...m, [i]: id }));
+        track("gap_saved", { userId: user.userId });
+      }
     } catch (e) {
       alert(t("practice.addFailed", { msg: e.message }));
     }

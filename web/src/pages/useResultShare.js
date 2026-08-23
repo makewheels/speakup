@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { api } from "../api/client.js";
 import { shareOrCopy } from "../lib/share.js";
+import { track } from "../lib/analytics.js";
 
 export default function useResultShare({ result, round, session, setSession, t, userId }) {
   const [shareBusy, setShareBusy] = useState(false);
@@ -59,6 +60,7 @@ export default function useResultShare({ result, round, session, setSession, t, 
         else setShareStatus(t("practice.resultShareCancelled"));
       } else {
         setShareStatus(t(method === "shared" ? "practice.resultShared" : "practice.resultShareCopied"));
+        track("result_shared", { method, userId });
       }
     } catch (error) {
       if (enabledNow) await rollbackNewShare({ failure: error, token, type: "failed" });
