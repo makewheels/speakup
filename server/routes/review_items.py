@@ -29,6 +29,14 @@ def normalize_kind(kind) -> str:
     return kind if kind in _KINDS else "mistake"
 
 
+def review_kind_filter(kind) -> dict:
+    """按归一化 kind 查重；历史缺失/非法 kind 与列表读取一致，均视为 mistake。"""
+    normalized = normalize_kind(kind)
+    if normalized == "note":
+        return {"kind": "note"}
+    return {"kind": {"$ne": "note"}}
+
+
 async def reactivate_review_item(rid: str, now: datetime) -> None:
     """已收纳的表达又说错 → 回到错题本：重置调度字段，立即待复习。"""
     await get_db().reviewItems.update_one(
@@ -55,8 +63,13 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
     added = 0
     ids = []  # 与 req.items 顺序对应：每条返回新建或已存在的 reviewItem id，方便前端「取消收录」
     for it in req.items:
+        kind = normalize_kind(it.get("kind"))
         existing = await get_db().reviewItems.find_one(
-            {"userId": req.userId, "expression": it["expression"]}
+            {
+                "userId": req.userId,
+                "expression": it["expression"],
+                **review_kind_filter(kind),
+            }
         )
         if existing:
             ids.append(str(existing["_id"]))
@@ -68,7 +81,7 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
             "_id": rid,
             "userId": req.userId,
             "sourceType": source_type,
-            "kind": normalize_kind(it.get("kind")),
+            "kind": kind,
             "expression": it["expression"],
             "original": it.get("original", ""),
             "note": it.get("note", ""),

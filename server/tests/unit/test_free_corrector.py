@@ -80,7 +80,7 @@ def test_parse_result_free_mode_maps_task_category():
     assert result["gaps"][0]["category"] == "naturalness"
 
 
-def test_parse_result_free_mode_allows_empty_standard_answer():
-    raw = '{"summary": "ok", "nativeVersion": "n", "standardAnswer": "", "gaps": []}'
+def test_parse_result_free_mode_ignores_standard_answer_from_correction():
+    raw = '{"summary": "ok", "nativeVersion": "n", "standardAnswer": "must ignore", "gaps": []}'
     result = _parse_result(raw, free=True)
     assert result["standardAnswer"] == ""

@@ -16,6 +16,7 @@ from services.llm_audit import (
     extract_usage,
     serialize_messages,
 )
+from services.standard_answer import generate_standard_answer
 from services.text_input import is_too_short as _is_too_short
 from services.corrector_prompts import (
     FREE_RETRY_PROMPT,
@@ -35,6 +36,7 @@ class GapItem(BaseModel):
     better: str = ""
     chinese: str = ""
     example: str = ""
+    exampleChinese: str = ""
     why: str = ""
     category: Literal["task", "grammar", "naturalness", "vocabulary", "register"] = "vocabulary"
     saveToReview: bool = False
@@ -50,8 +52,8 @@ class ProgressInfo(BaseModel):
 class CorrectResult(BaseModel):
     summary: str = ""
     nativeVersion: str = ""
-    standardAnswer: str = ""  # 标准答案：脱离学习者原话，native 完成场景任务的完整说法
-    note: str = ""  # 好表达笔记：可跨场景复用的短表达/搭配（自动收录，可空）
+    standardAnswer: str = ""  # 由独立、只看题目的请求在组合层写入
+    note: str = ""  # 旧 API/历史 attempt 兼容；新反馈不再由 LLM 生成
     noteChinese: str = ""
     score: float | None = None  # 雅思口语级别 0~9，0.5 进制
     gaps: list[GapItem] = Field(default_factory=list)
@@ -94,6 +96,8 @@ _EMPTY = {
     "summary": "",
     "nativeVersion": "",
     "standardAnswer": "",
+    "note": "",
+    "noteChinese": "",
     "score": None,
     "gaps": [],
     "progress": None,
@@ -205,6 +209,7 @@ def _coerce_result(data: dict, free: bool = False) -> dict:
             "better": str(item.get("better") or ""),
             "chinese": str(item.get("chinese") or ""),
             "example": str(item.get("example") or ""),
+            "exampleChinese": str(item.get("exampleChinese") or item.get("example_chinese") or ""),
             "why": str(item.get("why") or ""),
             "category": category,
             "saveToReview": bool(item.get("saveToReview")),
@@ -234,9 +239,10 @@ def _coerce_result(data: dict, free: bool = False) -> dict:
     return {
         "summary": str(data.get("summary") or ""),
         "nativeVersion": str(data.get("nativeVersion") or data.get("native_version") or ""),
-        "standardAnswer": str(data.get("standardAnswer") or data.get("standard_answer") or ""),
-        "note": str(data.get("note") or ""),
-        "noteChinese": str(data.get("noteChinese") or data.get("note_chinese") or ""),
+        # 纠正模型没有权威性：即使越权输出这些字段，也必须在解析边界丢弃。
+        "standardAnswer": "",
+        "note": "",
+        "noteChinese": "",
         "score": score,
         "gaps": gaps,
         "progress": progress,
@@ -257,7 +263,7 @@ def _is_usable(result: dict | None) -> bool:
     return bool(result and ((result.get("nativeVersion") or "").strip() or result.get("gaps")))
 
 
-async def correct_text(
+async def _correct_text_only(
     text: str,
     scenario: dict | None = None,
     prev_attempt: dict | None = None,
@@ -309,7 +315,41 @@ async def correct_text(
     return parsed
 
 
-async def correct_text_stream(  # noqa: C901
+async def _standard_answer_or_empty(scenario: dict | None, link_to: dict | None) -> str:
+    """标准答案失败不拖垮纠正主路径；该分支严格只发一次模型请求。"""
+    try:
+        return await generate_standard_answer(scenario, _get_client(), link_to=link_to)
+    except Exception as e:
+        logger.warning("standard answer generation failed; degrading to empty: %s", e)
+        return ""
+
+
+async def correct_text(
+    text: str,
+    scenario: dict | None = None,
+    prev_attempt: dict | None = None,
+    round: int = 1,
+    link_to: dict | None = None,
+) -> dict:
+    """并发执行两条隔离请求，再保持原 API schema 组合返回。"""
+    if _is_too_short(text):
+        return {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
+
+    correction, standard_answer = await asyncio.gather(
+        _correct_text_only(text, scenario, prev_attempt, round, link_to),
+        _standard_answer_or_empty(scenario, link_to),
+        return_exceptions=True,
+    )
+    if isinstance(correction, BaseException):
+        logger.error("correction branch failed; keeping independent answer: %s", correction)
+        correction = {**_EMPTY, "summary": "AI correction unavailable. Independent answer is still available."}
+    if isinstance(standard_answer, BaseException):
+        logger.warning("standard answer branch failed; keeping correction: %s", standard_answer)
+        standard_answer = ""
+    return {**correction, "standardAnswer": standard_answer}
+
+
+async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
     text: str,
     scenario: dict | None = None,
     prev_attempt: dict | None = None,
@@ -327,6 +367,7 @@ async def correct_text_stream(  # noqa: C901
 
     mode = mode_of_scenario(scenario)
     messages = _build_messages(text, scenario, prev_attempt, round, mode)
+    standard_task = asyncio.create_task(_standard_answer_or_empty(scenario, link_to))
     started = time.monotonic()
     full_text = ""
     final_metadata: dict | None = None
@@ -354,22 +395,36 @@ async def correct_text_stream(  # noqa: C901
             yield "usage", {"model": model, "promptTokens": prompt_tok, "completionTokens": completion_tok}
 
         parsed = _parse_result(full_text, free=(mode == "free")) if full_text.strip() else None
-        # 流式返空（生产偶发空 content）→ 降级非流式重取，避免结果页只剩用户原话
+        # 流式返空（生产偶发空 content）→ 只降级纠正请求，避免重复生成标准答案。
         if not _is_usable(parsed):
             try:
-                fallback = await correct_text(text, scenario, prev_attempt, round, link_to=link_to)
+                fallback = await _correct_text_only(text, scenario, prev_attempt, round, link_to=link_to)
                 if _is_usable(fallback):
                     parsed = fallback
             except Exception as e:
                 logger.warning("correct_text_stream fallback failed: %s", e)
         if parsed is None:
             parsed = dict(_PARSE_FAIL)
-        yield "done", parsed
+        final_result = {**parsed, "standardAnswer": await standard_task}
+        yield "done", final_result
     except Exception as e:
         logger.error("correct_text_stream error: %s: %s", type(e).__name__, e)
         err = f"{type(e).__name__}: {e}"
-        msg = "AI service timed out. Please try again." if "timeout" in type(e).__name__.lower() else f"AI service error ({type(e).__name__}). Please try again."
-        yield "error", {"message": msg}
+        try:
+            parsed = await _correct_text_only(text, scenario, prev_attempt, round, link_to=link_to)
+        except Exception as fallback_error:
+            logger.warning("correct_text_stream exception fallback failed: %s", fallback_error)
+            parsed = {**_EMPTY, "summary": "AI correction unavailable. Independent answer is still available."}
+        standard_answer = await standard_task
+        if _is_usable(parsed) or standard_answer:
+            yield "done", {**parsed, "standardAnswer": standard_answer}
+        else:
+            msg = "AI service timed out. Please try again." if "timeout" in type(e).__name__.lower() else f"AI service error ({type(e).__name__}). Please try again."
+            yield "error", {"message": msg}
+    finally:
+        if not standard_task.done():
+            standard_task.cancel()
+            await asyncio.gather(standard_task, return_exceptions=True)
 
     # 流式结束后异步写 audit（不在 yield 链路上做，免得阻塞前端）
     duration_ms = int((time.monotonic() - started) * 1000)

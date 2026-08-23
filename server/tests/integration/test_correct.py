@@ -14,6 +14,8 @@ FAKE_AI_RESULT = {
             "original": "please change it fast",
             "better": "Could you remake it?",
             "chinese": "能重做一下吗？",
+            "example": "Could you remake this drink, please?",
+            "exampleChinese": "你能重做这杯饮料吗？",
             "why": "命令式听起来在指责，先用 Could you 提请求。",
             "category": "register",
             "saveToReview": True,
@@ -103,6 +105,50 @@ def test_correct_rejects_unusable_ai_feedback_without_persisting_attempt(client,
     assert p["attempts"] == []
 
 
+def test_correct_persists_correction_when_independent_standard_answer_degrades(
+    client, user_id, auth_headers, practice_id
+):
+    result = deepcopy(FAKE_AI_RESULT)
+    result["standardAnswer"] = ""
+    with _mock_correct(result):
+        resp = client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "Please change my latte now."},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["nativeVersion"]
+    assert resp.json()["standardAnswer"] == ""
+    practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert practice["attempts"][0]["standardAnswer"] == ""
+
+
+def test_correct_persists_independent_answer_when_correction_degrades(
+    client, user_id, auth_headers, practice_id
+):
+    result = {
+        "summary": "AI correction unavailable. Independent answer is still available.",
+        "nativeVersion": "",
+        "standardAnswer": "Excuse me, could you remake my latte?",
+        "gaps": [],
+        "score": None,
+        "progress": None,
+    }
+    with _mock_correct(result):
+        resp = client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "Please change my latte now."},
+            headers=auth_headers,
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["nativeVersion"] == ""
+    assert resp.json()["standardAnswer"] == "Excuse me, could you remake my latte?"
+    practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert practice["attempts"][0]["standardAnswer"] == "Excuse me, could you remake my latte?"
+
+
 def test_correct_stream_streams_chunks_and_persists_attempt(client, user_id, auth_headers, practice_id):
     with _mock_correct_stream(chunks=["Could you remake it?"]):
         with client.stream(
@@ -140,28 +186,28 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     assert a["standardAnswer"] == FAKE_AI_RESULT["standardAnswer"]
     assert len(a["gaps"]) == 2
     assert a["gaps"][0]["better"] == FAKE_AI_RESULT["gaps"][0]["better"]
+    assert a["gaps"][0]["exampleChinese"] == "你能重做这杯饮料吗？"
     assert a["gaps"][0]["reviewItemId"]            # saveToReview=True → 自动收录并回写 id
     assert "reviewItemId" not in a["gaps"][1]       # saveToReview=False → 不收录、不回写
-    assert a["note"] == FAKE_AI_RESULT["note"]
+    assert a["note"] == ""
+    assert a["noteChinese"] == ""
     assert a["round"] == 1
 
 
-def test_correct_auto_saves_llm_note_as_kind_note(client, user_id, auth_headers, practice_id):
-    with _mock_correct() as mock:
+def test_correct_ignores_legacy_llm_note_and_does_not_auto_save(client, user_id, auth_headers, practice_id):
+    with _mock_correct():
         resp = client.post(
             "/api/correct",
             json={"userId": user_id, "practiceId": practice_id, "text": "test text here ok"},
             headers=auth_headers,
         )
     data = resp.json()
-    # LLM 产出的短表达自动存为 kind=note，并回写 noteReviewItemId
-    assert data["note"] == "I'm in a bit of a rush"
-    assert data["noteReviewItemId"]
+    assert data["note"] == ""
+    assert data["noteChinese"] == ""
+    assert "noteReviewItemId" not in data
     rv = client.get(f"/api/review-items?userId={user_id}", headers=auth_headers).json()
     notes = [r for r in rv if r["kind"] == "note"]
-    assert len(notes) == 1
-    assert notes[0]["expression"] == "I'm in a bit of a rush"   # 短表达，非整句
-    assert notes[0]["chinese"] == "我有点赶时间"
+    assert notes == []
 
 
 def test_second_call_passes_prev_attempt_and_round2(client, user_id, auth_headers, practice_id):
@@ -258,7 +304,7 @@ def test_correct_reactivates_retired_expression(client, user_id, auth_headers, p
         json={"remembered": True},
         headers=auth_headers,
     )
-    # 错题收纳后只剩自动笔记，错题队列为空
+    # 错题收纳后，错题队列为空
     after = client.get(f"/api/review-items/?userId={user_id}", headers=auth_headers).json()
     assert [i for i in after if i["kind"] == "mistake"] == []
 
@@ -307,6 +353,65 @@ def test_correct_upgrades_note_to_mistake(client, user_id, auth_headers, practic
     upgraded = [i for i in items if i["expression"] == "Could you remake it?"][0]
     assert upgraded["kind"] == "mistake"
     assert upgraded["original"] == "please change it fast"
+
+
+def test_correct_prefers_mistake_and_preserves_note_when_both_exist(
+    client, user_id, auth_headers, practice_id
+):
+    """同表达的笔记和错题共存时，自动错题复用 mistake，不误升级 note。"""
+    expression = "Could you remake it?"
+    note = client.post(
+        "/api/review-items",
+        json={
+            "userId": user_id,
+            "items": [
+                {
+                    "expression": expression,
+                    "kind": "note",
+                    "original": "manual note source",
+                    "note": "manual note",
+                }
+            ],
+        },
+        headers=auth_headers,
+    ).json()
+    mistake = client.post(
+        "/api/review-items",
+        json={
+            "userId": user_id,
+            "items": [
+                {
+                    "expression": expression,
+                    "kind": "mistake",
+                    "original": "existing mistake source",
+                }
+            ],
+        },
+        headers=auth_headers,
+    ).json()
+
+    with _mock_correct():
+        resp = client.post(
+            "/api/correct",
+            json={
+                "userId": user_id,
+                "practiceId": practice_id,
+                "text": "Please change it fast now.",
+            },
+            headers=auth_headers,
+        )
+
+    assert resp.json()["autoSaved"] == 0
+    assert resp.json()["gaps"][0]["reviewItemId"] == mistake["ids"][0]
+    items = client.get(
+        f"/api/review-items/?userId={user_id}", headers=auth_headers
+    ).json()
+    by_id = {item["_id"]: item for item in items if item["expression"] == expression}
+    assert set(by_id) == {note["ids"][0], mistake["ids"][0]}
+    assert by_id[note["ids"][0]]["kind"] == "note"
+    assert by_id[note["ids"][0]]["original"] == "manual note source"
+    assert by_id[note["ids"][0]]["note"] == "manual note"
+    assert by_id[mistake["ids"][0]]["kind"] == "mistake"
 
 
 def test_correct_no_duplicate_vocab_on_retry(client, user_id, auth_headers, practice_id):

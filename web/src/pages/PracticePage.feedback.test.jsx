@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   USER,
@@ -23,6 +23,8 @@ vi.mock("../api/client.js", () => ({
     uploadRecording: vi.fn(),
     addReviewItems: vi.fn(),
     deleteReviewItem: vi.fn(),
+    sharePractice: vi.fn(),
+    unsharePractice: vi.fn(),
     tts: vi.fn(),
     submitFeedback: vi.fn(),
     listMyFeedbacks: vi.fn(),
@@ -50,9 +52,15 @@ describe("PracticePage feedback", () => {
     api.uploadRecording.mockResolvedValue({});
     api.addReviewItems.mockResolvedValue({ ids: ["rv_1"] });
     api.deleteReviewItem.mockResolvedValue({});
+    api.sharePractice.mockResolvedValue({ shareToken: "tok_result" });
+    api.unsharePractice.mockResolvedValue({ ok: true });
     api.submitFeedback.mockResolvedValue({});
     api.listMyFeedbacks.mockResolvedValue([]);
     installMediaStubs();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("restores the feedback view from the latest attempt when URL has ?result=1", async () => {
@@ -223,6 +231,36 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("Review now")).toBeInTheDocument();
     expect(screen.getByText("Can you redo my latte")).toBeInTheDocument();
     expect(screen.queryByText("AI did not return usable corrections. Try Review now again.")).not.toBeInTheDocument();
+  });
+
+  it("treats an independent standard-answer-only result as usable feedback", async () => {
+    const { correctStream } = await import("../api/client.js");
+    vi.spyOn(window, "alert").mockImplementation(() => {});
+    correctStream.mockImplementation((_data, { onDone }) => {
+      onDone({
+        result: {
+          summary: "Correction unavailable; independent answer is ready.",
+          nativeVersion: "",
+          standardAnswer: "Excuse me, could you remake my latte, please?",
+          score: null,
+          gaps: [],
+          progress: null,
+        },
+        autoSaved: 0,
+        round: 1,
+      });
+      return { abort: vi.fn() };
+    });
+
+    setup("/practice/sess_abc");
+    await waitFor(() => screen.getByText("Tap once to record"));
+    await recordUntilEvaluating();
+
+    await waitFor(() => expect(screen.getByText("Native")).toBeInTheDocument());
+    expect(screen.getByText("Excuse me, could you remake my latte, please?")).toBeInTheDocument();
+    expect(screen.getByText("No specific correction this time.")).toBeInTheDocument();
+    expect(screen.queryByText("AI did not return usable corrections. Try Review now again.")).not.toBeInTheDocument();
+    expect(window.alert).not.toHaveBeenCalled();
   });
 
   it("renders progress block (passed verdict + fixed/remaining chips) in feedback", async () => {
@@ -461,7 +499,7 @@ describe("PracticePage feedback", () => {
     await waitFor(() => expect(screen.getByText(/Error: net fail/)).toBeInTheDocument());
   });
 
-  it("shows the auto-saved short note (not the whole sentence) when the attempt has one", async () => {
+  it("does not render a legacy AI-generated auto note", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({
       ...SESSION,
@@ -481,9 +519,30 @@ describe("PracticePage feedback", () => {
       ],
     });
     setup("/practice/sess_abc?result=1");
-    await waitFor(() => expect(screen.getByText("Auto-noted")).toBeInTheDocument());
-    expect(screen.getByText("I'm in a bit of a rush")).toBeInTheDocument();
-    // 不再整句存笔记：不应出现手动「Save as note」按钮
-    expect(screen.queryByText("Save as note")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Share this result")).toBeInTheDocument());
+    expect(screen.queryByText("Auto-noted")).not.toBeInTheDocument();
   });
+
+  it("shares directly from the result page", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const { api } = await import("../api/client.js");
+    api.getPractice.mockResolvedValue({
+      ...SESSION,
+      attempts: [{
+        round: 1, transcript: "Can you redo my latte", summary: "ok",
+        nativeVersion: "Could you remake my latte?", score: 6.0, gaps: [], progress: null,
+      }],
+    });
+    setup("/practice/sess_abc?result=1");
+    await waitFor(() => screen.getByText("Share this result"));
+    await userEvent.click(screen.getByText("Share this result"));
+
+    await waitFor(() => {
+      expect(api.sharePractice).toHaveBeenCalledWith("sess_abc", USER.userId);
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/s/tok_result"));
+    });
+    expect(screen.getByText("Share message copied")).toBeInTheDocument();
+  });
+
 });

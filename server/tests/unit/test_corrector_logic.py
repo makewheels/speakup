@@ -1,6 +1,7 @@
 """Pure logic tests for the corrector — no Mongo, no real LLM."""
 
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -42,6 +43,58 @@ def _fake_llm(result: CorrectResult):
     fake_client = MagicMock()
     fake_client.ainvoke = AsyncMock(return_value=fake_response)
     return fake_client
+
+
+def _raw_response(payload: dict):
+    response = MagicMock()
+    response.content = json.dumps(payload, ensure_ascii=False)
+    response.response_metadata = {"model_name": "test-model", "token_usage": {}}
+    return response
+
+
+class _DualRequestClient:
+    """按 system prompt 区分两条并发请求，并记录真实模型调用次数。"""
+
+    def __init__(
+        self,
+        correction: dict,
+        standard: str,
+        *,
+        modes: set[str] | None = None,
+    ):
+        modes = modes or set()
+        self.correction = correction
+        self.standard = standard
+        self.broken_stream = "broken_stream" in modes
+        self.fail_standard = "fail_standard" in modes
+        self.fail_correction = "fail_correction" in modes
+        self.fail_stream = "fail_stream" in modes
+        self.correction_calls = 0
+        self.standard_calls = 0
+        self.stream_calls = 0
+
+    @staticmethod
+    def _is_standard(messages) -> bool:
+        return "独立完成同一道英语口语题" in messages[0].content
+
+    async def ainvoke(self, messages):
+        if self._is_standard(messages):
+            self.standard_calls += 1
+            if self.fail_standard:
+                raise RuntimeError("standard unavailable")
+            return _raw_response({"standardAnswer": self.standard})
+        self.correction_calls += 1
+        if self.fail_correction:
+            raise RuntimeError("correction unavailable")
+        return _raw_response(self.correction)
+
+    async def astream(self, messages):
+        assert not self._is_standard(messages)
+        self.stream_calls += 1
+        if self.fail_stream:
+            raise RuntimeError("correction stream unavailable")
+        raw = "not-json" if self.broken_stream else json.dumps(self.correction, ensure_ascii=False)
+        yield _stream_chunk(raw)
 
 
 def test_get_client_disables_thinking_for_dashscope(monkeypatch):
@@ -117,6 +170,51 @@ def test_valid_json_response_mapped_to_schema():
     assert result["gaps"][0]["saveToReview"] is True
 
 
+def test_correct_text_makes_two_isolated_requests_and_merges_results():
+    correction = {
+        "summary": "纠正完成",
+        "nativeVersion": "Could you remake it?",
+        "standardAnswer": "must be ignored",
+        "gaps": [],
+    }
+    client = _DualRequestClient(correction, "Excuse me, could you remake my latte?")
+    with patch("services.corrector._get_client", return_value=client):
+        result = asyncio.run(correct_text("Please change my latte now", SCENARIO))
+
+    assert client.correction_calls == 1
+    assert client.standard_calls == 1
+    assert result["nativeVersion"] == "Could you remake it?"
+    assert result["standardAnswer"] == "Excuse me, could you remake my latte?"
+
+
+def test_correct_text_standard_failure_keeps_non_stream_correction():
+    correction = {"summary": "纠正完成", "nativeVersion": "Could you remake it?", "gaps": []}
+    client = _DualRequestClient(correction, "", modes={"fail_standard"})
+    with patch("services.corrector._get_client", return_value=client):
+        result = asyncio.run(correct_text("Please change my latte now", SCENARIO))
+
+    assert client.correction_calls == 1
+    assert client.standard_calls == 1
+    assert result["nativeVersion"] == "Could you remake it?"
+    assert result["standardAnswer"] == ""
+
+
+def test_correct_text_correction_failure_keeps_non_stream_standard_answer():
+    correction = {"summary": "", "nativeVersion": "", "gaps": []}
+    client = _DualRequestClient(
+        correction,
+        "Excuse me, could you remake my latte?",
+        modes={"fail_correction"},
+    )
+    with patch("services.corrector._get_client", return_value=client):
+        result = asyncio.run(correct_text("Please change my latte now", SCENARIO))
+
+    assert client.correction_calls == 1
+    assert client.standard_calls == 1
+    assert result["nativeVersion"] == ""
+    assert result["standardAnswer"] == "Excuse me, could you remake my latte?"
+
+
 def test_llm_exception_returns_error_message_not_crash():
     fake_client = MagicMock()
     fake_client.ainvoke = AsyncMock(side_effect=Exception("DashScope 400 BadRequest"))
@@ -176,13 +274,14 @@ def test_first_round_has_no_progress_instructions():
     assert "重说尝试" not in messages[0].content
 
 
-def test_system_prompt_requires_standard_answer_independent_of_learner():
-    """标准答案板块：prompt 必须要求输出 standardAnswer，且明确它脱离学习者原话。"""
+def test_correction_prompt_does_not_generate_standard_answer_or_note():
+    """纠正请求只负责纠正；标准答案和笔记不能再出现在它的输出 schema。"""
     messages = _build_messages("I want a hot latte", scenario=SCENARIO)
     system = messages[0].content
-    assert '"standardAnswer"' in system
-    assert "完全脱离学习者原话" in system
-    assert "nativeVersion" in system  # 两者分工都写进 prompt
+    assert "standardAnswer" not in system
+    assert "note" not in system
+    assert "noteChinese" not in system
+    assert '"nativeVersion"' in system
 
 
 def test_system_prompt_requires_chinese_hint_per_gap():
@@ -208,6 +307,14 @@ def test_parse_result_gap_chinese_defaults_empty():
     assert _parse_result(raw)["gaps"][0]["chinese"] == ""
 
 
+def test_parse_result_maps_example_chinese():
+    raw = """{"summary": "ok", "nativeVersion": "Could you remake it?", "gaps": [
+        {"original": "redo", "better": "remake", "example": "Could you remake it?",
+         "exampleChinese": "你能重做一下吗？", "why": "更自然", "category": "vocabulary"}
+    ]}"""
+    assert _parse_result(raw)["gaps"][0]["exampleChinese"] == "你能重做一下吗？"
+
+
 # ── _parse_result（含 progress）────────────────────────────────────────────
 
 def test_parse_result_with_progress():
@@ -223,17 +330,20 @@ def test_parse_result_without_progress_is_none():
     assert _parse_result(raw)["progress"] is None
 
 
-def test_parse_result_maps_standard_answer():
+def test_parse_result_ignores_standard_answer_and_auto_note_from_correction_model():
     raw = ('{"summary": "ok", "nativeVersion": "Could you remake it?", '
-           '"standardAnswer": "Excuse me, could you remake my latte? I\'m in a rush.", "gaps": []}')
+           '"standardAnswer": "copied learner answer", "note": "auto note", '
+           '"noteChinese": "自动笔记", "gaps": []}')
     result = _parse_result(raw)
-    assert result["standardAnswer"] == "Excuse me, could you remake my latte? I'm in a rush."
+    assert result["standardAnswer"] == ""
+    assert result["note"] == ""
+    assert result["noteChinese"] == ""
 
 
-def test_parse_result_accepts_snake_case_standard_answer():
+def test_parse_result_ignores_snake_case_standard_answer_too():
     raw = ('{"summary": "ok", "nativeVersion": "x", "standard_answer": "Could I get a large coffee?", '
            '"gaps": []}')
-    assert _parse_result(raw)["standardAnswer"] == "Could I get a large coffee?"
+    assert _parse_result(raw)["standardAnswer"] == ""
 
 
 def test_parse_result_standard_answer_defaults_empty():
@@ -363,6 +473,74 @@ async def test_stream_emits_chunk_events_then_done():
     assert "".join(chunk_texts) == raw
     assert len(done_events) == 1
     assert done_events[0]["summary"] == "nice"
+
+
+@pytest.mark.asyncio
+async def test_stream_runs_standard_request_in_parallel_and_merges_done():
+    correction = {"summary": "已纠正", "nativeVersion": "Could you remake it?", "gaps": []}
+    client = _DualRequestClient(correction, "Excuse me, could you remake my latte?")
+    with patch("services.corrector._get_client", return_value=client):
+        events = await _collect("Please change my latte now", SCENARIO)
+
+    done = [data for event, data in events if event == "done"][0]
+    assert client.stream_calls == 1
+    assert client.correction_calls == 0
+    assert client.standard_calls == 1
+    assert done["standardAnswer"] == "Excuse me, could you remake my latte?"
+
+
+@pytest.mark.asyncio
+async def test_stream_correction_fallback_does_not_repeat_standard_request():
+    correction = {"summary": "已纠正", "nativeVersion": "Could you remake it?", "gaps": []}
+    client = _DualRequestClient(
+        correction,
+        "Excuse me, could you remake my latte?",
+        modes={"broken_stream"},
+    )
+    with patch("services.corrector._get_client", return_value=client):
+        events = await _collect("Please change my latte now", SCENARIO)
+
+    done = [data for event, data in events if event == "done"][0]
+    assert client.stream_calls == 1
+    assert client.correction_calls == 1
+    assert client.standard_calls == 1
+    assert done["nativeVersion"] == "Could you remake it?"
+    assert done["standardAnswer"] == "Excuse me, could you remake my latte?"
+
+
+@pytest.mark.asyncio
+async def test_stream_standard_failure_degrades_without_losing_correction():
+    correction = {"summary": "已纠正", "nativeVersion": "Could you remake it?", "gaps": []}
+    client = _DualRequestClient(correction, "", modes={"fail_standard"})
+    with patch("services.corrector._get_client", return_value=client):
+        events = await _collect("Please change my latte now", SCENARIO)
+
+    done = [data for event, data in events if event == "done"][0]
+    assert not [data for event, data in events if event == "error"]
+    assert client.stream_calls == 1
+    assert client.standard_calls == 1
+    assert done["nativeVersion"] == "Could you remake it?"
+    assert done["standardAnswer"] == ""
+
+
+@pytest.mark.asyncio
+async def test_stream_correction_and_fallback_failure_keep_standard_answer():
+    correction = {"summary": "", "nativeVersion": "", "gaps": []}
+    client = _DualRequestClient(
+        correction,
+        "Excuse me, could you remake my latte?",
+        modes={"fail_correction", "fail_stream"},
+    )
+    with patch("services.corrector._get_client", return_value=client):
+        events = await _collect("Please change my latte now", SCENARIO)
+
+    done = [data for event, data in events if event == "done"][0]
+    assert not [data for event, data in events if event == "error"]
+    assert client.stream_calls == 1
+    assert client.correction_calls == 1  # 仅纠正分支允许一次 fallback
+    assert client.standard_calls == 1
+    assert done["nativeVersion"] == ""
+    assert done["standardAnswer"] == "Excuse me, could you remake my latte?"
 
 
 @pytest.mark.asyncio
