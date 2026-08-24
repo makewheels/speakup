@@ -288,7 +288,13 @@
     "themeDark": "深色",
     "practicePreference": "练习偏好",
     "settings": "设置",
-    "feedback": "反馈建议"
+    "feedback": "反馈建议",
+    "nicknameEdit": "编辑",
+    "nicknameInput": "昵称",
+    "nicknameSave": "保存",
+    "nicknameSaving": "保存中…",
+    "nicknameCancel": "取消",
+    "nicknameSaveFailed": "昵称保存失败，请稍后再试"
   },
   "feedback": {
     "openPractice": "反馈这次结果",

@@ -28,10 +28,18 @@ export function UserProvider({ children }) {
     return data;
   };
 
+  const updateNickname = async (nickname) => {
+    const data = await api.updateProfile(nickname);
+    setUser((current) => (
+      current ? { ...current, nickname: data.nickname } : current
+    ));
+    return data;
+  };
+
   const logout = () => setUser(null);
 
   return (
-    <UserContext.Provider value={{ user, login, logout }}>
+    <UserContext.Provider value={{ user, login, updateNickname, logout }}>
       {children}
     </UserContext.Provider>
   );
