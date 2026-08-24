@@ -36,10 +36,33 @@ export function UserProvider({ children }) {
     return data;
   };
 
+  const updateAvatar = async (file) => {
+    const data = await api.uploadAvatar(file);
+    setUser((current) => (
+      current ? { ...current, avatarUrl: data.avatarUrl } : current
+    ));
+    return data;
+  };
+
+  const removeAvatar = async () => {
+    const data = await api.removeAvatar();
+    setUser((current) => (
+      current ? { ...current, avatarUrl: null } : current
+    ));
+    return data;
+  };
+
   const logout = () => setUser(null);
 
   return (
-    <UserContext.Provider value={{ user, login, updateNickname, logout }}>
+    <UserContext.Provider value={{
+      user,
+      login,
+      updateNickname,
+      updateAvatar,
+      removeAvatar,
+      logout,
+    }}>
       {children}
     </UserContext.Provider>
   );

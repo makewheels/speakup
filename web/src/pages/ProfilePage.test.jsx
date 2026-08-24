@@ -7,17 +7,17 @@ import ProfilePage from "./ProfilePage.jsx";
 import PracticePreferencePage from "./PracticePreferencePage.jsx";
 import { UserProvider } from "../context/UserContext.jsx";
 import { getPracticePreferences } from "../lib/practicePreferences.js";
-import { api } from "../api/client.js";
 
 const USER = { userId: "u_1", phone: "13812345678", nickname: "Alice" };
 
-function setup() {
-  localStorage.setItem("english-speak-user", JSON.stringify(USER));
+function setup(user = USER) {
+  localStorage.setItem("english-speak-user", JSON.stringify(user));
   return render(
     <MemoryRouter initialEntries={["/me"]}>
       <UserProvider>
         <Routes>
           <Route path="/me" element={<ProfilePage />} />
+          <Route path="/me/profile" element={<div>Edit profile page</div>} />
           <Route path="/me/practice-preferences" element={<PracticePreferencePage />} />
           <Route path="/me/feedback" element={<div>Feedback page</div>} />
           <Route path="/login" element={<div>Login page</div>} />
@@ -43,40 +43,18 @@ describe("ProfilePage", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
-  it("edits nickname, updates avatar and persists local login state", async () => {
-    vi.spyOn(api, "updateProfile").mockResolvedValue({
-      userId: USER.userId,
-      nickname: "Mint Garden",
-    });
+  it("opens the dedicated profile editor from the whole identity card", async () => {
     setup();
-
-    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
-    const input = screen.getByRole("textbox", { name: "Nickname" });
-    await userEvent.clear(input);
-    await userEvent.type(input, "  Mint   Garden  ");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => expect(screen.getByText("Mint Garden")).toBeInTheDocument());
-    expect(api.updateProfile).toHaveBeenCalledWith("Mint Garden");
-    expect(screen.getByText("M")).toBeInTheDocument();
-    await waitFor(() => {
-      const saved = JSON.parse(localStorage.getItem("english-speak-user"));
-      expect(saved.nickname).toBe("Mint Garden");
-    });
+    await userEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+    expect(screen.getByText("Edit profile page")).toBeInTheDocument();
   });
 
-  it("keeps the editor open and shows an error when saving fails", async () => {
-    vi.spyOn(api, "updateProfile").mockRejectedValue(new Error("network down"));
-    setup();
-
-    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
-    const input = screen.getByRole("textbox", { name: "Nickname" });
-    await userEvent.clear(input);
-    await userEvent.type(input, "New name");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to save nickname");
-    expect(input).toBeInTheDocument();
+  it("renders a custom avatar when one is saved", () => {
+    setup({ ...USER, avatarUrl: "/api/auth/avatar/u_1?v=1" });
+    expect(screen.getByRole("img", { name: "Profile avatar" })).toHaveAttribute(
+      "src",
+      "/api/auth/avatar/u_1?v=1",
+    );
   });
 
   it("renders masked phone number", () => {

@@ -32,4 +32,26 @@ describe("profile API", () => {
     expect(options.headers.Authorization).toBe("Bearer tok_test");
     expect(options.body).toBe(JSON.stringify({ nickname: "Mint Garden" }));
   });
+
+  it("uploads an avatar as authenticated multipart data", async () => {
+    const file = new File(["image"], "avatar.png", { type: "image/png" });
+    await api.uploadAvatar(file);
+    const [url, options] = fetchMock.mock.calls[0];
+
+    expect(url).toBe("/api/auth/profile/avatar");
+    expect(options.method).toBe("POST");
+    expect(options.headers.Authorization).toBe("Bearer tok_test");
+    expect(options.headers["Content-Type"]).toBeUndefined();
+    expect(options.body).toBeInstanceOf(FormData);
+    expect(options.body.get("avatar")).toEqual(file);
+  });
+
+  it("removes the current avatar", async () => {
+    await api.removeAvatar();
+    const [url, options] = fetchMock.mock.calls[0];
+
+    expect(url).toBe("/api/auth/profile/avatar");
+    expect(options.method).toBe("DELETE");
+    expect(options.headers.Authorization).toBe("Bearer tok_test");
+  });
 });

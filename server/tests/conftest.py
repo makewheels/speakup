@@ -71,6 +71,8 @@ def _no_real_llm(monkeypatch):
         return None
     monkeypatch.setattr("services.oss_storage.upload_bytes", _noop)
     monkeypatch.setattr("services.oss_storage.upload_bytes_async", _noop_async)
+    monkeypatch.setattr("services.oss_storage.delete", _noop)
+    monkeypatch.setattr("services.oss_storage.delete_async", _noop_async)
 
 
 @pytest.fixture
