@@ -45,5 +45,10 @@ def delete(key: str) -> None:
     _get_bucket().delete_object(key)
 
 
+async def delete_async(key: str) -> None:
+    """异步删除对象（在线程池运行同步 SDK）。"""
+    await asyncio.to_thread(delete, key)
+
+
 def exists(key: str) -> bool:
     return _get_bucket().object_exists(key)

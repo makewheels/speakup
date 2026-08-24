@@ -27,16 +27,19 @@ async function request(path, options = {}) {
   const { timeout = DEFAULT_TIMEOUT, ...fetchOpts } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
+  const isFormData = typeof FormData !== "undefined" && fetchOpts.body instanceof FormData;
 
   try {
     const res = await fetch(`${BASE}${path}`, {
       ...fetchOpts,
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...authHeaders(),
         ...(fetchOpts.headers || {}),
       },
-      body: fetchOpts.body ? JSON.stringify(fetchOpts.body) : undefined,
+      body: isFormData
+        ? fetchOpts.body
+        : fetchOpts.body ? JSON.stringify(fetchOpts.body) : undefined,
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -174,6 +177,12 @@ export const api = {
     method: "PATCH",
     body: { nickname },
   }),
+  uploadAvatar: (file) => {
+    const form = new FormData();
+    form.append("avatar", file, file.name || "avatar");
+    return request("/auth/profile/avatar", { method: "POST", body: form });
+  },
+  removeAvatar: () => request("/auth/profile/avatar", { method: "DELETE" }),
 
   nextScenario: (userId, exclude = [], prefs = {}) => {
     const params = new URLSearchParams({ userId });

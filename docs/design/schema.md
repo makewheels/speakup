@@ -7,6 +7,8 @@
   "_id":       "u_1781276...",
   "phone":     "13800001234",
   "nickname":  "用户名",                 // 登录用户可修改，规范化后 1–24 个字符
+  "avatarKey": "users/u_.../avatar/current", // 自定义头像 OSS key；默认头像时缺省
+  "avatarVersion": 1787555910000,         // 每次上传更新，用于版本化地址刷新缓存
   "sourceType": "human | ai_test",  // 数据来源；普通用户默认 human，自动体验专用账号为 ai_test
   "createdAt": datetime,
   "updatedAt": datetime                  // 修改资料后写入；历史用户可缺省
@@ -16,6 +18,7 @@
 `sourceType` 在用户首次创建时确定，后续普通登录不改写。历史缺字段用户按 `human` 处理。
 生产分析排除自动体验数据时使用 `{sourceType: {$ne: "ai_test"}}`，以兼容历史记录。
 昵称通过鉴权接口更新，服务端去除首尾空白并合并连续空白；空昵称、超过 24 个字符或含控制字符时拒绝保存。
+头像只允许 JPG、PNG、WebP，最大 5 MB，服务端按文件签名识别类型；默认头像时 `avatarKey` / `avatarVersion` 均缺省。手机号当前无更新接口。
 
 ## authSessions（登录会话）
 

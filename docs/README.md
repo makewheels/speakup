@@ -77,6 +77,8 @@ graph TB
 |------|------|------|------|
 | `/api/auth/login` | POST | 手机号登录/注册 | MongoDB |
 | `/api/auth/profile` | PATCH | 鉴权后修改当前用户昵称 | MongoDB |
+| `/api/auth/profile/avatar` | POST/DELETE | 鉴权后上传头像或恢复默认头像 | MongoDB + OSS |
+| `/api/auth/avatar/{userId}` | GET | 版本化头像地址跳转到私有 OSS 短效签名 URL | MongoDB + OSS 签名 |
 | `/api/scenarios/next` | GET | 派题：定制题 > 未练公共题 > 轮换 | MongoDB + OSS 签名 |
 | `/api/scenarios/practice-word` | POST | 「用这个词练一题」即时出定制场景题 | 文本模型 + 文生图 |
 | `/api/practice-sessions` | GET/POST | 创建会话（存场景快照）/ 历史列表；`/{pid}` 读单条 | MongoDB |
