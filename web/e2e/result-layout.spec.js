@@ -66,11 +66,17 @@ async function openResult(page) {
   await expect(page.locator(".fb-score-num")).toHaveText("7.0");
 }
 
-test("结果页评分固定在顶部、延迟后不回跳，分享入口位于末尾", async ({ page }) => {
+test("结果页评分固定在顶部、延迟后不回跳，反馈与分享位于末尾", async ({ page }) => {
   await openResult(page);
   const resultPage = page.locator(".fb-page");
+  const footer = resultPage.locator(":scope > :last-child");
   await expect(resultPage.locator(":scope > :first-child")).toHaveClass(/fb-score-anchor/);
-  await expect(resultPage.locator(":scope > :last-child")).toHaveClass(/fb-result-share-row/);
+  await expect(footer).toHaveClass(/fb-result-footer/);
+  await expect(footer.getByRole("button", { name: "反馈" })).toBeVisible();
+  await expect(footer.getByRole("button", { name: "分享这次结果" })).toBeVisible();
+  const standardTitle = page.getByRole("heading", { level: 2, name: "标准答案" });
+  await expect(standardTitle).toBeVisible();
+  expect(await standardTitle.evaluate((node) => node.closest("summary") === null)).toBe(true);
   await expect(page.locator(".fb-gap-example-details summary"))
     .toHaveText("看同一用法的另一个例句");
 
