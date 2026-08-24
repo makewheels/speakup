@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-24 08:35
+
+- **chore**：清理本地遗留——删除已合并 PR 的本地分支；`web/.gitignore` 补 Playwright 产物（test-results/、playwright-report/）
+
 ### 2026-08-23 23:22
 
 - **test(e2e)**：新增 Playwright 多引擎冒烟进 CI——Chromium/Firefox/WebKit 桌面 + iPhone 13/Pixel 7 手机视口，验证登录页渲染、输入交互、未知分享链接降级且无未捕获异常；deploy 需等其通过
