@@ -79,7 +79,7 @@
   font-weight: 600;
   white-space: nowrap;
 }
-/* 地点、场景 —— 同一样式，字号同 native version（19px），无底色 */
+/* 地点、场景使用同一正文层级（19px），无底色。 */
 .sc-v {
   border-left: 1px solid var(--rule);
   font-size: 19px;

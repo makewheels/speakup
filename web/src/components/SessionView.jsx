@@ -1,6 +1,5 @@
 import { useState } from "react";
 import Icon from "./Icon.jsx";
-import SpeakBtn from "./SpeakBtn.jsx";
 import RecordingPlayer from "./RecordingPlayer.jsx";
 import PracticeMedia from "./practice/PracticeMedia.jsx";
 import PracticeScenarioCard from "./practice/PracticeScenarioCard.jsx";
@@ -8,13 +7,10 @@ import PracticeFreeCard from "./practice/PracticeFreeCard.jsx";
 import FeedbackBar from "./practice/FeedbackBar.jsx";
 import FeedbackGapList from "./practice/FeedbackGapList.jsx";
 import SelectableNoteText from "./practice/SelectableNoteText.jsx";
-import SentenceCorrectionList from "./practice/SentenceCorrectionList.jsx";
 import PronunciationFeedback from "./practice/PronunciationFeedback.jsx";
+import StandardAnswerCard from "./practice/StandardAnswerCard.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
-
-const splitSentences = (s = "") =>
-  s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
 
 const EMOJI_BLOCK_RE = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu;
 const EMOJI_JOINER_RE = new RegExp("[\\uFE00-\\uFE0F\\u200D]", "gu");
@@ -148,14 +144,20 @@ export default function SessionView({
             {attempt.summary && <p className="fb-summary-line">{attempt.summary}</p>}
 
             <SelectableNoteText practiceId={practiceId} userId={readOnly ? "" : noteUserId}>
-              <SentenceCorrectionList
-                canSpeak={canSpeak}
-                practiceId={practiceId}
-                recordingUrl={attempt.recordingUrl || recording?.url}
-                result={attempt}
-                t={t}
-                transcript={attempt.transcript}
-              />
+              {(attempt.gaps || []).length > 0 && (
+                <section className="result-section result-expression">
+                  <div className="result-section-head">
+                    <h2 className="result-section-title">{t("practice.expressionSuggestions")}</h2>
+                    <span className="result-section-meta">{t("practice.suggestionCount", { n: attempt.gaps.length })}</span>
+                  </div>
+                  <FeedbackGapList
+                    canSpeak={canSpeak}
+                    gaps={attempt.gaps}
+                    practiceId={practiceId}
+                    showTitle={false}
+                  />
+                </section>
+              )}
 
               <PronunciationFeedback
                 canSpeak={canSpeak}
@@ -165,31 +167,17 @@ export default function SessionView({
                 t={t}
               />
 
-              {attempt.standardAnswer && (
-                <details className="fb-native-card fb-standard-card" data-note-context={attempt.standardAnswer}>
-                  <summary className="fb-card-label standard">{t("practice.standardAnswer")}{canSpeak && <SpeakBtn text={attempt.standardAnswer} practiceId={practiceId} />}</summary>
-                  {splitSentences(attempt.standardAnswer).map((s, k) => (
-                    <p key={k} className="fb-native-text">{s}</p>
-                  ))}
-                </details>
-              )}
-
-              {(attempt.gaps || []).length > 0 && (
-                <details className="fb-gap-details">
-                  <summary>{t("practice.gapsTitle", { n: attempt.gaps.length })}</summary>
-                  <FeedbackGapList
-                    canSpeak={canSpeak}
-                    gaps={attempt.gaps}
-                    practiceId={practiceId}
-                    showTitle={false}
-                  />
-                </details>
-              )}
+              <StandardAnswerCard
+                answer={attempt.standardAnswer}
+                canSpeak={canSpeak}
+                practiceId={practiceId}
+                t={t}
+              />
             </SelectableNoteText>
 
             {!readOnly && isLatest ? (
               <div className="fb-chat">
-                <div className="fb-section-label">{t("practice.askTheCoach")}</div>
+                <h2 className="result-section-title">{t("practice.askTheCoach")}</h2>
                 {chat.map((m, k) => (
                   <div key={k} className={"fb-chat-msg " + m.role}>
                     {m.content || (chatBusy && k === chat.length - 1 ? <span className="fb-chat-typing">{t("practice.thinking")}</span> : "")}
@@ -212,7 +200,7 @@ export default function SessionView({
             ) : (
               attempt.chat?.length > 0 && (
                 <div className="fb-chat">
-                  <div className="fb-section-label">{t("practice.askTheCoach")}</div>
+                  <h2 className="result-section-title">{t("practice.askTheCoach")}</h2>
                   {attempt.chat.map((m, k) => (
                     <div key={k} className={"fb-chat-msg " + m.role}>{m.content}</div>
                   ))}
@@ -228,7 +216,6 @@ export default function SessionView({
                 snapshot={{
                   score: attempt.score,
                   summary: attempt.summary,
-                  nativeVersion: attempt.nativeVersion,
                   gaps: attempt.gaps,
                   transcript: attempt.transcript,
                   round: idx + 1,

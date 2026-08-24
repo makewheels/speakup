@@ -5,7 +5,6 @@ from tests.conftest import login_headers
 
 FAKE_AI_RESULT = {
     "summary": "请求语气太硬，催促方式不像母语者。",
-    "nativeVersion": "Could you remake it? I'm kind of in a rush.",
     "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a bit of a rush.",
     "note": "I'm in a bit of a rush",
     "noteChinese": "我有点赶时间",
@@ -33,7 +32,6 @@ FAKE_AI_RESULT = {
 
 FAKE_ROUND2_RESULT = {
     "summary": "好了很多。",
-    "nativeVersion": "Could you remake it? I'm in a rush.",
     "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a bit of a rush.",
     "gaps": [],
     "progress": {
@@ -73,7 +71,7 @@ def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_
     assert resp.status_code == 200
     data = resp.json()
     assert data["summary"]
-    assert data["nativeVersion"]
+    assert "nativeVersion" not in data
     assert data["standardAnswer"] == FAKE_AI_RESULT["standardAnswer"]
     assert data["round"] == 1
     assert len(data["gaps"]) == 2
@@ -85,7 +83,6 @@ def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_
 def test_correct_rejects_unusable_ai_feedback_without_persisting_attempt(client, user_id, auth_headers, practice_id):
     empty_result = {
         "summary": "AI feedback could not be parsed. Try again.",
-        "nativeVersion": "",
         "score": None,
         "gaps": [],
         "progress": None,
@@ -118,7 +115,7 @@ def test_correct_persists_correction_when_independent_standard_answer_degrades(
         )
 
     assert resp.status_code == 200
-    assert resp.json()["nativeVersion"]
+    assert "nativeVersion" not in resp.json()
     assert resp.json()["standardAnswer"] == ""
     practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
     assert practice["attempts"][0]["standardAnswer"] == ""
@@ -129,7 +126,6 @@ def test_correct_persists_independent_answer_when_correction_degrades(
 ):
     result = {
         "summary": "AI correction unavailable. Independent answer is still available.",
-        "nativeVersion": "",
         "standardAnswer": "Excuse me, could you remake my latte?",
         "gaps": [],
         "score": None,
@@ -143,7 +139,7 @@ def test_correct_persists_independent_answer_when_correction_degrades(
         )
 
     assert resp.status_code == 200
-    assert resp.json()["nativeVersion"] == ""
+    assert "nativeVersion" not in resp.json()
     assert resp.json()["standardAnswer"] == "Excuse me, could you remake my latte?"
     practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
     assert practice["attempts"][0]["standardAnswer"] == "Excuse me, could you remake my latte?"

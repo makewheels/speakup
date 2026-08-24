@@ -11,7 +11,7 @@ vi.mock("../../api/client.js", () => ({
 }));
 
 const USER = { userId: "u_test1", phone: "13800001234", nickname: "Test" };
-const SNAPSHOT = { score: 7.5, summary: "good", nativeVersion: "Hi there.", gaps: [], transcript: "hi", round: 1 };
+const SNAPSHOT = { score: 7.5, summary: "good", gaps: [], transcript: "hi", round: 1 };
 
 function setup(props) {
   localStorage.setItem("english-speak-user", JSON.stringify(USER));
@@ -22,6 +22,11 @@ function setup(props) {
       </UserProvider>
     </MemoryRouter>,
   );
+}
+
+async function openFeedback() {
+  const trigger = await screen.findByRole("button", { name: "Give feedback on this result" });
+  await userEvent.click(trigger);
 }
 
 // submitFeedback 在 beforeEach 里 mock 成回显提交数据（模拟后端 upsert 返回）
@@ -52,6 +57,7 @@ describe("FeedbackBar", () => {
   it("submits good and enters submitted state (locks thumbs)", async () => {
     const { api } = await import("../../api/client.js");
     setup();
+    await openFeedback();
     await waitFor(() => expect(screen.getByLabelText("Helpful")).toBeInTheDocument());
     await userEvent.click(screen.getByLabelText("Helpful"));
 
@@ -66,15 +72,15 @@ describe("FeedbackBar", () => {
       attemptIndex: 0,
     });
     expect(call.snapshot).toEqual(SNAPSHOT);
-    // 已反馈态：显示修改按钮，👍/👎 消失
-    expect(screen.getByText("Edit")).toBeInTheDocument();
+    // 提交后自动收起，只有结果反馈按钮留在页面上。
+    expect(screen.getByRole("button", { name: "Feedback sent · view or edit" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Helpful")).not.toBeInTheDocument();
   });
 
   it("shows comment box before any rating and submits good with the comment", async () => {
     const { api } = await import("../../api/client.js");
     setup();
-    // 输入框常驻：还没点赞踩就能写
+    await openFeedback();
     const box = await screen.findByPlaceholderText(/Anything to add/);
     await userEvent.type(box, "很有帮助，但希望多给例句");
     await userEvent.click(screen.getByLabelText("Helpful"));
@@ -87,13 +93,14 @@ describe("FeedbackBar", () => {
       tags: [],
       comment: "很有帮助，但希望多给例句",
     });
-    // 已反馈态回显文字
+    await userEvent.click(screen.getByRole("button", { name: "Feedback sent · view or edit" }));
     expect(screen.getByText("很有帮助，但希望多给例句")).toBeInTheDocument();
   });
 
   it("expands reason tags on thumbs-down and submits bad with selected tags", async () => {
     const { api } = await import("../../api/client.js");
     setup();
+    await openFeedback();
     await waitFor(() => expect(screen.getByLabelText("Not helpful")).toBeInTheDocument());
     await userEvent.click(screen.getByLabelText("Not helpful"));
     await userEvent.click(screen.getByText("Score too strict"));
@@ -101,12 +108,12 @@ describe("FeedbackBar", () => {
     await userEvent.type(screen.getByPlaceholderText(/Anything to add/), "score weird");
     await userEvent.click(screen.getByText("Submit"));
 
-    await waitFor(() => expect(screen.getByText("Edit")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Feedback sent · view or edit" })).toBeInTheDocument());
     const call = api.submitFeedback.mock.calls[0][0];
     expect(call.rating).toBe("bad");
     expect(call.tags).toEqual(["score_too_strict", "gap_wrong"]);
     expect(call.comment).toBe("score weird");
-    // 已反馈态显示选择的内容
+    await userEvent.click(screen.getByRole("button", { name: "Feedback sent · view or edit" }));
     expect(screen.getByText("Score too strict")).toBeInTheDocument();
     expect(screen.getByText("score weird")).toBeInTheDocument();
   });
@@ -115,6 +122,7 @@ describe("FeedbackBar", () => {
     const { api } = await import("../../api/client.js");
     api.submitFeedback.mockRejectedValue(new Error("net"));
     setup();
+    await openFeedback();
     await waitFor(() => expect(screen.getByLabelText("Helpful")).toBeInTheDocument());
     await userEvent.click(screen.getByLabelText("Helpful"));
     await waitFor(() => expect(screen.getByText("Failed to submit, please try again")).toBeInTheDocument());
@@ -131,6 +139,8 @@ describe("FeedbackBar", () => {
       },
     ]);
     setup();
+    const trigger = await screen.findByRole("button", { name: "Feedback sent · view or edit" });
+    await userEvent.click(trigger);
     await waitFor(() => expect(screen.getByText("Edit")).toBeInTheDocument());
     expect(screen.getByText("Score too strict")).toBeInTheDocument();
     expect(screen.getByText("太严了")).toBeInTheDocument();
@@ -144,6 +154,7 @@ describe("FeedbackBar", () => {
       { _id: "fb_1", type: "practice", rating: "good", tags: [], comment: "", practiceId: "sess_abc", attemptIndex: 0 },
     ]);
     setup();
+    await userEvent.click(await screen.findByRole("button", { name: "Feedback sent · view or edit" }));
     await waitFor(() => expect(screen.getByText("Edit")).toBeInTheDocument());
     await userEvent.click(screen.getByText("Edit"));
 
@@ -155,6 +166,6 @@ describe("FeedbackBar", () => {
     await waitFor(() => expect(api.submitFeedback).toHaveBeenCalled());
     expect(api.submitFeedback.mock.calls[0][0].rating).toBe("bad");
     // 回到已反馈态
-    expect(screen.getByText("Edit")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Feedback sent · view or edit" })).toBeInTheDocument();
   });
 });

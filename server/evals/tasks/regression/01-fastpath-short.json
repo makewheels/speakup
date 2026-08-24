@@ -6,7 +6,6 @@
   },
   "expectations": [
     {"type": "gaps_count_eq", "value": 0},
-    {"type": "native_version_empty"},
     {"type": "summary_contains_any", "value": ["Try saying more", "say more", "full sentences"]}
   ]
 }

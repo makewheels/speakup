@@ -77,13 +77,9 @@
       "transcript":     "I ordered a hot latte but...",
       "summary":        "...",
       "score":          6.5,               // 雅思口语 band，0~9，0.5 进制
-      "nativeVersion":  "...",             // 基于学习者原话的 native 改写
-      "sentenceCorrections": [               // 按 sourceId 对齐；corrected 可比原句长/短或包含两句
-        { "sourceId": 0, "original": "I need helps.", "corrected": "I need help." }
-      ],
       "standardAnswer": "...",             // 独立标准答案：单独请求只看题目白名单快照，不看 transcript/纠正/历史（可空=旧数据或单路降级）
       "gaps": [
-        { "title": "...", "original": "...", "better": "...", "chinese": "...", "example": "...", "exampleChinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
+        { "title": "...", "original": "连续原话短语或完整句子", "better": "同范围改写", "chinese": "...", "example": "...", "exampleChinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
       ],
       "progress":      { "verdict": "passed | improved | stuck", "fixed": [], "remaining": [], "comment": "" },  // 第 2 轮起
       "chat": [        // 追问对话：用户拿到反馈后基于本次上下文继续问 AI（可空）
@@ -124,7 +120,7 @@
 
 > 分享：`POST /api/practice-sessions/{pid}/share` 生成或复用 token（幂等），`DELETE /api/practice-sessions/{pid}/share?userId=` 撤销当前公开状态但保留 token。公开读取走 `GET /api/share/{token}`（无鉴权，额外返回 `ownerNickname`）。token 为 12 位纯字母数字并做唯一性校验，不可枚举。
 
-> 新 attempt 不再由纠正模型生成好表达笔记；为了兼容历史数据，API 仍可读到空的 `note/noteChinese` 字段。
+> 新 attempt 不再生成 `nativeVersion`、`sentenceCorrections` 或好表达笔记；历史记录中的旧字段允许留在数据库，但当前结果页不展示。为了兼容历史数据，API 仍可读到空的 `note/noteChinese` 字段。
 
 > 图片、视频与录音库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。
 

@@ -38,6 +38,7 @@ async def test_evaluate_pronunciation_runs_sentence_then_word_detail(monkeypatch
     monkeypatch.setattr(pronunciation, "PRONUNCIATION_ISSUE_THRESHOLD", 80)
     monkeypatch.setattr(pronunciation, "_wav", AsyncMock(side_effect=[b"full", b"clip"]))
     first = {
+        "SuggestedScore": 0.82,
         "PronAccuracy": 0.73,
         "PronFluency": 0.8,
         "PronCompletion": 1,
@@ -59,7 +60,8 @@ async def test_evaluate_pronunciation_runs_sentence_then_word_detail(monkeypatch
     result = await pronunciation.evaluate_pronunciation(b"audio", "webm", "I am happy")
 
     assert result["status"] == "completed"
-    assert result["overallScore"] == 73
+    assert result["overallScore"] == 82
+    assert result["accuracyScore"] == 73
     assert result["issues"][0]["detectedIpa"] == "e"
     assert result["issues"][0]["referenceIpa"] == "æ"
     assert "重音" in result["issues"][0]["coaching"]

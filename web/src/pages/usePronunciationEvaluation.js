@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client.js";
 
 export const EMPTY_FEEDBACK = {
-  summary: "", nativeVersion: "", sentenceCorrections: [], standardAnswer: "",
+  summary: "", standardAnswer: "",
   score: null, gaps: [], progress: null,
 };
 
 export const hasUsableFeedback = (result) => Boolean(
-  (result?.nativeVersion || "").trim()
-  || (result?.sentenceCorrections ?? []).length > 0
-  || (result?.standardAnswer || "").trim()
-  || (result?.gaps ?? []).length > 0,
+  (result?.standardAnswer || "").trim()
+  || (result?.gaps ?? []).length > 0
+  || result?.score != null
+  || result?.progress
 );
 
 export function reviewMapFromGaps(gaps = []) {
@@ -22,8 +22,6 @@ export function reviewMapFromGaps(gaps = []) {
 export function resultFromAttempt(attempt) {
   return {
     summary: attempt.summary,
-    nativeVersion: attempt.nativeVersion,
-    sentenceCorrections: attempt.sentenceCorrections ?? [],
     standardAnswer: attempt.standardAnswer ?? "",
     note: attempt.note ?? "",
     noteChinese: attempt.noteChinese ?? "",

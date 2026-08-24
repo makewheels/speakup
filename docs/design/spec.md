@@ -31,7 +31,7 @@
 | 你说错了，这是对的，下次别错 | 你这么说能听懂，但母语者会这么说，差在 X / Y / Z |
 | 修对错 | 拉近"听起来像本地人"的距离 |
 | 默认用户水平差 | 默认用户已经能用，要把"能用"推到"地道" |
-| 输出"corrections 列表" | 输出"gaps 列表"，每条带 native version + why |
+| 输出整段 corrections | 输出最多 3 条 gaps，每条带原话片段、同范围改写与 why |
 
 **衡量"做对了"的瞬间**：用户练完一次说"哦，原来母语者这么说"。
 
@@ -154,13 +154,12 @@
 - category 与 title 合并为一行，不再额外占一列。
 - 数量不固定；三行核心对比默认展开，只有例句区域默认折叠。
 
-#### 第三层：母语者完整版（底部）
+#### 第三层：独立标准答案（底部）
 
-- `纠正版`：基于用户原话的日常英语改写，保持用户原意（`nativeVersion`）。
-- `标准答案`：由另一个独立请求只基于题目作答；它的上下文不包含用户原话、纠正版或历史回答（`standardAnswer`）。
-- 视觉：与差距列表区分（边框或浅色背景）
+- `标准答案`：由另一个独立请求只基于题目作答；上下文不包含用户原话、gaps 或历史回答（`standardAnswer`）。
+- 默认折叠；播放按钮放在折叠触发器外，播放不改变展开状态。
 
-用户原话保持连续段落并两端对齐；纠正版与标准答案按英文句号分行。选中任意结果文字后，底部浮条提供「加入笔记」；不自动生成笔记。
+结果文字可选中，底部浮条提供「加入笔记」；不自动生成笔记。
 
 #### 底部操作区
 
@@ -310,8 +309,8 @@ MVP 两个 tab（`我的` V1.1 再加）：
 - [x] `vocabulary` 路由加 userId 校验
 - [x] 模型名回到 `qwen3.6-plus`
 - [x] 底部导航 3 tab（练习 + 复习 + 我的）
-- [x] corrector prompt 重写：差距框架，分层输出（summary / gaps / nativeVersion）
-- [x] 反馈页 UI 重写：三层结构（summary 黑卡 → gap-card → native version）
+- [x] corrector prompt 重写：差距框架，分层输出（summary / score / gaps / progress）
+- [x] 反馈页 UI 重写：总结 → 表达建议 gap → 发音建议 → 独立标准答案
 - [x] 视觉系统：移植 Claude Design 设计（Newsreader 衬线 + Geist + JetBrains Mono + 暖纸色）
 - [x] 评估等待 UX：elapsed counter + 轮转 hint
 - [x] 后端 pytest 测试（20 个用例，mock DashScope）
@@ -403,7 +402,7 @@ vocabulary:             // 生词（独立于 mistakes）
 1. **核心任务**：暴露用户表达与"母语者日常版"的差距。不是纠错，是 expose gap。
 2. **范围限定**：只在用户已表达的内容上做。不脑补图里没说的、不扩写。
 3. **目标水平**：星巴克邻桌的母语者 — natural daily English。不是 BBC 主播、不是文学英语、不是 GRE 词汇。
-4. **分层输出**：核心结论（一句） + 按重要性排序的差距点（每条带 native version + why + category）+ 母语者完整改写。
+4. **分层输出**：核心结论（一句）+ 按重要性排序的差距点（每条带原话、同范围改写、why、category）；不再附整段纠正版。
 5. **气质**：不夸 / 不元话语 / 不疗愈 / 不打鸡血。说事不说人。
 
 ### 四条明示底线（写进 prompt 的 WHAT NOT TO DO）
@@ -419,26 +418,29 @@ vocabulary:             // 生词（独立于 mistakes）
 
 ```json
 {
-  "summary": "one sentence: how close they are to native, what's the main thing to work on",
-  "nativeVersion": "rewrite user's utterance in native daily English, preserving their meaning",
+  "summary": "一句中文总评",
+  "score": 6.5,
   "gaps": [
     {
-      "original": "what user said (exact or close paraphrase)",
-      "better": "the native version",
-      "why": "1-2 sentences why a native says it this way",
-      "category": "grammar" | "naturalness" | "vocabulary" | "register"
+      "title": "中文短标题",
+      "original": "用户原话中的连续短语或完整句子",
+      "better": "相同范围的自然改写",
+      "chinese": "better 的中文提示",
+      "why": "简短中文原因",
+      "category": "task | grammar | naturalness | vocabulary | register"
     }
-  ]
+  ],
+  "progress": null
 }
 ```
 
-数量不固定 — 按重要性排序，列出所有真实差距；用户说得已经接近母语者就只列 1-2 个细节，不要凑数。
+最多 3 条，按重要性排序。同一句里的相关问题尽量合并；短语问题可短改，需要重写时可以覆盖完整句子，不要拆成一两个词的碎片。
 
 ### 反馈语言策略
 
-- `summary` / `nativeVersion`：英文（沉浸）
+- `summary` / `gaps[].why`：中文（快速理解）
 - `gaps[].original` / `gaps[].better`：英文（原文 / 改写都是英文）
-- `gaps[].why`：默认英文；当语法概念用中文显著更清楚时切换中文（不混杂）
+- `gaps[].chinese`：`better` 的简短中文提示
 
 ---
 

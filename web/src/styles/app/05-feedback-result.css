@@ -39,46 +39,7 @@
   font-family: var(--ff-cn);
 }
 
-/* ── 反馈页：新布局 ────────────────────────────────────────────── */
-.fb-transcript-card {
-  background: transparent;
-  border: 1.5px solid var(--rule);
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
-}
-.fb-native-card {
-  background: var(--bg-elev);
-  border: 1.5px solid var(--accent);
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin-bottom: 8px;
-}
-.fb-card-label {
-  font-family: var(--ff-cn);
-  font-size: 13px;
-  color: var(--ink-2);
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-}
-.fb-card-label.native { color: var(--accent); display: flex; align-items: center; }
-/* 标准答案卡：与 native 版（蓝）同构，绿色描边区分 */
-.fb-card-label.standard { color: var(--ok); display: flex; align-items: center; }
-.fb-standard-card { border-color: var(--ok); }
-/* You said —— 与 native version 同字号(19)，无底色，区别只在颜色（黑 vs 蓝） */
-.fb-transcript-text {
-  font-family: var(--ff-en);
-  font-size: 19px;
-  font-weight: 700;
-  line-height: 1.6;
-  color: var(--ink);
-  margin: 0;
-  text-align: justify;
-  text-align-last: left;
-  text-justify: inter-word;
-  overflow-wrap: anywhere;
-}
+/* 标准答案按句分行。 */
 .fb-native-text {
   font-family: var(--ff-en);
   font-size: 19px;
@@ -187,6 +148,7 @@
   padding-top: 16px;
   border-top: 1px solid var(--rule);
 }
+.fb-chat > .result-section-title { margin-bottom: 12px; }
 .fb-chat-msg {
   font-family: var(--ff-cn);
   font-size: 17px;
@@ -294,8 +256,8 @@
 .fb-gap-title {
   min-width: 0;
   font-family: var(--ff-cn);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--ink-2);
   line-height: 1.4;
 }
@@ -320,7 +282,8 @@
   flex-direction: column;
 }
 .fb-gap-line {
-  display: flex;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 12px;
   padding: 10px 0;
@@ -336,7 +299,6 @@
   margin-left: 6px;
 }
 .fb-gap-tag {
-  flex: 0 0 64px;
   font-family: var(--ff-cn);
   font-size: 14px;
   font-weight: 600;
@@ -350,12 +312,14 @@
   font-family: var(--ff-en);
   font-size: 16px;
   color: var(--warn);
+  overflow-wrap: anywhere;
 }
 .fb-gap-fix {
   font-family: var(--ff-en);
   font-size: 16px;
   font-weight: 700;
   color: var(--accent);
+  overflow-wrap: anywhere;
 }
 .fb-gap-whytext {
   font-family: var(--ff-cn);

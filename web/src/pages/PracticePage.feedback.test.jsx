@@ -72,7 +72,6 @@ describe("PracticePage feedback", () => {
           round: 1,
           transcript: "Can you redo my latte",
           summary: "整体不错，请求可以更自然",
-          nativeVersion: "Could you remake my latte? I'm in a hurry.",
           standardAnswer: "Excuse me, could you remake my latte? I'm in a bit of a rush.",
           score: 6.5,
           gaps: [],
@@ -81,12 +80,8 @@ describe("PracticePage feedback", () => {
       ],
     });
     setup("/practice/sess_abc?result=1");
-    await waitFor(() =>
-      expect(screen.getByText("Correction")).toBeInTheDocument(),
-    );
-    expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
-    // Native（原标准答案）也从 attempt 还原展示（按句切分渲染）
-    expect(screen.getByText("Native")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Standard answer")).toBeInTheDocument());
+    expect(screen.queryByText("Correction")).not.toBeInTheDocument();
     expect(screen.getByText("I'm in a bit of a rush.")).toBeInTheDocument();
   });
 
@@ -163,14 +158,13 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("为什么这么改？")).toBeInTheDocument();
   });
 
-  it("evaluates and renders feedback (score / nativeVersion / gaps) on stream done", async () => {
+  it("evaluates and renders score, broader gap pairs, and the independent answer", async () => {
     const { api, correctStream } = await import("../api/client.js");
     correctStream.mockImplementation((data, { onChunk, onDone }) => {
       onChunk("partial ");
       onDone({
         result: {
           summary: "good",
-          nativeVersion: "Could you remake my latte? I'm in a hurry.",
           standardAnswer: "Hi, my latte came out wrong — could you remake it? I'm in a bit of a rush.",
           score: 7.0,
           gaps: [{ original: "redo my latte", better: "remake my latte", why: "more natural" }],
@@ -186,14 +180,14 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Correction")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Expression feedback")).toBeInTheDocument());
     expect(correctStream).toHaveBeenCalledWith(
       expect.objectContaining({ userId: USER.userId, practiceId: "sess_abc", text: "Can you redo my latte" }),
       expect.any(Object),
     );
     expect(screen.getByText("7.0")).toBeInTheDocument();
-    expect(screen.getByText(/Could you remake my latte/)).toBeInTheDocument();
-    expect(screen.getByText("Native")).toBeInTheDocument();
+    expect(screen.queryByText("Correction")).not.toBeInTheDocument();
+    expect(screen.getByText("Standard answer")).toBeInTheDocument();
     expect(screen.getByText(/my latte came out wrong/)).toBeInTheDocument();
     expect(screen.getByText("remake my latte")).toBeInTheDocument();
     expect(screen.getByText("more natural")).toBeInTheDocument();
@@ -210,7 +204,6 @@ describe("PracticePage feedback", () => {
       onDone({
         result: {
           summary: "AI feedback could not be parsed. Try again.",
-          nativeVersion: "",
           score: null,
           gaps: [],
           progress: null,
@@ -240,7 +233,6 @@ describe("PracticePage feedback", () => {
       onDone({
         result: {
           summary: "Correction unavailable; independent answer is ready.",
-          nativeVersion: "",
           standardAnswer: "Excuse me, could you remake my latte, please?",
           score: null,
           gaps: [],
@@ -256,7 +248,7 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Native")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Standard answer")).toBeInTheDocument());
     expect(screen.getByText("Excuse me, could you remake my latte, please?")).toBeInTheDocument();
     expect(screen.getByText("No specific correction this time.")).toBeInTheDocument();
     expect(screen.queryByText("AI did not return usable corrections. Try Review now again.")).not.toBeInTheDocument();
@@ -319,7 +311,7 @@ describe("PracticePage feedback", () => {
     await waitFor(() => screen.getByText("Tap once to record"));
     await recordUntilEvaluating();
 
-    await waitFor(() => expect(screen.getByText("Correction")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("still needs practice")).toBeInTheDocument());
     // 不封顶：第 2 轮反馈后仍可继续重说，按钮标第 3 次尝试
     expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument();
     expect(screen.getByText(/Next/)).toBeInTheDocument();

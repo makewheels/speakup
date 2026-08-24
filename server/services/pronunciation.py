@@ -242,7 +242,8 @@ async def evaluate_pronunciation(audio_bytes: bytes, suffix: str, transcript: st
     return {
         "status": "completed",
         "provider": PRONUNCIATION_PROVIDER,
-        "overallScore": _score(first_pass.get("PronAccuracy")),
+        # 腾讯建议总分展示 SuggestedScore；老响应没有时再退回准确度。
+        "overallScore": _score(first_pass.get("SuggestedScore", first_pass.get("PronAccuracy"))),
         "accuracyScore": _score(first_pass.get("PronAccuracy")),
         "fluencyScore": _score(first_pass.get("PronFluency"), fraction=True),
         "completionScore": _score(first_pass.get("PronCompletion"), fraction=True),

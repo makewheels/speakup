@@ -47,25 +47,25 @@ export default function PronunciationFeedback({
   if (!loading && !pronunciation) return null;
   if (loading) {
     return (
-      <section className="pron-section is-loading" aria-live="polite">
-        <div className="fb-card-label">{t("practice.pronunciation")}</div>
+      <section className="result-section pron-section is-loading" aria-live="polite">
+        <h2 className="result-section-title">{t("practice.pronunciationSuggestions")}</h2>
         <p>{t("practice.pronunciationLoading")}</p>
       </section>
     );
   }
   if (pronunciation.status !== "completed") {
     return (
-      <section className="pron-section" role="status">
-        <div className="fb-card-label">{t("practice.pronunciation")}</div>
+      <section className="result-section pron-section" role="status">
+        <h2 className="result-section-title">{t("practice.pronunciationSuggestions")}</h2>
         <p>{t("practice.pronunciationUnavailable")}</p>
       </section>
     );
   }
   const issues = pronunciation.issues ?? [];
   return (
-    <section className="pron-section">
+    <section className="result-section pron-section">
       <div className="pron-heading">
-        <div className="fb-card-label">{t("practice.pronunciation")}</div>
+        <h2 className="result-section-title">{t("practice.pronunciationSuggestions")}</h2>
         {pronunciation.overallScore != null && (
           <span className="pron-overall">{Math.round(pronunciation.overallScore)} / 100</span>
         )}

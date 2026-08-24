@@ -6,7 +6,7 @@ import PronunciationFeedback from "./PronunciationFeedback.jsx";
 vi.mock("../SpeakBtn.jsx", () => ({ default: ({ text }) => <button>say {text}</button> }));
 
 const labels = {
-  "practice.pronunciation": "发音",
+  "practice.pronunciationSuggestions": "发音建议",
   "practice.pronunciationLoading": "正在分析",
   "practice.pronunciationUnavailable": "暂时不可用",
   "practice.pronunciationGood": "发音很好",
@@ -18,7 +18,7 @@ const t = (key) => labels[key] || key;
 describe("PronunciationFeedback", () => {
   it("shows a compact loading card while the provider request is pending", () => {
     render(<PronunciationFeedback loading t={t} />);
-    expect(screen.getByText("发音")).toBeInTheDocument();
+    expect(screen.getByText("发音建议")).toBeInTheDocument();
     expect(screen.getByText("正在分析")).toBeInTheDocument();
   });
 

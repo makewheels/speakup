@@ -80,7 +80,7 @@ glm-5.2 在两个集子上都是第一；对比 2026-06-24 的 capability 7/14�
 | 指标 | 结果 | 说明 |
 |---|---|---|
 | pass@3 | 12/12 = 100% | 所有能力都能稳定触达，不再有完全做不到的 case |
-| pass^3 | 9/12 = 75% | 仍有 3 条随机性失败：过度纠风格、summary 偶发超长、个别 better 没落到 nativeVersion |
+| pass^3 | 9/12 = 75% | 当时仍有 3 条随机性失败：过度纠风格、summary 偶发超长、个别 gap 未落到原话；当前契约已移除整段纠正版 |
 | 纯中文边界 | pass^3 | 从旧 fast-path/假高分改为 task gap + `score<=2.0` |
 
 这是当前发布基线，不应把 `pass@3=100%` 误读成已经稳定；面向用户的主指标仍是 `pass^3`。
@@ -160,4 +160,4 @@ uv run python -m evals.compare \
   在 Datasets → 数据集 → Experiments 看；HTML 报告仍是主详细报告（grader 理由、逐 trial 原文）。
   细节见 `server/evals/README.md` 的 Langfuse 回写一节
 - **prod failure 自动导入**：脚本化 `llmCalls → capability/` 的管道还没写
-- **AI 输出双语**：[[i18n]] 那个 PR 只翻了 UI；gaps/nativeVersion/summary 仍中文，跨语言对齐是另一坨工作
+- **AI 输出双语**：UI 与模型内容分开；gaps 的英语表达和中文解释仍需各自保证语言约束

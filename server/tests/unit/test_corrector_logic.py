@@ -65,7 +65,7 @@ def test_short_input_skips_llm_entirely():
     """Less than 3 words → fast path, no LLM call, no gaps."""
     result = asyncio.run(correct_text("hi"))
     assert result["gaps"] == []
-    assert result["nativeVersion"] == ""
+    assert "nativeVersion" not in result
     assert result["standardAnswer"] == ""
     assert result["summary"]  # has a "say more" hint
 
@@ -83,12 +83,12 @@ def test_chinese_only_input_must_reach_evaluator_instead_of_short_fast_path():
 
 def test_valid_json_response_mapped_to_schema():
     gap = GapItem(original="cat sleeping", better="cat is sleeping", why="needs auxiliary 'is'", category="grammar", saveToReview=True)
-    fake_result = CorrectResult(summary="Solid try, one slip.", nativeVersion="A cat is sleeping on the couch.", gaps=[gap])
+    fake_result = CorrectResult(summary="Solid try, one slip.", score=6.0, gaps=[gap])
     fake = _fake_llm(fake_result)
     with patch("services.corrector._get_client", return_value=fake):
         result = asyncio.run(correct_text("There is a cat sleeping on the couch", SCENARIO))
     assert result["summary"] == fake_result.summary
-    assert result["nativeVersion"] == fake_result.nativeVersion
+    assert "nativeVersion" not in result
     assert len(result["gaps"]) == 1
     assert result["gaps"][0]["category"] == "grammar"
     assert result["gaps"][0]["saveToReview"] is True
@@ -97,7 +97,7 @@ def test_valid_json_response_mapped_to_schema():
 def test_correct_text_makes_two_isolated_requests_and_merges_results():
     correction = {
         "summary": "纠正完成",
-        "nativeVersion": "Could you remake it?",
+        "score": 6.0,
         "standardAnswer": "must be ignored",
         "gaps": [],
     }
@@ -107,24 +107,24 @@ def test_correct_text_makes_two_isolated_requests_and_merges_results():
 
     assert client.correction_calls == 1
     assert client.standard_calls == 1
-    assert result["nativeVersion"] == "Could you remake it?"
+    assert "nativeVersion" not in result
     assert result["standardAnswer"] == "Excuse me, could you remake my latte?"
 
 
 def test_correct_text_standard_failure_keeps_non_stream_correction():
-    correction = {"summary": "纠正完成", "nativeVersion": "Could you remake it?", "gaps": []}
+    correction = {"summary": "纠正完成", "score": 6.0, "gaps": []}
     client = _DualRequestClient(correction, "", modes={"fail_standard"})
     with patch("services.corrector._get_client", return_value=client):
         result = asyncio.run(correct_text("Please change my latte now", SCENARIO))
 
     assert client.correction_calls == 1
     assert client.standard_calls == 1
-    assert result["nativeVersion"] == "Could you remake it?"
+    assert result["score"] == 6.0
     assert result["standardAnswer"] == ""
 
 
 def test_correct_text_correction_failure_keeps_non_stream_standard_answer():
-    correction = {"summary": "", "nativeVersion": "", "gaps": []}
+    correction = {"summary": "", "gaps": []}
     client = _DualRequestClient(
         correction,
         "Excuse me, could you remake my latte?",
@@ -135,7 +135,7 @@ def test_correct_text_correction_failure_keeps_non_stream_standard_answer():
 
     assert client.correction_calls == 1
     assert client.standard_calls == 1
-    assert result["nativeVersion"] == ""
+    assert "nativeVersion" not in result
     assert result["standardAnswer"] == "Excuse me, could you remake my latte?"
 
 
@@ -206,7 +206,8 @@ def test_correction_prompt_does_not_generate_standard_answer_or_note():
     assert "standardAnswer" not in system
     assert "note" not in system
     assert "noteChinese" not in system
-    assert '"sentenceCorrections"' in system
+    assert "sentenceCorrections" not in system
+    assert "短语" in system and "完整原句" in system
 
 
 def test_system_prompt_requires_chinese_hint_per_gap():
@@ -307,7 +308,7 @@ def test_parse_result_keeps_feedback_when_model_output_is_wrapped_or_noisy():
     result = _parse_result(raw)
 
     assert result["summary"] == "请求可以更自然"
-    assert result["nativeVersion"] == "Could you remake my latte? I'm in a hurry."
+    assert "nativeVersion" not in result
     assert result["score"] == 6.5
     assert result["gaps"][0]["better"] == "remake my latte"
     assert result["gaps"][0]["category"] == "vocabulary"
@@ -332,7 +333,7 @@ def test_parse_result_accepts_content_blocks_and_trailing_commas():
     ]
     result = _parse_result(raw)
 
-    assert result["nativeVersion"] == "Could you remake my latte?"
+    assert "nativeVersion" not in result
     assert result["score"] == 6.5
     assert result["gaps"][0]["better"] == "remake"
 

@@ -174,8 +174,9 @@ describe("PracticePage 自由说模式", () => {
     await act(async () => {
       onDone({
         result: {
-          summary: "不错", nativeVersion: "I like eggs and bread.", standardAnswer: "",
-          gaps: [], score: 6.0, progress: null, note: "", noteChinese: "",
+          summary: "不错", standardAnswer: "",
+          gaps: [{ original: "I like egg and bread", better: "I like eggs and bread.", why: "复数更自然" }],
+          score: 6.0, progress: null, note: "", noteChinese: "",
         },
         autoSaved: 0,
         round: 1,

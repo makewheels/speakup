@@ -55,7 +55,7 @@ describe("FeedbackGapList", () => {
       "为什么",
     ]);
     expect(t("practice.youSaid")).toBe("你说的");
-    expect(t("practice.nativeVersion")).toBe("纠正版");
+    expect(t("practice.expressionSuggestions")).toBe("表达建议");
     expect(t("practice.standardAnswer")).toBe("标准答案");
   });
 

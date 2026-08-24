@@ -31,7 +31,12 @@ const SHARED = {
   createdAt: "2026-06-01T10:00:00Z",
   ownerNickname: "Alice",
   attempts: [
-    { round: 1, transcript: "I tried to order", nativeVersion: "I attempted to place an order.", score: 6.5, gaps: [] },
+    {
+      round: 1,
+      transcript: "I tried to order",
+      score: 6.5,
+      gaps: [{ original: "I tried to order", better: "I attempted to place an order.", why: "More natural" }],
+    },
   ],
   recordings: [],
 };
