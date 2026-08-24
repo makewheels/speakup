@@ -289,8 +289,8 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("hot latte")).toBeInTheDocument();
     expect(screen.getByText("in a hurry")).toBeInTheDocument();
     expect(screen.getByText(/Next scenario/)).toBeInTheDocument();
-    // 重说不封顶：即使 passed，重试按钮也常驻（下一次是第 2 次尝试）
-    expect(screen.getByText(/Say it again \(attempt 2\)/)).toBeInTheDocument();
+    // 重说不封顶：即使 passed，重试按钮也常驻；按钮不重复展示轮次。
+    expect(screen.getByRole("button", { name: "Say it again" })).toBeInTheDocument();
   });
 
   it("keeps the user on feedback after a streamed second-round review", async () => {
@@ -315,8 +315,9 @@ describe("PracticePage feedback", () => {
     await recordUntilEvaluating();
 
     await waitFor(() => expect(screen.getByText("still needs practice")).toBeInTheDocument());
-    // 不封顶：第 2 轮反馈后仍可继续重说，按钮标第 3 次尝试
-    expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument();
+    // 不封顶：第 2 轮反馈后仍可继续重说；当前轮次只在页面徽章展示。
+    expect(screen.getByText("Attempt #2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Say it again" })).toBeInTheDocument();
     expect(screen.getByText(/Next/)).toBeInTheDocument();
     expect(screen.queryByText(/Tap once to record/)).not.toBeInTheDocument();
     expect(api.nextScenario).not.toHaveBeenCalled();
