@@ -8,13 +8,16 @@ export default function FeedbackGapList({
   onToggleGap = null,
   practiceId,
   savedMap = {},
+  showTitle = true,
 }) {
   const t = useT();
   if (!gaps.length) return null;
 
   return (
     <div className="fb-gaps-section">
-      <div className="fb-section-label">{t("practice.gapsTitle", { n: gaps.length })}</div>
+      {showTitle && (
+        <div className="fb-section-label">{t("practice.gapsTitle", { n: gaps.length })}</div>
+      )}
       {gaps.map((gap, index) => {
         const added = Boolean(savedMap[index]);
         const category = gap.category ? t(`practice.gapCat.${gap.category}`) : "";

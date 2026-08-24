@@ -8,6 +8,8 @@ import PracticeFreeCard from "./practice/PracticeFreeCard.jsx";
 import FeedbackBar from "./practice/FeedbackBar.jsx";
 import FeedbackGapList from "./practice/FeedbackGapList.jsx";
 import SelectableNoteText from "./practice/SelectableNoteText.jsx";
+import SentenceCorrectionList from "./practice/SentenceCorrectionList.jsx";
+import PronunciationFeedback from "./practice/PronunciationFeedback.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
 
@@ -146,36 +148,43 @@ export default function SessionView({
             {attempt.summary && <p className="fb-summary-line">{attempt.summary}</p>}
 
             <SelectableNoteText practiceId={practiceId} userId={readOnly ? "" : noteUserId}>
-              {attempt.transcript && (
-                <div className="fb-transcript-card" data-note-context={attempt.transcript}>
-                  <div className="fb-card-label">{t("practice.youSaid")}</div>
-                  <p className="fb-transcript-text">{attempt.transcript}</p>
-                </div>
-              )}
+              <SentenceCorrectionList
+                canSpeak={canSpeak}
+                practiceId={practiceId}
+                recordingUrl={attempt.recordingUrl || recording?.url}
+                result={attempt}
+                t={t}
+                transcript={attempt.transcript}
+              />
 
-              {attempt.nativeVersion && (
-                <div className="fb-native-card" data-note-context={attempt.nativeVersion}>
-                  <div className="fb-card-label native">{t("practice.nativeVersion")}{canSpeak && <SpeakBtn text={attempt.nativeVersion} practiceId={practiceId} />}</div>
-                  {splitSentences(attempt.nativeVersion).map((s, k) => (
-                    <p key={k} className="fb-native-text">{s}</p>
-                  ))}
-                </div>
-              )}
+              <PronunciationFeedback
+                canSpeak={canSpeak}
+                practiceId={practiceId}
+                pronunciation={attempt.pronunciation}
+                recordingUrl={attempt.recordingUrl || recording?.url}
+                t={t}
+              />
 
               {attempt.standardAnswer && (
-                <div className="fb-native-card fb-standard-card" data-note-context={attempt.standardAnswer}>
-                  <div className="fb-card-label standard">{t("practice.standardAnswer")}{canSpeak && <SpeakBtn text={attempt.standardAnswer} practiceId={practiceId} />}</div>
+                <details className="fb-native-card fb-standard-card" data-note-context={attempt.standardAnswer}>
+                  <summary className="fb-card-label standard">{t("practice.standardAnswer")}{canSpeak && <SpeakBtn text={attempt.standardAnswer} practiceId={practiceId} />}</summary>
                   {splitSentences(attempt.standardAnswer).map((s, k) => (
                     <p key={k} className="fb-native-text">{s}</p>
                   ))}
-                </div>
+                </details>
               )}
 
-              <FeedbackGapList
-                canSpeak={canSpeak}
-                gaps={attempt.gaps || []}
-                practiceId={practiceId}
-              />
+              {(attempt.gaps || []).length > 0 && (
+                <details className="fb-gap-details">
+                  <summary>{t("practice.gapsTitle", { n: attempt.gaps.length })}</summary>
+                  <FeedbackGapList
+                    canSpeak={canSpeak}
+                    gaps={attempt.gaps}
+                    practiceId={practiceId}
+                    showTitle={false}
+                  />
+                </details>
+              )}
             </SelectableNoteText>
 
             {!readOnly && isLatest ? (

@@ -206,7 +206,7 @@ def test_correction_prompt_does_not_generate_standard_answer_or_note():
     assert "standardAnswer" not in system
     assert "note" not in system
     assert "noteChinese" not in system
-    assert '"nativeVersion"' in system
+    assert '"sentenceCorrections"' in system
 
 
 def test_system_prompt_requires_chinese_hint_per_gap():

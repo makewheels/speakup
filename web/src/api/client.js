@@ -221,6 +221,12 @@ export const api = {
     });
   },
 
+  evaluatePronunciation: (practiceId, attemptIndex) =>
+    request(`/practice-sessions/${practiceId}/attempts/${attemptIndex}/pronunciation`, {
+      method: "POST",
+      timeout: 90_000,
+    }),
+
   // 全平台统一：录音上传 → 后端火山 openspeech ASR 返文本
   transcribeAudio: (userId, blob, practiceId) => {
     const form = new FormData();

@@ -37,6 +37,17 @@ TTS_LANGUAGE = os.getenv("TTS_LANGUAGE", "English")
 ASR_MODEL = os.getenv("ASR_MODEL", "qwen3-asr-flash")
 ASR_RESOURCE_ID = os.getenv("ASR_RESOURCE_ID", "volc.seedasr.sauc.duration")
 
+# 口语发音评测：与 ASR/TTS 分开开关。首个适配器使用腾讯智聆新版；未配置密钥时不展示入口。
+PRONUNCIATION_ENABLED = os.getenv("PRONUNCIATION_ENABLED", "false").lower() in ("1", "true", "yes")
+PRONUNCIATION_PROVIDER = os.getenv("PRONUNCIATION_PROVIDER", "tencent").strip().lower()
+PRONUNCIATION_APP_ID = os.getenv("PRONUNCIATION_APP_ID", "")
+PRONUNCIATION_SECRET_ID = os.getenv("PRONUNCIATION_SECRET_ID", "")
+PRONUNCIATION_SECRET_KEY = os.getenv("PRONUNCIATION_SECRET_KEY", "")
+PRONUNCIATION_WS_URL = os.getenv("PRONUNCIATION_WS_URL", "wss://soe.cloud.tencent.com/soe/api")
+PRONUNCIATION_SCORE_COEFF = float(os.getenv("PRONUNCIATION_SCORE_COEFF", "2.0"))
+PRONUNCIATION_ISSUE_THRESHOLD = float(os.getenv("PRONUNCIATION_ISSUE_THRESHOLD", "80"))
+PRONUNCIATION_MAX_ISSUES = int(os.getenv("PRONUNCIATION_MAX_ISSUES", "3"))
+
 # 视频生成：当前产品没入口，保留 service/脚本可用配置。Medium 套餐暂不默认 Seedance 2.0。
 VIDEO_API_KEY = os.getenv("VIDEO_API_KEY") or CHAT_API_KEY
 VIDEO_BASE_URL = os.getenv("VIDEO_BASE_URL", "https://ark.cn-beijing.volces.com/api/plan/v3")
