@@ -103,6 +103,8 @@ describe("PracticePage result actions", () => {
     setup("/practice/sess_abc?result=1");
     await waitFor(() => expect(screen.getByText("Share this result")).toBeInTheDocument());
     expect(screen.queryByText("Auto-noted")).not.toBeInTheDocument();
+    expect(document.querySelector(".fb-page").lastElementChild)
+      .toBe(screen.getByText("Share this result").closest(".fb-result-share-row"));
   });
 
   it("shares directly from the result page", async () => {

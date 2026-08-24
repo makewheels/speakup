@@ -25,7 +25,7 @@ AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`�
 
 ## 功能完成邮件通知
 
-`.github/workflows/feature-notify.yml` 是与部署解耦的手动工作流：只允许从默认分支运行，输入一行标题、简短说明、最多 6 个功能点与可选链接，然后发送手机友好的 HTML + 纯文本邮件。它不随 deploy 自动触发，防止失败重跑或回滚时重复打扰收件人。
+`.github/workflows/feature-notify.yml` 是与部署解耦的手动工作流：只允许从默认分支运行，输入一行标题、简短说明、最多 6 个功能点、可选链接，以及 `docs/assets/feature-notifications` 下不超过 2 MB 的 PNG/JPG 截图，然后发送手机友好的 HTML + 纯文本邮件。截图以内嵌图片随邮件发送，不依赖外部图片链接。它不随 deploy 自动触发，防止失败重跑或回滚时重复打扰收件人。
 
 通知配置通过 GitHub OIDC 从 Infisical `speakup-secrets/prod/notifications` 读取，不使用 GitHub Secrets，也不在仓库记录收件人或凭据：
 

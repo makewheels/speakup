@@ -19,6 +19,14 @@ on:
         description: "可选查看链接，必须是 HTTP(S) 地址"
         required: false
         type: string
+      image_path:
+        description: "可选仓库截图路径，仅限 docs/assets/feature-notifications 下的 PNG/JPG"
+        required: false
+        type: string
+      image_alt:
+        description: "可选截图说明，最多 120 个字符"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -66,5 +74,7 @@ jobs:
           FEATURE_MAIL_SUMMARY: ${{ inputs.summary }}
           FEATURE_MAIL_POINTS: ${{ inputs.points }}
           FEATURE_MAIL_VIEW_URL: ${{ inputs.view_url }}
+          FEATURE_MAIL_IMAGE_PATH: ${{ inputs.image_path }}
+          FEATURE_MAIL_IMAGE_ALT: ${{ inputs.image_alt }}
           FEATURE_MAIL_NOTIFICATION_ID: ${{ github.run_id }}
         run: uv run --no-project python scripts/send_feature_email.py

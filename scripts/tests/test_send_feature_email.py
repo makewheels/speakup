@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import base64
 import io
 import json
 import smtplib
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
 from urllib.error import HTTPError
 
+from scripts import feature_email_content
 from scripts import send_feature_email as emailer
 
 
@@ -78,6 +83,15 @@ def resend_environ() -> dict[str, str]:
     }
 
 
+def feature_image() -> emailer.FeatureImage:
+    return emailer.FeatureImage(
+        content=b"\x89PNG\r\n\x1a\npreview",
+        content_type="image/png",
+        filename="speakup-feature.png",
+        alt='结果页预览 "新版"',
+    )
+
+
 class FeatureEmailTest(unittest.TestCase):
     def test_render_html_escapes_content_and_uses_inline_table_layout(self):
         message = emailer.FeatureMessage(
@@ -103,6 +117,35 @@ class FeatureEmailTest(unittest.TestCase):
         environ["FEATURE_MAIL_POINTS"] = "\n".join(f"功能点 {index}" for index in range(7))
 
         with self.assertRaisesRegex(emailer.NotificationError, "最多 6 条"):
+            emailer.load_feature_message(environ)
+
+    def test_loads_repository_image_and_renders_inline_cid(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            image_root = repo_root / "docs/assets/feature-notifications"
+            image_root.mkdir(parents=True)
+            image_path = image_root / "result-preview.png"
+            image_path.write_bytes(feature_image().content)
+            environ = {
+                **base_environ(),
+                "FEATURE_MAIL_IMAGE_PATH": "docs/assets/feature-notifications/result-preview.png",
+                "FEATURE_MAIL_IMAGE_ALT": '结果页预览 "新版"',
+            }
+            with (
+                patch.object(feature_email_content, "FEATURE_REPO_ROOT", repo_root),
+                patch.object(feature_email_content, "FEATURE_IMAGE_ROOT", image_root),
+            ):
+                message = emailer.load_feature_message(environ)
+
+        self.assertEqual(message.image.content_type, "image/png")
+        rendered = emailer.render_html(message)
+        self.assertIn('src="cid:speakup-feature-image"', rendered)
+        self.assertIn('alt="结果页预览 &quot;新版&quot;"', rendered)
+
+    def test_rejects_feature_image_outside_allowed_folder(self):
+        environ = {**base_environ(), "FEATURE_MAIL_IMAGE_PATH": "docs/private.png"}
+
+        with self.assertRaisesRegex(emailer.NotificationError, "只能来自"):
             emailer.load_feature_message(environ)
 
     def test_missing_smtp_config_fails_before_network_call(self):
@@ -181,6 +224,54 @@ class FeatureEmailTest(unittest.TestCase):
         self.assertNotIn("example.org", stdout.getvalue())
         self.assertNotIn(environ["RESEND_API_KEY"], stdout.getvalue())
         self.assertIn("共发送 2 封", stdout.getvalue())
+
+    def test_resend_embeds_image_as_cid_attachment(self):
+        requests = []
+        message = emailer.FeatureMessage(
+            title="结果页稳定加载",
+            summary="评分固定在顶部。",
+            points=(),
+            view_url=None,
+            image=feature_image(),
+        )
+
+        def capture_request(request, *, timeout):
+            requests.append(request)
+            return FakeResponse()
+
+        emailer.send_feature_email(
+            emailer.load_delivery_config(resend_environ()),
+            message,
+            request_fn=capture_request,
+        )
+
+        payload = json.loads(requests[0].data)
+        attachment = payload["attachments"][0]
+        self.assertEqual(attachment["content_id"], "speakup-feature-image")
+        self.assertEqual(attachment["content_type"], "image/png")
+        self.assertEqual(base64.b64decode(attachment["content"]), message.image.content)
+        self.assertIn('src="cid:speakup-feature-image"', payload["html"])
+
+    def test_smtp_embeds_image_in_related_html_part(self):
+        message = emailer.FeatureMessage(
+            title="结果页稳定加载",
+            summary="评分固定在顶部。",
+            points=(),
+            view_url=None,
+            image=feature_image(),
+        )
+
+        mime_message = emailer._build_smtp_message(
+            emailer.load_delivery_config(smtp_environ()),
+            message,
+        )
+
+        image_parts = [part for part in mime_message.walk() if part.get_content_type() == "image/png"]
+        self.assertEqual(len(image_parts), 1)
+        self.assertEqual(image_parts[0]["Content-ID"], "<speakup-feature-image>")
+        self.assertEqual(image_parts[0].get_content_disposition(), "inline")
+        html_parts = [part for part in mime_message.walk() if part.get_content_type() == "text/html"]
+        self.assertIn('src="cid:speakup-feature-image"', html_parts[0].get_content())
 
     def test_resend_error_does_not_echo_provider_message_or_configuration(self):
         environ = resend_environ()
