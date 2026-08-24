@@ -83,7 +83,9 @@ test("结果页评分固定在顶部、延迟后不回跳，分享入口位于�
   });
   expect(before).toBeGreaterThan(0);
   await page.waitForTimeout(1_350);
-  expect(await page.evaluate(() => scrollY)).toBe(before);
+  const after = await page.evaluate(() => scrollY);
+  // WebKit 会把相同 CSS 滚动位置按设备像素取整成 ±1px；可见回跳仍应严格失败。
+  expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
 
   if (process.env.FEATURE_SCREENSHOT_PATH) {
     await page.evaluate(() => scrollTo(0, 0));
