@@ -104,34 +104,6 @@ export default function SessionDetailPage() {
   if (loading) return <div className="page-msg">{t("common.loading")}</div>;
   if (!session) return <div className="page-msg">{t("session.notFound")}</div>;
 
-  const shareBar = shareToken ? (
-    <div className="share-bar shared">
-      <div className="share-bar-status">
-        <span className="share-dot" />
-        <span className="share-bar-title">{t("session.shared")}</span>
-        <span className="share-bar-sub">{t("session.sharedSub")}</span>
-      </div>
-      <div className="share-bar-actions">
-        <button className="su-btn su-btn-primary" onClick={doShare} disabled={shareBusy}>
-          <Icon name="link" size={15} /> {t("session.copyLink")}
-        </button>
-        <button className="share-cancel" onClick={doUnshare} disabled={shareBusy}>
-          {t("session.stopSharing")}
-        </button>
-      </div>
-    </div>
-  ) : (
-    <div className="share-bar">
-      <div className="share-bar-status">
-        <span className="share-bar-title muted">{t("session.notShared")}</span>
-        <span className="share-bar-sub">{t("session.notSharedSub")}</span>
-      </div>
-      <button className="su-btn su-btn-tertiary share-btn" onClick={doShare} disabled={shareBusy}>
-        <Icon name="share" size={16} /> {t("session.share")}
-      </button>
-    </div>
-  );
-
   return (
     <div className="session-detail-page fade-in">
       <button className="detail-back" onClick={() => navigate(-1)}>
@@ -140,13 +112,16 @@ export default function SessionDetailPage() {
 
       <SessionView
         session={session}
-        belowHero={shareBar}
         chat={chat}
         chatInput={chatInput}
         setChatInput={setChatInput}
         onSend={sendChat}
         chatBusy={chatBusy}
         noteUserId={user.userId}
+        onShare={doShare}
+        onUnshare={shareToken ? doUnshare : null}
+        shareBusy={shareBusy}
+        shareStatus={shareToken ? t("session.sharedSub") : ""}
       />
 
       {toast && <div className="su-toast">{toast}</div>}

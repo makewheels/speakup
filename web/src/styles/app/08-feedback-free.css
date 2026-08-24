@@ -11,6 +11,7 @@
   border-radius: 14px;
 }
 .fb-feedback { margin: 16px 0 4px; }
+.fb-feedback.is-footer-action { margin: 0; }
 .fb-feedback-trigger {
   display: flex;
   align-items: center;

@@ -75,7 +75,9 @@ describe("SessionDetailPage", () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);
     setup();
-    await waitFor(() => expect(screen.getByText("Give feedback on this result")).toBeInTheDocument());
+    const feedback = await screen.findByRole("button", { name: "Feedback" });
+    const share = screen.getByRole("button", { name: "Share this result" });
+    expect(feedback.closest(".fb-result-footer")).toBe(share.closest(".fb-result-footer"));
   });
 
   it("shows loading while fetching", async () => {
@@ -117,8 +119,8 @@ describe("SessionDetailPage", () => {
     expect(media).toHaveClass("session-detail-video");
     expect(video.closest(".detail-hero-media")).toBeNull();
     expect(video.closest(".detail-hero")).toBeNull();
-    expect(container.querySelector(".detail-hero")?.nextElementSibling).toHaveClass("share-bar");
-    expect(container.querySelector(".share-bar")?.nextElementSibling).toBe(media);
+    expect(container.querySelector(".detail-hero")?.nextElementSibling).toBe(media);
+    expect(container.querySelector(".share-bar")).toBeNull();
   });
 
   it("keeps an attempted session image as the compact hero thumbnail", async () => {
@@ -206,7 +208,9 @@ describe("SessionDetailPage", () => {
       ],
     });
     setup();
-    await waitFor(() => expect(screen.getByText("Standard answer")).toBeInTheDocument());
+    const title = await screen.findByRole("heading", { level: 2, name: "Standard answer" });
+    expect(title.closest("summary")).toBeNull();
+    expect(title.closest(".result-standard")).toBeInTheDocument();
     expect(screen.getByText("Could I get a large coffee to go, please?")).toBeInTheDocument();
   });
 
@@ -284,14 +288,15 @@ describe("SessionDetailPage", () => {
     });
   });
 
-  it("shows 'Not shared' state with a Share button when not shared", async () => {
+  it("shows only the compact Feedback and Share actions when not shared", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);
     setup();
-    await waitFor(() =>
-      expect(screen.getByText("Not shared")).toBeInTheDocument(),
-    );
-    expect(screen.getByText("Share")).toBeInTheDocument();
+    const share = await screen.findByRole("button", { name: "Share this result" });
+    const feedback = screen.getByRole("button", { name: "Feedback" });
+    expect(share).toHaveTextContent("Share");
+    expect(feedback.closest(".fb-result-footer")).toBe(share.closest(".fb-result-footer"));
+    expect(screen.queryByText("Not shared")).not.toBeInTheDocument();
   });
 
   it("shares: calls api.sharePractice, copies text+link, shows Shared state", async () => {
@@ -301,9 +306,9 @@ describe("SessionDetailPage", () => {
     api.getPractice.mockResolvedValue(SESSION);
     api.sharePractice.mockResolvedValue({ shareToken: "tok_abc" });
     setup();
-    await waitFor(() => expect(screen.getByText("Share")).toBeInTheDocument());
+    const share = await screen.findByRole("button", { name: "Share this result" });
 
-    await userEvent.click(screen.getByText("Share"));
+    await userEvent.click(share);
 
     await waitFor(() => {
       expect(api.sharePractice).toHaveBeenCalledWith("sess_1", "u_1");
@@ -313,9 +318,9 @@ describe("SessionDetailPage", () => {
     const copied = writeText.mock.calls[0][0];
     expect(copied).toContain("Coffee shop");
     expect(copied).toContain("/s/tok_abc");
-    // 切换到已分享状态
+    // 页尾按钮不变，只在下面保留轻量的公开状态与撤销入口。
     await waitFor(() => {
-      expect(screen.getByText("Shared")).toBeInTheDocument();
+      expect(screen.getByText("Anyone with the link can view")).toBeInTheDocument();
       expect(screen.getByText("Stop sharing")).toBeInTheDocument();
     });
     vi.unstubAllGlobals();
@@ -327,13 +332,14 @@ describe("SessionDetailPage", () => {
     api.getPractice.mockResolvedValue({ ...SESSION, shared: true, shareToken: "tok_existing" });
     api.unsharePractice.mockResolvedValue({ ok: true });
     setup();
-    await waitFor(() => expect(screen.getByText("Shared")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Anyone with the link can view")).toBeInTheDocument());
 
     await userEvent.click(screen.getByText("Stop sharing"));
 
     await waitFor(() => {
       expect(api.unsharePractice).toHaveBeenCalledWith("sess_1", "u_1");
-      expect(screen.getByText("Not shared")).toBeInTheDocument();
+      expect(screen.queryByText("Anyone with the link can view")).not.toBeInTheDocument();
+      expect(screen.queryByText("Stop sharing")).not.toBeInTheDocument();
     });
     vi.unstubAllGlobals();
   });

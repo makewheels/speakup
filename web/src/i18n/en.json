@@ -71,6 +71,7 @@
     "expressionSuggestions": "Expression feedback",
     "suggestionCount": "{n} suggestions",
     "standardAnswer": "Standard answer",
+    "viewStandardAnswer": "View answer",
     "pronunciationSuggestions": "Pronunciation",
     "pronunciationLoading": "Analyzing your pronunciation. Results will appear here…",
     "pronunciationUnavailable": "Pronunciation analysis is unavailable this time. Your text feedback is unaffected.",
@@ -324,8 +325,10 @@
   },
   "feedback": {
     "openPractice": "Give feedback on this result",
+    "openPracticeShort": "Feedback",
     "closePractice": "Close feedback",
     "reviewPractice": "Feedback sent · view or edit",
+    "reviewPracticeShort": "Feedback sent",
     "practiceQ": "Was this AI feedback helpful?",
     "good": "Helpful",
     "bad": "Not helpful",

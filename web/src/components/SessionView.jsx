@@ -4,10 +4,10 @@ import RecordingPlayer from "./RecordingPlayer.jsx";
 import PracticeMedia from "./practice/PracticeMedia.jsx";
 import PracticeScenarioCard from "./practice/PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./practice/PracticeFreeCard.jsx";
-import FeedbackBar from "./practice/FeedbackBar.jsx";
 import FeedbackGapList from "./practice/FeedbackGapList.jsx";
 import SelectableNoteText from "./practice/SelectableNoteText.jsx";
 import PronunciationFeedback from "./practice/PronunciationFeedback.jsx";
+import ResultFooterActions from "./practice/ResultFooterActions.jsx";
 import StandardAnswerCard from "./practice/StandardAnswerCard.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
 import { useT } from "../i18n/useI18n.js";
@@ -30,7 +30,6 @@ const stripEmoji = (s = "") =>
  *  - session：练习数据
  *  - readOnly：true=分享页（隐藏付费朗读 SpeakBtn 和追问输入，chat 只读）
  *  - subtitle：标题下方副标题（如分享页「由 xxx 分享」）
- *  - headerAction：hero 右侧操作区（如详情页的分享按钮）
  *  - 追问（仅 owner 模式）：chat / chatInput / setChatInput / onSend / chatBusy
  */
 export default function SessionView({
@@ -38,13 +37,16 @@ export default function SessionView({
   readOnly = false,
   subtitle = null,
   headerAction = null,
-  belowHero = null,
   chat = [],
   chatInput = "",
   setChatInput = () => {},
   onSend = () => {},
   chatBusy = false,
   noteUserId = "",
+  onShare = null,
+  onUnshare = null,
+  shareBusy = false,
+  shareStatus = "",
   shareToken = "",
 }) {
   const t = useT();
@@ -86,8 +88,6 @@ export default function SessionView({
         </div>
         {headerAction && <div className="detail-hero-action">{headerAction}</div>}
       </div>
-
-      {belowHero}
 
       {showAttemptVideo && (
         <PracticeMedia
@@ -211,10 +211,17 @@ export default function SessionView({
             )}
 
             {!readOnly && (
-              <FeedbackBar
+              <ResultFooterActions
                 key={idx}
-                practiceId={practiceId}
                 attemptIndex={idx}
+                onShare={onShare}
+                onUnshare={onUnshare}
+                practiceId={practiceId}
+                shareAriaLabel={t("practice.shareResult")}
+                shareBusy={shareBusy}
+                shareBusyLabel={t("practice.sharingResult")}
+                shareLabel={t("session.share")}
+                shareStatus={shareStatus}
                 snapshot={{
                   score: attempt.score,
                   summary: attempt.summary,
@@ -222,6 +229,7 @@ export default function SessionView({
                   transcript: attempt.transcript,
                   round: idx + 1,
                 }}
+                stopSharingLabel={t("session.stopSharing")}
               />
             )}
           </div>

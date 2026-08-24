@@ -3,10 +3,10 @@ import Icon from "../Icon.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./PracticeFreeCard.jsx";
-import FeedbackBar from "./FeedbackBar.jsx";
 import FeedbackGapList from "./FeedbackGapList.jsx";
 import SelectableNoteText from "./SelectableNoteText.jsx";
 import PronunciationFeedback from "./PronunciationFeedback.jsx";
+import ResultFooterActions from "./ResultFooterActions.jsx";
 import StandardAnswerCard from "./StandardAnswerCard.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
@@ -183,18 +183,6 @@ export default function PracticeFeedbackView({
         </div>
       </div>}
 
-      {!loading && <FeedbackBar
-        practiceId={session?._id}
-        attemptIndex={Math.max(0, (round ?? 1) - 1)}
-        snapshot={{
-          score: result.score,
-          summary: result.summary,
-          gaps: result.gaps,
-          transcript,
-          round,
-        }}
-      />}
-
       {/* 重说不封顶：重试按钮常驻；当前轮次由页面顶部徽章统一表达。 */}
       {!loading && <div className="actions-row" style={{ marginTop: 8 }}>
         <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
@@ -205,13 +193,23 @@ export default function PracticeFeedbackView({
         </button>
       </div>}
 
-      {!loading && <div className="fb-result-share-row">
-        <button className="su-btn su-btn-tertiary share-btn" type="button" onClick={onShare} disabled={shareBusy}>
-          <Icon name="share" size={16} />
-          {shareBusy ? t("practice.sharingResult") : t("practice.shareResult")}
-        </button>
-        {shareStatus && <span className="fb-result-share-status" role="status">{shareStatus}</span>}
-      </div>}
+      {!loading && <ResultFooterActions
+        attemptIndex={Math.max(0, (round ?? 1) - 1)}
+        onShare={onShare}
+        practiceId={session?._id}
+        shareAriaLabel={t("practice.shareResult")}
+        shareBusy={shareBusy}
+        shareBusyLabel={t("practice.sharingResult")}
+        shareLabel={t("session.share")}
+        shareStatus={shareStatus}
+        snapshot={{
+          score: result.score,
+          summary: result.summary,
+          gaps: result.gaps,
+          transcript,
+          round,
+        }}
+      />}
     </div>
   );
 }
