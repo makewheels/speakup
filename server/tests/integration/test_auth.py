@@ -40,3 +40,37 @@ def test_login_rejects_unknown_source_type(client):
         json={"phone": "13900009998", "sourceType": "automation"},
     )
     assert resp.status_code == 422
+
+
+def test_update_profile_changes_nickname_and_persists(client):
+    login = client.post("/api/auth/login", json={"phone": "13800001234"}).json()
+    headers = {"Authorization": f"Bearer {login['token']}"}
+
+    updated = client.patch(
+        "/api/auth/profile",
+        headers=headers,
+        json={"nickname": "  Mint   Garden  "},
+    )
+    relogin = client.post("/api/auth/login", json={"phone": "13800001234"})
+
+    assert updated.status_code == 200
+    assert updated.json() == {"userId": login["userId"], "nickname": "Mint Garden"}
+    assert relogin.json()["nickname"] == "Mint Garden"
+
+
+def test_update_profile_validates_nickname(client):
+    login = client.post("/api/auth/login", json={"phone": "13800001234"}).json()
+    headers = {"Authorization": f"Bearer {login['token']}"}
+
+    for nickname in ("   ", "x" * 25, "Mint\u0000Garden"):
+        response = client.patch(
+            "/api/auth/profile",
+            headers=headers,
+            json={"nickname": nickname},
+        )
+        assert response.status_code == 400
+
+
+def test_update_profile_requires_login(client):
+    response = client.patch("/api/auth/profile", json={"nickname": "Mint"})
+    assert response.status_code == 401

@@ -26,7 +26,7 @@ docs/
 
 | 位置 | 内容 | 维护约定 |
 |------|------|---------|
-| `docs/业务/*.md` | **当前已实现**行为的分模块文档（错题本与复习、用户反馈、自由录入、历史与分享、主题设置） | 每次行为变更必须同步更新 |
+| `docs/业务/*.md` | **当前已实现**行为的分模块文档（错题本与复习、用户反馈、自由录入、历史与分享、主题设置、账户资料） | 每次行为变更必须同步更新 |
 | `docs/design/schema.md` | MongoDB 集合字段（数据模型事实源） | 字段变更必须同步 |
 | `docs/design/*.md` | 跨模块基础（schema/ids/storage/spec） | 落地后回写进展 |
 | `docs/design/场景练习/*.md` | 场景模式总览 / 公共题分类 / 混合练习 / 题目评测 | 场景链路变化时同步 |
@@ -76,6 +76,7 @@ graph TB
 | 路由 | 方法 | 说明 | 依赖 |
 |------|------|------|------|
 | `/api/auth/login` | POST | 手机号登录/注册 | MongoDB |
+| `/api/auth/profile` | PATCH | 鉴权后修改当前用户昵称 | MongoDB |
 | `/api/scenarios/next` | GET | 派题：定制题 > 未练公共题 > 轮换 | MongoDB + OSS 签名 |
 | `/api/scenarios/practice-word` | POST | 「用这个词练一题」即时出定制场景题 | 文本模型 + 文生图 |
 | `/api/practice-sessions` | GET/POST | 创建会话（存场景快照）/ 历史列表；`/{pid}` 读单条 | MongoDB |

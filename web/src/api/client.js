@@ -170,6 +170,10 @@ export function chatStream(data, { onChunk, onDone, onError } = {}) {
 
 export const api = {
   login: (phone) => request("/auth/login", { method: "POST", body: { phone } }),
+  updateProfile: (nickname) => request("/auth/profile", {
+    method: "PATCH",
+    body: { nickname },
+  }),
 
   nextScenario: (userId, exclude = [], prefs = {}) => {
     const params = new URLSearchParams({ userId });

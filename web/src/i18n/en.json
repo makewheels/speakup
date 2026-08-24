@@ -288,7 +288,13 @@
     "themeDark": "Dark",
     "practicePreference": "Practice preference",
     "settings": "Settings",
-    "feedback": "Send feedback"
+    "feedback": "Send feedback",
+    "nicknameEdit": "Edit",
+    "nicknameInput": "Nickname",
+    "nicknameSave": "Save",
+    "nicknameSaving": "Saving…",
+    "nicknameCancel": "Cancel",
+    "nicknameSaveFailed": "Unable to save nickname. Please try again."
   },
   "feedback": {
     "openPractice": "Give feedback on this result",
