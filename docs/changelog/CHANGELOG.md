@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-24 09:54
+
+- **docs(design)**：新增发音纠正产品与实施方案 `docs/design/发音纠正/pronunciation-correction.md`——三层分工（引擎尺子/规则库药方/文字 LLM 文案）、评测模式两段式（段落+音素纠错）、腾讯 SOE-N 与 Qwen-Omni A/B 路线、四阶段实施计划；docs/README 地图同步
+
 ### 2026-08-24 08:57
 
 - **chore(docs)**：changelog 取消文件夹形态——6 份详细记录的关键「为什么/权衡」并入 CHANGELOG.md 对应日期条目，文件夹删除；格式约定放宽：小改动一行、大功能才自然补根因/权衡/验证，不套固定模板；CONTRIBUTING 与 docs/README 同步
