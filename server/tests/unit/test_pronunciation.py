@@ -36,7 +36,8 @@ def test_build_signed_url_uses_unencoded_sorted_query_for_hmac(monkeypatch):
 async def test_evaluate_pronunciation_runs_sentence_then_word_detail(monkeypatch):
     _configure(monkeypatch)
     monkeypatch.setattr(pronunciation, "PRONUNCIATION_ISSUE_THRESHOLD", 80)
-    monkeypatch.setattr(pronunciation, "_wav", AsyncMock(side_effect=[b"full", b"clip"]))
+    wav = AsyncMock(side_effect=[b"full", b"clip"])
+    monkeypatch.setattr(pronunciation, "_wav", wav)
     first = {
         "SuggestedScore": 0.82,
         "PronAccuracy": 0.73,
@@ -67,3 +68,17 @@ async def test_evaluate_pronunciation_runs_sentence_then_word_detail(monkeypatch
     assert "重音" in result["issues"][0]["coaching"]
     assert request.await_args_list[0].args == (b"full", "I am happy", 1)
     assert request.await_args_list[1].args == (b"clip", "{::cmd{F_IPA=true}} happy", 4)
+    assert wav.await_args_list[0].args == (b"audio", "webm")
+    assert wav.await_args_list[1].args == (b"full", "wav", 100, 750)
+
+
+@pytest.mark.asyncio
+async def test_extract_pronunciation_clip_uses_canonical_wav_timeline(monkeypatch):
+    wav = AsyncMock(side_effect=[b"canonical", b"clip"])
+    monkeypatch.setattr(pronunciation, "_wav", wav)
+
+    result = await pronunciation.extract_pronunciation_clip(b"webm", "webm", 250, 600)
+
+    assert result == b"clip"
+    assert wav.await_args_list[0].args == (b"webm", "webm")
+    assert wav.await_args_list[1].args == (b"canonical", "wav", 150, 700)

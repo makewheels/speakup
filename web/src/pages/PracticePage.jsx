@@ -62,8 +62,8 @@ export default function PracticePage() {
   const { chat, chatInput, setChatInput, chatBusy, sendChat: sendChatStream, resetChat } =
     useFollowupChat(user.userId, session?._id);
   const {
-    elapsed, paused, pauseSupported, recordingUrl,
-    resetCapture, restoreRecordingUrl, startCapture, stopCapture, pauseResumeCapture,
+    elapsed, paused, pauseSupported,
+    resetCapture, startCapture, stopCapture, pauseResumeCapture,
     discardCapture, takeAudioBlob,
   } = usePracticeRecorder();
   const {
@@ -182,7 +182,6 @@ export default function PracticePage() {
           setResult(resultFromAttempt(last));
           setTranscript(last.transcript ?? "");
           restorePronunciation(last.pronunciation ?? null);
-          if (last.recordingUrl) restoreRecordingUrl(last.recordingUrl);  // 用户原声从 OSS 还原，刷新后可回放
           setSavedMap(reviewMapFromGaps(last.gaps));
           setRound(attempts.length);
           resetChat(last.chat);
@@ -431,7 +430,6 @@ export default function PracticePage() {
         chat={chat}
         chatBusy={chatBusy}
         chatInput={chatInput}
-        recordingUrl={recordingUrl}
         result={result}
         loading={feedbackLoading}
         streamingLen={streamingLen}

@@ -7,7 +7,9 @@ import { speak, stop, isCached } from "../utils/tts.js";
 // 三态：idle(喇叭) / loading(生成中动画点) / playing(停止键+实心高亮)，播放中再点即停。
 // practiceId：传进来则朗读音频按 (practiceId, 文本) 挂在该 session 下；不传走全局兜底。
 // stopPropagation 让按钮可以嵌进可点击行里不连带触发。
-export default function SpeakBtn({ text, practiceId, size = 22, className = "spk-btn" }) {
+export default function SpeakBtn({
+  text, practiceId, size = 22, className = "spk-btn", label = "",
+}) {
   const t = useT();
   const [state, setState] = useState("idle"); // idle | loading | playing
   const audioRef = useRef(null);
@@ -55,6 +57,7 @@ export default function SpeakBtn({ text, practiceId, size = 22, className = "spk
       ) : (
         <Icon name="volume" size={size} />
       )}
+      {label && <span>{label}</span>}
     </button>
   );
 }

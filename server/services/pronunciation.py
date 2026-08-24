@@ -153,6 +153,21 @@ async def _wav(audio_bytes: bytes, suffix: str, start_ms=None, end_ms=None) -> b
     )
 
 
+async def extract_pronunciation_clip(
+    audio_bytes: bytes,
+    suffix: str,
+    start_ms: int,
+    end_ms: int,
+) -> bytes:
+    """按评测同源时间轴返回真正的 WAV 词片段，而不是让浏览器 seek 原始容器。"""
+    if end_ms <= start_ms:
+        raise PronunciationError("invalid pronunciation clip range")
+    full_wav = await _wav(audio_bytes, suffix)
+    start = max(0, start_ms - 100)
+    end = end_ms + 100
+    return await _wav(full_wav, "wav", start, end)
+
+
 def _score(value, *, fraction=False) -> float:
     try:
         number = float(value)
@@ -234,7 +249,10 @@ async def evaluate_pronunciation(audio_bytes: bytes, suffix: str, transcript: st
     async def evaluate_word(candidate: dict) -> dict:
         start = max(0, candidate["startMs"] - 100)
         end = candidate["endMs"] + 100
-        clip = await _wav(audio_bytes, suffix, start, end)
+        # 腾讯的时间戳基于上面的规范化 WAV；必须从同一份 WAV 裁片。
+        # 直接按时间戳 seek 浏览器上传的 WebM/MP4，容器起始偏移和非精确 seek
+        # 都可能把相邻词送去二次评测。
+        clip = await _wav(full_wav, "wav", start, end)
         detail = await _request_evaluation(clip, f"{{::cmd{{F_IPA=true}}}} {candidate['word']}", 4)
         return _normalize_issue(candidate, detail)
 
