@@ -383,3 +383,42 @@ def test_create_practice_rejects_userid_token_mismatch(client, user_id, auth_hea
         headers=auth_headers,
     )
     assert resp.status_code == 403
+
+
+def test_upload_recording_replaces_previous_object(
+    client, user_id, auth_headers, practice_id, monkeypatch,
+):
+    """同一 attempt 二次上传录音时，旧 OSS 对象要被登记删除。"""
+    from unittest.mock import AsyncMock, MagicMock
+    monkeypatch.setattr("routes.practice_sessions.upload_bytes_async", AsyncMock(return_value=None))
+    monkeypatch.setattr("routes.practice_sessions.oss_signed_url", MagicMock(return_value="https://signed"))
+    deleted = []
+
+    async def _record_delete(key):
+        deleted.append(key)
+
+    monkeypatch.setattr("routes.practice_sessions.delete_async", _record_delete)
+    mongo = MongoClient("mongodb://localhost:27017/")
+    mongo[TEST_DB_NAME].practiceSessions.update_one(
+        {"_id": practice_id}, {"$push": {"attempts": {"round": 1}}}
+    )
+    mongo.close()
+
+    def upload(tag: bytes) -> dict:
+        resp = client.post(
+            f"/api/practice-sessions/{practice_id}/recording",
+            data={"userId": user_id, "attemptIndex": 0},
+            files={"audio": ("r.webm", tag, "audio/webm")},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        return resp.json()
+
+    first = upload(b"FIRST_TAKE")
+    second = upload(b"SECOND_TAKE")
+
+    first_key = first["recording"]["key"]
+    assert deleted == [first_key]
+    assert second["recording"]["key"] != first_key
+    p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert p["attempts"][0]["recording"]["key"] == second["recording"]["key"]

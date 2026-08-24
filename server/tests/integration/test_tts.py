@@ -83,3 +83,49 @@ def test_tts_rejects_missing_token(client):
         resp = client.post("/api/tts", json={"text": "Hi"})
     assert resp.status_code == 401
     fake.assert_not_called()
+
+
+def test_tts_unknown_practice_404(client, auth_headers):
+    resp = client.post(
+        "/api/tts",
+        json={"text": "Hi", "practiceId": "ps_does_not_exist"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+def test_tts_without_any_attempt_409(client, auth_headers, practice_id):
+    resp = client.post(
+        "/api/tts",
+        json={"text": "Hi", "practiceId": practice_id},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 409
+
+
+def test_tts_archives_into_legacy_embedded_attempt(client, auth_headers, practice_id):
+    """独立 Attempt 不存在时，speechAssets 回退写嵌入数组。"""
+    mongo = MongoClient("mongodb://localhost:27017/")
+    mongo[TEST_DB_NAME].practiceSessions.update_one(
+        {"_id": practice_id}, {"$push": {"attempts": {"round": 1}}}
+    )
+    mongo.close()
+    fake = AsyncMock(return_value="https://oss.example/speech.wav?sig=x")
+    with patch("routes.tts.speak_url", new=fake):
+        resp = client.post(
+            "/api/tts",
+            json={
+                "text": "Could you remake my latte?",
+                "practiceId": practice_id,
+                "purpose": "standard-answer",
+            },
+            headers=auth_headers,
+        )
+    assert resp.status_code == 200
+    mongo = MongoClient("mongodb://localhost:27017/")
+    practice = mongo[TEST_DB_NAME].practiceSessions.find_one({"_id": practice_id})
+    mongo.close()
+    assets = practice["attempts"][0]["speechAssets"]
+    assert len(assets) == 1
+    assert assets[0]["purpose"] == "standard-answer"
+    assert "/attempts/pa_" in assets[0]["key"]
