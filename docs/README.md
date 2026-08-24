@@ -7,7 +7,7 @@
 ```
 docs/
 ├── README.md            # 本文件：导航 + 代码架构
-├── changelog/           # 追加式变更档案（只增不改，见 changelog/README.md）
+├── changelog/           # 全仓库唯一 changelog（CHANGELOG.md，只增不改，格式见 changelog/README.md）
 ├── 业务/                # 当前已实现行为的分模块文档（错题本/用户反馈/自由录入/历史与分享/主题设置）
 ├── design/              # 数据模型 + 设计稿
 │   ├── schema.md / ids.md / storage.md / spec.md   # 跨模块基础
@@ -30,13 +30,12 @@ docs/
 | `docs/design/*.md` | 跨模块基础（schema/ids/storage/spec） | 落地后回写进展 |
 | `docs/design/场景练习/*.md` | 场景模式总览 / 公共题分类 / 混合练习 / 题目评测 | 场景链路变化时同步 |
 | `docs/评测/*.md` | 评测方法、模型横评基线、发音纠正选型调研 | 跑完横评/调研后回写 |
-| `docs/changelog/` | 追加式变更档案（背景/权衡/验证，只增不改） | 每次改动追加一条 |
+| `docs/changelog/CHANGELOG.md` | 全仓库唯一 changelog（北京时间倒序；小改动一行，大功能自然补根因/权衡/验证，只增不改） | 每次改动必须追加 |
 | `docs/原型设计/` | UI 设计稿画布原型（SpeakUp.html） | — |
 | `docs/脚本说明.md` | scripts/ 与 server/scripts/ 各脚本用途 | 脚本增删时同步 |
 | `docs/deploy.md` | 部署指南（架构 / 首次部署 / 回滚 / 运维命令） | 部署形态变化时同步 |
 | `docs/langfuse.md` | Langfuse 自托管部署、埋点与踩坑记录 | 部署/埋点变化时同步 |
 | `server/evals/README.md` | 评测集跑法 / 任务文件格式 / Langfuse 回写 | evals 代码变化时同步 |
-| `docs/changelog/CHANGELOG.md` | 变更记录（北京时间倒序，一行式，全仓库唯一 changelog） | 每次改动必须追加 |
 | `CONTRIBUTING.md` | 开发流程 / 测试分层 / CHANGELOG 格式（人 + agent 共用） | 流程变化时同步 |
 | `AGENTS.md` | AI agent 入口：代码地图 / 敏感信息约定 / 部署运维 | 结构变化时同步 |
 

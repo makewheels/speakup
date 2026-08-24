@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-24 08:57
+
+- **chore(docs)**：changelog 取消文件夹形态——6 份详细记录的关键「为什么/权衡」并入 CHANGELOG.md 对应日期条目，文件夹删除；格式约定放宽：小改动一行、大功能才自然补根因/权衡/验证，不套固定模板；CONTRIBUTING 与 docs/README 同步
+
 ### 2026-08-24 08:46
 
 - **change(analytics)**：Umami 入口改 IP——管理后台走 http://101.42.94.17:30040（内部工具不占公网 DNS）；采集改走主域同源路径 `/umami-script.js`、`/api/send`、`/api/heartbeat`（Caddy 代理），删除 umami.a4.fit 子域与 DNS 记录
@@ -38,6 +42,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **refactor(server)**：726 行 `test_corrector_logic.py` 按主题拆为核心逻辑 / 流式 / 追问对话三个测试文件，共享 fake 提取到 `corrector_fakes.py`；552 行 `test_correct.py` 的自由说段移到 `test_correct_free.py`
 - **add(quality)**：500 物理行门禁从 CSS 扩展到全源码——前端覆盖 `web/src/**` 与 `web/scripts/**` 的 CSS/JS/JSX/TS/TSX，后端新增 `tests/` 与 `scripts/` 行数检查，均接入现有 CI；不删空行、不豁免存量
 - **chore(docs)**：贡献指南与交接文档同步全源码行数口径
+- 超限清单：后端测试 726/552 行、前端页面 576 行、两个前端测试 548/530 行；参数 ≤5 门禁仍只约束业务源码——它是业务代码可维护性规则，测试夹具不受限
 
 ### 2026-08-23 21:09
 
@@ -45,18 +50,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **change(theme)**：自动主题从按日出日落估算改为跟随系统深浅色，并实时响应系统外观变化；手动浅色/深色保持不变
 - **test**：新增“不调用定位、清理旧纬度、跟随系统变化、手动模式不受影响、旧版 Safari 监听和无 `matchMedia` 降级”覆盖
 - **chore(docs)**：新增主题设置当前行为文档，更新中英文说明与持续交接状态
+- 不用 IP 定位等近似手段替代，也不保留日出日落兼容开关——继续提供该行为就仍需要位置信息，与隐私目标冲突；此后任何浏览器权限都必须由明确用户操作触发并先说明用途
 
 ### 2026-08-23 20:55
 
 - **change(web)**：将 3237 行 `App.css` 按原始级联顺序机械拆为 8 个样式文件，单文件最大 495 物理行；入口文件只保留有序导入
 - **add(quality)**：新增 CSS 500 物理行门禁并接入前端 lint，递归覆盖 `web/src/**/*.css`，同时补行数计算和超限识别测试
 - **chore(docs)**：贡献指南补充 CSS 行数、导入顺序和构建验证约束，持续交接文档同步当前处理状态
+- 纯机械拆分：8 个文件按序拼接的 SHA-256 与原 `App.css` 完全一致，构建产物 CSS 文件名不变；不混入废弃规则清理，JS/JSX 的严格物理行门禁另开 PR，避免逻辑重构混进样式迁移
 
 ### 2026-08-23 20:39
 
 - **fix(history)**：历史详情和公开分享页的已作答场景视频不再挤进 `80×80` 缩略框，改为内容区全宽 `16:9` 播放器；静态图片继续使用紧凑缩略图
 - **test**：新增已作答视频全宽容器、图片缩略图和分享页布局回归覆盖；前端 280 项测试及覆盖率、构建通过
 - **chore(docs)**：新增历史与分享当前行为说明，以及包含全部需求、状态和安全边界的持续交接文档
+- 根因是已作答的图片与视频共用 `80×80` 容器；没有直接放大容器（会同时放大图片缩略图、挤压标题和分享操作），而是把视频移到独立全宽 16:9 容器。真实设备视觉走查已于 2026-08-23 补做（390/500/720 宽均正常）
 
 ### 2026-08-23 20:01
 
@@ -71,6 +79,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **add(notify)**：新增默认分支手动功能邮件工作流，支持 SMTP/Resend、Infisical OIDC 配置、手机友好 HTML + 纯文本与日志脱敏
 - **docs(pronunciation)**：更新发音纠正调研，确认专用口语评测引擎可返回音素和重音信号；本轮仅调研，未接入生产
 - **test**：后端 282 项、前端 278 项、邮件脚本 8 项单元测试通过，新增上下文隔离、单路降级、按类型去重、手动选区笔记、中文标签、差距布局与分享回滚覆盖；移除已失效的 AI 自动笔记评测项
+- 标准答案分支严格只看题目白名单快照（不含用户原话、纠正或历史），保证「抛开原话」的独立性；两分支并发、任一失败另一路仍可返回
+- 邮件工作流只能从默认分支手动触发，配置走 Infisical 专用路径 OIDC 注入，日志不记录收件人或凭据；发件授权码曾出现在交互记录中，待轮换
 
 ### 2026-08-20 21:16
 
@@ -104,6 +114,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **change(web)**：结果页移除「记为笔记」整句按钮，Native 卡内改为展示自动记入的短笔记（`已自动记入笔记 {note}`）；刷新从 attempt 还原 note；事后可在复习页删除
 - **add(evals)**：schema grader 新增 `note_valid`（note 存在时必须短≤10词、英文、不整句抄答案），防笔记回归成整句
 - **test**：note 自动落库/去重/升级错题的后端集成与 grader 单测；前端「Auto-noted 展示且无整句按钮」用例
+- 权衡：放弃「给多个候选让用户选」，选「自动选最优+事后可删」（用户已确认）；该自动笔记后于 08-23 改为手动摘录，见 19:52 段
 
 ### 2026-08-19 08:26
 
@@ -112,6 +123,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 - **add(web)**：gap 卡片展示 LLM 返回的更多字段——类别徽章（task/grammar/naturalness/vocabulary/register，复用既有 `.fb-gap-cat` 死样式）、要点标题 `title`、中文意思 `chinese`、例句 `example`（带朗读）；结果页与历史详情页两处渲染器同步
 - **change(web)**：两个答案板块改名为「纠正 / Native」——`nativeVersion`（基于原话的纠正）显示为"纠正/Correction"，`standardAnswer`（抛开原话的最 native 说法）显示为"Native"；标题不入库、纯 i18n，老数据自动跟随，无需改库；反馈标签 `native_unnatural` 文案同步
 - **test**：同步更新结果页/详情页对「Correction / Native」文案与 gap 新字段的断言
+- 深色问题根因是组件复用 `--ink` 做背景（深色下反转为浅灰）；修法统一为「新增语义 token、只覆盖 token」，不给单组件写 dark 覆盖，保住既有主题架构；改名纯 i18n 不入库，老数据自动跟随
 
 ### 2026-08-18 16:31
 

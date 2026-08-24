@@ -47,7 +47,7 @@ git checkout master && git pull
 - **测试要是代码**：不靠 curl 一次性脚本。
 - **源码不超过 500 物理行**：前端 `pnpm run lint:lines` 递归检查 `web/src/**` 与 `web/scripts/**` 的 CSS/JS/JSX/TS/TSX；后端 `uv run python scripts/check_code_quality.py` 对业务源码查行数+参数个数、对 `tests/` 与 `scripts/` 只查行数。两者均已接入 CI。`App.css` 只负责按顺序导入 `styles/app/*.css`，后面的文件允许有意覆盖前面的选择器，拆分或重排时必须保持级联顺序并运行生产构建。超限时按主题拆文件，不允许删空行、压缩代码或豁免存量文件绕过。
 - **批量调 LLM / 文生图很贵**：默认一次 ≤5 个；先 `--dry-run` 验证文案，再花生图钱。详见 `docs/design/场景练习/scenario-taxonomy.md`。
-- **文档随代码一起改**：`docs/业务/*.md` 记录**当前已实现**行为（一个模块一篇），任何对外行为变更必须在同一次 PR 里同步更新对应业务文档（没有就新建一篇）+ `docs/changelog/CHANGELOG.md`（全仓库唯一 changelog）；数据模型变更同步 `docs/design/schema.md`。设计稿（`docs/design/`）落地后回写进展。重要改动另在 `docs/changelog/<时间戳>-<名字>/` 追加一条详细记录（背景/权衡/验证，只增不改）。文档地图见 `docs/README.md`。
+- **文档随代码一起改**：`docs/业务/*.md` 记录**当前已实现**行为（一个模块一篇），任何对外行为变更必须在同一次 PR 里同步更新对应业务文档（没有就新建一篇）+ `docs/changelog/CHANGELOG.md`（全仓库唯一 changelog）；数据模型变更同步 `docs/design/schema.md`。设计稿（`docs/design/`）落地后回写进展。changelog 格式按大小拿捏：小改动一行，大功能可在条目下自然补根因/权衡/验证，不套固定模板（见 `docs/changelog/README.md`）。文档地图见 `docs/README.md`。
 
 ## 新增服务 / 路由时的 checklist
 
