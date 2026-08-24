@@ -19,16 +19,28 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from scripts.feature_email_content import (
-    FEATURE_IMAGE_CID,
-    FeatureImage,
-    FeatureMessage,
-    NotificationError,
-    load_feature_message,
-    message_fingerprint,
-    render_html,
-    render_text,
-)
+if __package__:
+    from scripts.feature_email_content import (
+        FEATURE_IMAGE_CID,
+        FeatureImage,
+        FeatureMessage,
+        NotificationError,
+        load_feature_message,
+        message_fingerprint,
+        render_html,
+        render_text,
+    )
+else:
+    from feature_email_content import (
+        FEATURE_IMAGE_CID,
+        FeatureImage,
+        FeatureMessage,
+        NotificationError,
+        load_feature_message,
+        message_fingerprint,
+        render_html,
+        render_text,
+    )
 
 RESEND_EMAILS_URL = "https://api.resend.com/emails"
 RequestFn = Callable[..., Any]

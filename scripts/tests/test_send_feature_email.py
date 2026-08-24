@@ -4,6 +4,8 @@ import base64
 import io
 import json
 import smtplib
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -118,6 +120,22 @@ class FeatureEmailTest(unittest.TestCase):
 
         with self.assertRaisesRegex(emailer.NotificationError, "最多 6 条"):
             emailer.load_feature_message(environ)
+
+    def test_direct_script_entry_can_import_sibling_content_module(self):
+        repo_root = Path(__file__).resolve().parents[2]
+
+        result = subprocess.run(
+            [sys.executable, "scripts/send_feature_email.py"],
+            cwd=repo_root,
+            env={},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("缺少必要环境变量 FEATURE_MAIL_TITLE", result.stderr)
+        self.assertNotIn("ModuleNotFoundError", result.stderr)
 
     def test_loads_repository_image_and_renders_inline_cid(self):
         with tempfile.TemporaryDirectory() as temp_dir:
