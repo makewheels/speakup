@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-24 08:46
+
+- **change(analytics)**：Umami 入口改 IP——管理后台走 http://101.42.94.17:30040（内部工具不占公网 DNS）；采集改走主域同源路径 `/umami-script.js`、`/api/send`、`/api/heartbeat`（Caddy 代理），删除 umami.a4.fit 子域与 DNS 记录
+
 ### 2026-08-24 08:35
 
 - **chore**：清理本地遗留——删除已合并 PR 的本地分支；`web/.gitignore` 补 Playwright 产物（test-results/、playwright-report/）
