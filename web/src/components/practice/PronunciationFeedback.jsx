@@ -151,9 +151,11 @@ export default function PronunciationFeedback({
                 />
                 {canSpeak && (
                   <SpeakBtn
+                    attemptIndex={attemptIndex}
                     className="pron-listen-btn"
                     label={t("practice.listenTarget")}
                     practiceId={practiceId}
+                    purpose="pronunciation-target"
                     size={15}
                     text={issue.word}
                   />

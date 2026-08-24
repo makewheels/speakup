@@ -12,7 +12,7 @@ const MAX_NOTE_LENGTH = 500;
  * 结果文字手动摘录：用户先用系统选区选中文字，再从底部浮条加入笔记。
  * 不调用 AI；后续解释能力可使用这里保留的 contextSentence 惰性生成。
  */
-export default function SelectableNoteText({ children, practiceId, userId }) {
+export default function SelectableNoteText({ attemptIndex = -1, children, practiceId, userId }) {
   const t = useT();
   const rootRef = useRef(null);
   const statusTimerRef = useRef(null);
@@ -64,6 +64,7 @@ export default function SelectableNoteText({ children, practiceId, userId }) {
         chinese: "",
         contextSentence: selection.contextSentence,
         practiceId,
+        attemptIndex,
       }]);
       flash(response?.added === 0 ? t("practice.noteAlreadySaved") : t("practice.noteSaved"));
       if (response?.added > 0) track("note_added", { userId });

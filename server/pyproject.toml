@@ -13,6 +13,7 @@ dependencies = [
     "motor>=3.7.1",
     "openai>=2.38.0",
     "oss2>=2.19.1",
+    "pillow>=12.3.0",
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.29",

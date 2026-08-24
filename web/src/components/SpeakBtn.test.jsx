@@ -34,10 +34,21 @@ describe("SpeakBtn", () => {
     const { speak, isCached } = await import("../utils/tts.js");
     isCached.mockReturnValue(false);
     speak.mockResolvedValue(null);
-    render(<SpeakBtn text="Native version of latte" practiceId="sess_xyz" />);
+    render(
+      <SpeakBtn
+        attemptIndex={1}
+        text="Native version of latte"
+        practiceId="sess_xyz"
+        purpose="standard-answer"
+      />,
+    );
     await userEvent.click(screen.getByRole("button"));
-    expect(isCached).toHaveBeenCalledWith("Native version of latte", "sess_xyz");
-    expect(speak).toHaveBeenCalledWith("Native version of latte", "sess_xyz");
+    expect(isCached).toHaveBeenCalledWith(
+      "Native version of latte", "sess_xyz", 1, "standard-answer",
+    );
+    expect(speak).toHaveBeenCalledWith(
+      "Native version of latte", "sess_xyz", 1, "standard-answer",
+    );
   });
 
   it("shows Synthesizing state while loading (text not cached)", async () => {

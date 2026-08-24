@@ -1,12 +1,22 @@
 """阿里云 OSS 对象存储服务。私有桶：只存 key，URL 一律读取时现签。"""
 
 import asyncio
+from dataclasses import dataclass
+from collections.abc import Iterator
 
 import oss2
 
 from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, OSS_BUCKET
 
 _bucket = None
+
+
+@dataclass(frozen=True)
+class ObjectInfo:
+    key: str
+    size: int
+    etag: str
+    crc64: int | None
 
 
 def _get_bucket() -> oss2.Bucket:
@@ -52,3 +62,31 @@ async def delete_async(key: str) -> None:
 
 def exists(key: str) -> bool:
     return _get_bucket().object_exists(key)
+
+
+def object_info(key: str) -> ObjectInfo:
+    result = _get_bucket().head_object(key)
+    return ObjectInfo(
+        key=key,
+        size=int(result.content_length or 0),
+        etag=result.etag or "",
+        crc64=getattr(result, "server_crc", None),
+    )
+
+
+def iter_objects(prefix: str) -> Iterator[ObjectInfo]:
+    for item in oss2.ObjectIteratorV2(_get_bucket(), prefix=prefix):
+        yield ObjectInfo(key=item.key, size=int(item.size or 0), etag=item.etag or "", crc64=None)
+
+
+def copy_verified(source_key: str, target_key: str) -> ObjectInfo:
+    """同桶复制并按大小、ETag 和可用时的 CRC64 校验；可重复执行。"""
+    source = object_info(source_key)
+    if not exists(target_key):
+        _get_bucket().copy_object(OSS_BUCKET, source_key, target_key)
+    target = object_info(target_key)
+    if source.size != target.size or (source.etag and source.etag != target.etag):
+        raise RuntimeError(f"OSS copy verification failed: {source_key} -> {target_key}")
+    if source.crc64 is not None and target.crc64 is not None and source.crc64 != target.crc64:
+        raise RuntimeError(f"OSS CRC verification failed: {source_key} -> {target_key}")
+    return target

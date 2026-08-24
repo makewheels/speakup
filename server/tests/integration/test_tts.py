@@ -1,5 +1,9 @@
 from unittest.mock import AsyncMock, patch
 
+from pymongo import MongoClient
+
+from tests.conftest import TEST_DB_NAME
+
 
 def test_tts_happy(client, auth_headers):
     fake = AsyncMock(return_value="https://oss.example/tts/abc.mp3?sig=x")
@@ -31,26 +35,39 @@ def test_tts_too_long_413(client, auth_headers):
 
 
 def test_tts_passes_practice_id_to_speak_url(client, auth_headers, practice_id):
-    """前端传 practiceId → 路由原样透传给 speak_url，让音频挂到 session 下。"""
-    fake = AsyncMock(return_value=f"https://oss.example/practiceSessions/{practice_id}/tts/abc.mp3?sig=x")
+    """带业务上下文的朗读按用户、月份、session、attempt 和用途归档。"""
+    mongo = MongoClient("mongodb://localhost:27017/")
+    mongo[TEST_DB_NAME].practiceSessions.update_one(
+        {"_id": practice_id}, {"$push": {"attempts": {"round": 1}}}
+    )
+    mongo.close()
+    fake = AsyncMock(return_value="https://oss.example/speech.wav?sig=x")
     with patch("routes.tts.speak_url", new=fake):
         resp = client.post(
             "/api/tts",
-            json={"text": "Could you remake my latte?", "practiceId": practice_id},
+            json={
+                "text": "Could you remake my latte?",
+                "practiceId": practice_id,
+                "attemptIndex": 0,
+                "purpose": "correction",
+            },
             headers=auth_headers,
         )
     assert resp.status_code == 200
     fake.assert_awaited_once()
-    assert fake.await_args.kwargs.get("practice_id") == practice_id
+    key = fake.await_args.kwargs["storage_key"]
+    assert f"/{practice_id}/attempts/1/speech/correction/sp_" in key
+    practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert practice["attempts"][0]["speechAssets"][0]["key"] == key
 
 
 def test_tts_without_practice_id_still_works(client, auth_headers):
-    """不传 practiceId 也能调通（兜底走全局 tts/）。"""
+    """不传 practiceId 也能调通（兜底走全局 speech/global/）。"""
     fake = AsyncMock(return_value="https://oss.example/tts/abc.mp3?sig=x")
     with patch("routes.tts.speak_url", new=fake):
         resp = client.post("/api/tts", json={"text": "Hi"}, headers=auth_headers)
     assert resp.status_code == 200
-    assert fake.await_args.kwargs.get("practice_id") is None
+    assert fake.await_args.kwargs.get("storage_key") is None
 
 
 def test_tts_rejects_missing_token(client):

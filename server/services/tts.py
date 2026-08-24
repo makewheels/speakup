@@ -1,8 +1,4 @@
-"""文本转语音：百炼 Qwen-TTS，保留火山 Seed-TTS 回退分支。
-
-朗读音频存 `practiceSessions/{practiceId}/tts/{hash}.{ext}`，挂在 session 下。
-session 内重听同一段仍走 OSS 缓存（按 hash 去重）。
-"""
+"""文本转语音与内容寻址缓存。业务路径由路由层按 session/attempt/purpose 传入。"""
 
 import asyncio
 import base64
@@ -25,14 +21,18 @@ from config import (
 from services.oss_storage import exists, get_url, upload_bytes
 
 
-def _cache_key(text: str, practice_id: str | None = None) -> str:
+def speech_asset(text: str) -> tuple[str, str, str]:
     digest = hashlib.sha1(
         f"{VOICE_PROVIDER}:{TTS_RESOURCE_ID}:{TTS_MODEL}:{TTS_VOICE}:{text}".encode()
     ).hexdigest()
     extension = "wav" if VOICE_PROVIDER == "dashscope" else "mp3"
-    if practice_id:
-        return f"practiceSessions/{practice_id}/tts/{digest}.{extension}"
-    return f"tts/{digest}.{extension}"
+    content_type = "audio/wav" if extension == "wav" else "audio/mpeg"
+    return f"sp_{digest}", extension, content_type
+
+
+def _cache_key(text: str) -> str:
+    audio_id, extension, _ = speech_asset(text)
+    return f"speech/global/{audio_id}.{extension}"
 
 
 def _looks_like_audio(data: bytes) -> bool:
@@ -151,14 +151,14 @@ def _synthesize(text: str) -> bytes:
     raise RuntimeError(f"unsupported VOICE_PROVIDER: {VOICE_PROVIDER}")
 
 
-async def speak_url(text: str, practice_id: str | None = None) -> str:
+async def speak_url(text: str, storage_key: str | None = None) -> str:
     """返回这句话朗读音频的 OSS 签名 URL。命中缓存直接返回，否则合成后存 OSS。"""
     text = (text or "").strip()
     if not text:
         raise ValueError("empty text")
-    key = _cache_key(text, practice_id)
+    key = storage_key or _cache_key(text)
     if not await asyncio.to_thread(exists, key):
         audio = await asyncio.to_thread(_synthesize, text)
-        content_type = "audio/wav" if VOICE_PROVIDER == "dashscope" else "audio/mpeg"
+        _, _, content_type = speech_asset(text)
         await asyncio.to_thread(upload_bytes, key, audio, content_type)
     return await asyncio.to_thread(get_url, key)

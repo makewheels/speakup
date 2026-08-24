@@ -54,8 +54,8 @@ def _no_real_llm(monkeypatch):
     monkeypatch.setattr("services.scenario_service.wanx_generate", _fake_wanx)
 
     # 3) TTS：service 层直接 stub，不走外部接口
-    async def _fake_speak(text, practice_id=None):
-        return f"https://oss.example/fake-tts/{(practice_id or 'global')}.mp3?sig=x"
+    async def _fake_speak(text, storage_key=None):
+        return f"https://oss.example/fake-tts/{(storage_key or 'global')}.mp3?sig=x"
     monkeypatch.setattr("services.tts.speak_url", _fake_speak)
     monkeypatch.setattr("routes.tts.speak_url", _fake_speak)
 

@@ -1,18 +1,19 @@
-// 朗读：点击时先调后端 /api/tts（DashScope Qwen TTS，自然音），
+// 朗读：点击时先调后端 /api/tts（云端自然语音），
 // 云端不可用时在当前页面降级到浏览器 speechSynthesis。
-// 后端按 (practiceId, 文本) hash 把 wav 存到 practiceSessions/{practiceId}/tts/，
-// 这样所有 session 资源都在 practiceSessions/ 下；session 内重听同一段命中 OSS 缓存不重花钱。
+// 后端按 session / attempt / purpose 归档，内容 hash 负责同类音频去重。
 import { api } from "../api/client.js";
 
-const urlCache = new Map(); // "{practiceId}:{text}" -> oss url
+const urlCache = new Map();
 const BROWSER_TTS = Symbol("browser-tts");
 let current = null; // 当前播放的 Audio，切歌/停止时停掉
 let backendUnavailable = false;
 
-const _key = (text, practiceId) => `${practiceId || ""}:${(text || "").trim()}`;
+const _key = (text, practiceId, attemptIndex, purpose) => (
+  `${practiceId || ""}:${attemptIndex}:${purpose}:${(text || "").trim()}`
+);
 
-export function isCached(text, practiceId) {
-  return backendUnavailable || urlCache.has(_key(text, practiceId));
+export function isCached(text, practiceId, attemptIndex = -1, purpose = "other") {
+  return backendUnavailable || urlCache.has(_key(text, practiceId, attemptIndex, purpose));
 }
 
 function browserSpeak(text) {
@@ -58,11 +59,11 @@ export function stop() {
 // 播放并返回 Audio 实例：调用方可监听 ended / pause 来同步「正在播放」状态。
 // 关键：合成（api.tts）阶段是「generating」，拿到 URL 即返回；不 await audio.play()，
 // 否则浏览器缓冲卡住会让调用方的 loading 态一直转圈（曾经的「一直在生成」bug）。
-export async function speak(text, practiceId) {
+export async function speak(text, practiceId, attemptIndex = -1, purpose = "other") {
   text = (text || "").trim();
   if (!text) return null;
   stop();
-  const k = _key(text, practiceId);
+  const k = _key(text, practiceId, attemptIndex, purpose);
   let url = urlCache.get(k);
   if (url === BROWSER_TTS || (!url && backendUnavailable)) {
     const playback = browserSpeak(text);
@@ -73,7 +74,7 @@ export async function speak(text, practiceId) {
     // 合成加 30s 超时兜底，网络挂死也不会让按钮永远 loading
     try {
       url = await Promise.race([
-        api.tts(text, practiceId),
+        api.tts(text, practiceId, attemptIndex, purpose),
         new Promise((_, rej) => setTimeout(() => rej(new Error("TTS timeout")), 30000)),
       ]);
       urlCache.set(k, url);

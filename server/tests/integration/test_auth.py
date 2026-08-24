@@ -1,3 +1,14 @@
+from io import BytesIO
+
+from PIL import Image
+
+
+def _avatar_png() -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (640, 480), (20, 100, 200)).save(output, format="PNG")
+    return output.getvalue()
+
+
 def test_login_creates_user(client):
     resp = client.post("/api/auth/login", json={"phone": "13800001234"})
     assert resp.status_code == 200
@@ -79,25 +90,25 @@ def test_update_profile_requires_login(client):
 def test_upload_avatar_persists_private_key_and_returns_stable_url(client, monkeypatch):
     login = client.post("/api/auth/login", json={"phone": "13800001234"}).json()
     headers = {"Authorization": f"Bearer {login['token']}"}
-    uploaded = {}
+    uploaded = []
 
     async def fake_upload(key, data, content_type):
-        uploaded.update(key=key, data=data, content_type=content_type)
+        uploaded.append((key, data, content_type))
 
     monkeypatch.setattr("services.oss_storage.upload_bytes_async", fake_upload)
     response = client.post(
         "/api/auth/profile/avatar",
         headers=headers,
-        files={"avatar": ("avatar.png", b"\x89PNG\r\n\x1a\nimage", "image/png")},
+        files={"avatar": ("avatar.png", _avatar_png(), "image/png")},
     )
     relogin = client.post("/api/auth/login", json={"phone": "13800001234"})
 
     assert response.status_code == 200
-    assert uploaded == {
-        "key": f"users/{login['userId']}/avatar/current",
-        "data": b"\x89PNG\r\n\x1a\nimage",
-        "content_type": "image/png",
-    }
+    assert len(uploaded) == 2
+    assert uploaded[0][0].startswith(f"users/{login['userId']}/profile/avatar/av_")
+    assert uploaded[0][0].endswith("/original.jpg")
+    assert uploaded[1][0].endswith("/thumbnail.jpg")
+    assert uploaded[0][2] == uploaded[1][2] == "image/jpeg"
     assert response.json()["avatarUrl"].startswith(
         f"/api/auth/avatar/{login['userId']}?v="
     )
@@ -110,7 +121,7 @@ def test_avatar_redirects_to_short_lived_private_oss_url(client):
     upload = client.post(
         "/api/auth/profile/avatar",
         headers=headers,
-        files={"avatar": ("avatar.webp", b"RIFFxxxxWEBPimage", "image/webp")},
+        files={"avatar": ("avatar.png", _avatar_png(), "image/png")},
     ).json()
 
     response = client.get(upload["avatarUrl"], follow_redirects=False)
@@ -132,7 +143,7 @@ def test_upload_avatar_rejects_unsupported_or_oversized_files(client):
     oversized = client.post(
         "/api/auth/profile/avatar",
         headers=headers,
-        files={"avatar": ("avatar.jpg", b"\xff\xd8\xff" + b"x" * (5 * 1024 * 1024), "image/jpeg")},
+        files={"avatar": ("avatar.jpg", b"\xff\xd8\xff" + b"x" * (25 * 1024 * 1024), "image/jpeg")},
     )
 
     assert unsupported.status_code == 400
@@ -142,7 +153,7 @@ def test_upload_avatar_rejects_unsupported_or_oversized_files(client):
 def test_upload_and_remove_avatar_require_login(client):
     upload = client.post(
         "/api/auth/profile/avatar",
-        files={"avatar": ("avatar.png", b"\x89PNG\r\n\x1a\nimage", "image/png")},
+        files={"avatar": ("avatar.png", _avatar_png(), "image/png")},
     )
     remove = client.delete("/api/auth/profile/avatar")
 
@@ -156,7 +167,7 @@ def test_remove_avatar_restores_default_and_cleans_object(client, monkeypatch):
     uploaded = client.post(
         "/api/auth/profile/avatar",
         headers=headers,
-        files={"avatar": ("avatar.png", b"\x89PNG\r\n\x1a\nimage", "image/png")},
+        files={"avatar": ("avatar.png", _avatar_png(), "image/png")},
     ).json()
     deleted = []
 
@@ -170,6 +181,8 @@ def test_remove_avatar_restores_default_and_cleans_object(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"userId": login["userId"], "avatarUrl": None}
-    assert deleted == [f"users/{login['userId']}/avatar/current"]
+    assert len(deleted) == 2
+    assert deleted[0].endswith("/original.jpg")
+    assert deleted[1].endswith("/thumbnail.jpg")
     assert missing.status_code == 404
     assert relogin.json()["avatarUrl"] is None

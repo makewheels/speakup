@@ -7,7 +7,15 @@
   "_id":       "u_1781276...",
   "phone":     "13800001234",
   "nickname":  "用户名",                 // 登录用户可修改，规范化后 1–24 个字符
-  "avatarKey": "users/u_.../avatar/current", // 自定义头像 OSS key；默认头像时缺省
+  "avatar": {                              // 自定义头像；默认头像时整个字段缺省
+    "id": "av_178...",
+    "originalKey": "users/u_.../profile/avatar/av_.../original.jpg",
+    "thumbnailKey": "users/u_.../profile/avatar/av_.../thumbnail.jpg",
+    "contentType": "image/jpeg",
+    "originalSize": 1024,
+    "thumbnailSize": 256,
+    "createdAt": datetime
+  },
   "avatarVersion": 1787555910000,         // 每次上传更新，用于版本化地址刷新缓存
   "sourceType": "human | ai_test",  // 数据来源；普通用户默认 human，自动体验专用账号为 ai_test
   "createdAt": datetime,
@@ -18,7 +26,7 @@
 `sourceType` 在用户首次创建时确定，后续普通登录不改写。历史缺字段用户按 `human` 处理。
 生产分析排除自动体验数据时使用 `{sourceType: {$ne: "ai_test"}}`，以兼容历史记录。
 昵称通过鉴权接口更新，服务端去除首尾空白并合并连续空白；空昵称、超过 24 个字符或含控制字符时拒绝保存。
-头像只允许 JPG、PNG、WebP，最大 5 MB，服务端按文件签名识别类型；默认头像时 `avatarKey` / `avatarVersion` 均缺省。手机号当前无更新接口。
+头像源文件只允许 JPG、PNG、WebP，最大 25 MB。前端先方形裁剪，服务端再次解码、去 EXIF，生成 1024 主图（小图不放大）和 256 缩略图；默认头像时 `avatar` / `avatarVersion` 均缺省。手机号当前无更新接口。
 
 ## authSessions（登录会话）
 
@@ -90,7 +98,23 @@
       "chat": [        // 追问对话：用户拿到反馈后基于本次上下文继续问 AI（可空）
         { "role": "user | assistant", "content": "...", "createdAt": datetime }
       ],
-      "recordingKey":  "practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm",  // 本轮录音（上传成功才有）
+      "recording": {                       // 本轮原声（上传成功才有）
+        "id": "rec_178...",
+        "key": "practiceSessions/{userId}/{yyyyMM}/{practiceId}/attempts/1/recordings/{recordingId}/original.webm",
+        "format": "webm | m4a | ogg | wav | mp3",
+        "contentType": "audio/webm;codecs=opus",
+        "sizeBytes": 123456,
+        "createdAt": datetime
+      },
+      "speechAssets": [                    // 点击播放后惰性生成；同文本/用途幂等
+        {
+          "id": "sp_<content-hash>",
+          "key": "practiceSessions/{userId}/{yyyyMM}/{practiceId}/attempts/1/speech/example/sp_....wav",
+          "purpose": "standard-answer | correction | example | pronunciation-target | review | other",
+          "format": "wav | mp3",
+          "contentType": "audio/wav | audio/mpeg"
+        }
+      ],
       "pronunciation": {                     // feature flag 开启且评测成功才有
         "status": "completed | processing | failed",
         "provider": "tencent",
@@ -115,7 +139,6 @@
       "createdAt": datetime
     }
   ],
-  "recordings": [ { "key": "...", "attemptIndex": 0, "createdAt": datetime } ],
   "shareToken":  "Ab3xK9random",           // 12 位纯字母数字 token；取消分享时保留，再开启可复用；URL = /s/{shareToken}
   "shared":      true,                       // 是否正在分享；取消时置 false，旧链接立即不可读
   "sharedAt":    datetime,                    // 最近一次开启分享时间
@@ -127,7 +150,7 @@
 
 > 新 attempt 不再生成 `nativeVersion`、`sentenceCorrections` 或好表达笔记；历史记录中的旧字段允许留在数据库，但当前结果页不展示。为了兼容历史数据，API 仍可读到空的 `note/noteChinese` 字段。
 
-> 图片、视频与录音库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。
+> 图片、视频与音频库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。读取期兼容历史 `recordingKey` / 顶层 `recordings[]` / `avatarKey`，生产迁移后不再新写这些字段。
 
 ## reviewItems（错题本 / 复习项）
 
@@ -147,6 +170,7 @@
   "chinese":       "能帮我看看吗？",            // expression 的中文提示词：错题可由 corrector 产出，手动笔记/历史缺项走 translate 接口惰性补齐
   "contextSentence": "Could you take a look at this for me?",
   "practiceId":    "ps_1781276...",            // 来源练习，供复习卡展示场景图 + 原题重练
+  "attemptIndex":  0,                            // 来源轮次；历史数据可缺省
   "status":        "active | retired",         // 会说即收纳（retired）：复习队列/出题取材不再出现；列表可恢复；历史无此字段按 active 兼容
   "retiredAt":     datetime,                    // 收纳时间（仅 retired）
   "retiredBy":     "self",                      // 收纳来源：self=复习卡「会说」（预留 practice=练习达标）

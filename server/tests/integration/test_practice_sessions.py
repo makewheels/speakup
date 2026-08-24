@@ -264,11 +264,16 @@ def test_upload_recording_stores_key_and_returns_signed_url(
     fake_signed = "https://oss.example.com/rec.webm?Signature=abc"
     monkeypatch.setattr("routes.practice_sessions.upload_bytes_async", AsyncMock(return_value=None))
     monkeypatch.setattr("routes.practice_sessions.oss_signed_url", MagicMock(return_value=fake_signed))
+    mongo = MongoClient("mongodb://localhost:27017/")
+    mongo[TEST_DB_NAME].practiceSessions.update_one(
+        {"_id": practice_id}, {"$push": {"attempts": {"round": 1}}}
+    )
+    mongo.close()
 
     audio_bytes = b"FAKE_WEBM_DATA"
     resp = client.post(
         f"/api/practice-sessions/{practice_id}/recording",
-        data={"userId": user_id},
+        data={"userId": user_id, "attemptIndex": 0},
         files={"audio": ("recording.webm", audio_bytes, "audio/webm")},
         headers=auth_headers,
     )
@@ -276,14 +281,17 @@ def test_upload_recording_stores_key_and_returns_signed_url(
     assert resp.json()["url"] == fake_signed
 
     p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
-    assert len(p.get("recordings", [])) == 1
-    rec = p["recordings"][0]
+    assert not p.get("recordings")
+    rec = p["attempts"][0]["recording"]
     assert "key" in rec                          # key 存入 DB
-    assert rec.get("url") == fake_signed         # 读取时返回签名 URL
-    # 路径规范：practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.{ext}
+    assert p["attempts"][0]["recordingUrl"] == fake_signed
+    assert rec["format"] == "webm"
+    assert rec["contentType"] == "audio/webm"
+    assert rec["sizeBytes"] == len(audio_bytes)
     parts = rec["key"].split("/")
     assert parts[0] == "practiceSessions" and parts[1] == user_id and parts[3] == practice_id
-    assert parts[4] == "recording"
+    assert parts[4:7] == ["attempts", "1", "recordings"]
+    assert parts[-1] == "original.webm"
     assert len(parts[2]) == 6  # yyyyMM
 
 
@@ -309,8 +317,20 @@ def test_upload_recording_links_attempt(client, user_id, auth_headers, practice_
     )
     assert resp.status_code == 200
     p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
-    assert p["attempts"][0].get("recordingKey")
+    assert p["attempts"][0]["recording"]["id"].startswith("rec_")
+    assert not p["attempts"][0].get("recordingKey")
     assert p["attempts"][0].get("recordingUrl") == "https://signed"
+
+
+def test_upload_recording_requires_a_real_attempt(client, user_id, auth_headers, practice_id):
+    resp = client.post(
+        f"/api/practice-sessions/{practice_id}/recording",
+        data={"userId": user_id, "attemptIndex": 0},
+        files={"audio": ("r.webm", b"data", "audio/webm")},
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 409
 
 
 def test_pronunciation_evaluates_linked_recording(client, user_id, auth_headers, practice_id, monkeypatch):

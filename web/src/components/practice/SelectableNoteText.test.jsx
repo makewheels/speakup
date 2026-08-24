@@ -42,6 +42,7 @@ describe("SelectableNoteText", () => {
     const { api } = await import("../../api/client.js");
     await waitFor(() => expect(api.addReviewItems).toHaveBeenCalledWith("user_1", [{
       kind: "note",
+      attemptIndex: -1,
       expression: "would like",
       original: "",
       note: "",

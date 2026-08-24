@@ -11,8 +11,15 @@ function preferenceNoticeKey(match) {
   return "";
 }
 
-function SpeakBtns({ text, practiceId }) {
-  return <SpeakBtn text={text} practiceId={practiceId} />;
+function SpeakBtns({ attemptIndex, text, practiceId }) {
+  return (
+    <SpeakBtn
+      attemptIndex={attemptIndex}
+      practiceId={practiceId}
+      purpose="correction"
+      text={text}
+    />
+  );
 }
 
 // 阶段提示文案 —— 跟随语言切换，所以在组件内构造
@@ -97,7 +104,11 @@ export default function PracticeActiveView({
           {hintGaps.map((g, i) => (
             <span key={i} className="sc-hint-item">
               <b>{g.better}</b>
-              <SpeakBtns text={g.better} practiceId={session?._id} />
+              <SpeakBtns
+                attemptIndex={Math.max(0, (round ?? 1) - 2)}
+                text={g.better}
+                practiceId={session?._id}
+              />
             </span>
           ))}
         </div>

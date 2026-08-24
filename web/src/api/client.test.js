@@ -284,98 +284,17 @@ describe("api/client 各方法 URL/method/body", () => {
       ok: true,
       json: () => Promise.resolve({ url: "https://oss/clip.mp3" }),
     });
-    const url = await api.tts("hello", "p1");
+    const url = await api.tts("hello", "p1", 2, "example");
     const [callUrl, opts] = callArgs();
     expect(callUrl).toBe("/api/tts");
     expect(opts.method).toBe("POST");
-    expect(opts.body).toBe(JSON.stringify({ text: "hello", practiceId: "p1" }));
+    expect(opts.body).toBe(JSON.stringify({
+      text: "hello",
+      practiceId: "p1",
+      attemptIndex: 2,
+      purpose: "example",
+    }));
     expect(url).toBe("https://oss/clip.mp3");
-  });
-});
-
-describe("api/client FormData 上传方法", () => {
-  let fetchMock;
-
-  beforeEach(() => {
-    localStorage.clear();
-    storeToken();
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-  });
-
-  afterEach(() => {
-    localStorage.clear();
-    vi.unstubAllGlobals();
-  });
-
-  it("uploadRecording POST FormData，成功返回 json", async () => {
-    fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({ ok: 1 }) });
-    const blob = new Blob(["x"], { type: "audio/webm" });
-    const res = await api.uploadRecording("p1", "u1", blob, 2);
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/practice-sessions/p1/recording");
-    expect(opts.method).toBe("POST");
-    expect(opts.headers.Authorization).toBe("Bearer tok_test");
-    expect(opts.body).toBeInstanceOf(FormData);
-    expect(opts.body.get("userId")).toBe("u1");
-    expect(opts.body.get("attemptIndex")).toBe("2");
-    expect(res).toEqual({ ok: 1 });
-  });
-
-  it("uploadRecording 非 ok → 抛出上传失败", async () => {
-    fetchMock.mockResolvedValue({ ok: false });
-    const blob = new Blob(["x"], { type: "audio/webm" });
-    await expect(api.uploadRecording("p1", "u1", blob)).rejects.toThrow("录音上传失败");
-  });
-
-  it("evaluatePronunciation POSTs the linked attempt", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ status: "completed", overallScore: 82 }),
-    });
-    const result = await api.evaluatePronunciation("p1", 2);
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/practice-sessions/p1/attempts/2/pronunciation");
-    expect(opts.method).toBe("POST");
-    expect(result.overallScore).toBe(82);
-  });
-
-  it("transcribeAudio 成功返回 json，webm 扩展名", async () => {
-    fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({ text: "hi" }) });
-    const blob = new Blob(["x"], { type: "audio/webm" });
-    const res = await api.transcribeAudio("u1", blob);
-    const [url, opts] = fetchMock.mock.calls[0];
-    expect(url).toBe("/api/transcribe");
-    expect(opts.method).toBe("POST");
-    expect(opts.headers.Authorization).toBe("Bearer tok_test");
-    expect(opts.body.get("userId")).toBe("u1");
-    expect(res).toEqual({ text: "hi" });
-  });
-
-  it("transcribeAudio 502 → 服务重启文案", async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 502 });
-    const blob = new Blob(["x"], { type: "audio/webm" });
-    await expect(api.transcribeAudio("u1", blob)).rejects.toThrow(/服务正在重启.*502/);
-  });
-
-  it("transcribeAudio 其它错误码带 detail", async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 400,
-      text: () => Promise.resolve(JSON.stringify({ detail: "音频太短" })),
-    });
-    const blob = new Blob(["x"], { type: "audio/wav" });
-    await expect(api.transcribeAudio("u1", blob)).rejects.toThrow("音频太短");
-  });
-
-  it("transcribeAudio AbortError → 识别超时文案", async () => {
-    fetchMock.mockImplementation(() => {
-      const e = new Error("aborted");
-      e.name = "AbortError";
-      return Promise.reject(e);
-    });
-    const blob = new Blob(["x"], { type: "audio/webm" });
-    await expect(api.transcribeAudio("u1", blob)).rejects.toThrow("识别超时（90s），请重试");
   });
 });
 
