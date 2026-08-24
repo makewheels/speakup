@@ -24,7 +24,6 @@ function ScoreBadge({ loading, score }) {
 
 export default function PracticeFeedbackView({
   actionsDisabled = false,
-  autoSaved,
   chat,
   chatBusy,
   chatInput,
@@ -161,10 +160,6 @@ export default function PracticeFeedbackView({
             ? t("practice.noGaps")
             : t("practice.noUsableFeedback")}
         </div>
-      )}
-
-      {!loading && autoSaved > 0 && (
-        <p className="fb-autosaved">{t("practice.autoSaved", { n: autoSaved })}</p>
       )}
 
       {!loading && <div className="fb-chat">

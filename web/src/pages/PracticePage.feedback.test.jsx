@@ -194,7 +194,7 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText(/my latte came out wrong/)).toBeInTheDocument();
     expect(screen.getByText("remake my latte")).toBeInTheDocument();
     expect(screen.getByText("more natural")).toBeInTheDocument();
-    expect(screen.getByText(/1 added to Review/)).toBeInTheDocument();
+    expect(screen.queryByText(/added to Review/)).not.toBeInTheDocument();
     expect(screen.getByText(/Say it again/)).toBeInTheDocument();
     expect(api.nextScenario).not.toHaveBeenCalled();
     await waitFor(() => expect(api.uploadRecording).toHaveBeenCalled());
