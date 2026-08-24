@@ -302,7 +302,7 @@ export default function PracticePage() {
           setAutoSaved(n);
           if (r) setRound(r);
           resetChat();
-          // 结果页的滚动定位由 PracticeFeedbackView 挂载时锚到雅思分数（Next 天然在屏外防误触）
+          // 结果页首帧在绘制前回到顶部；后续流式完成和媒体加载不再重复滚动。
           setFeedbackActionsDisabled(true);
           setTimeout(() => setFeedbackActionsDisabled(false), 1500);
           // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）

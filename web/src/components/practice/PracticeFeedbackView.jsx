@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect } from "react";
 import Icon from "../Icon.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
@@ -10,12 +10,12 @@ import PronunciationFeedback from "./PronunciationFeedback.jsx";
 import StandardAnswerCard from "./StandardAnswerCard.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
-function ScoreBadge({ score }) {
+function ScoreBadge({ loading, score }) {
   const t = useT();
-  if (score == null) return null;
+  const displayedScore = score == null ? "–" : Number(score).toFixed(1);
   return (
-    <div className="fb-score">
-      <span className="fb-score-num">{Number(score).toFixed(1)}</span>
+    <div className={`fb-score${loading ? " is-loading" : ""}`} aria-busy={loading || undefined}>
+      <span className="fb-score-num">{loading ? "–" : displayedScore}</span>
       <span className="fb-score-unit">/ 9.0</span>
       <span className="fb-score-cap">{t("practice.ieltsBand")}</span>
     </div>
@@ -60,53 +60,18 @@ export default function PracticeFeedbackView({
   const isFree = session?.mode === "free";
   const hasAnswer = Boolean((result.standardAnswer || "").trim());
 
-  // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看。
-  // 挂载瞬间上方的大图/视频高度可能尚未定型（加载失败会塌缩、慢加载会位移），
-  // scrollIntoView 一次性定位会被这些位移带偏（手机上常见：分数被顶到屏幕外）。
-  // 改为按锚点当前几何位置显式 scrollTo，并在随后 1 秒多内复校几次，位移发生后自动归位。
-  const scoreAnchorRef = useRef(null);
-  useEffect(() => {
-    const el = scoreAnchorRef.current;
-    if (!el) return;
-    let userScrolled = false;
-    const markUserScroll = () => { userScrolled = true; };
-    const scrollToScore = () => {
-      if (userScrolled) return; // 用户已经开始自己滚了就别再拽回去
-      const top = el.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top, behavior: "auto" });
-    };
-    scrollToScore();
-    const raf = requestAnimationFrame(scrollToScore);
-    const timers = [120, 350, 700, 1200].map((ms) => setTimeout(scrollToScore, ms));
-    window.addEventListener("touchmove", markUserScroll);
-    window.addEventListener("wheel", markUserScroll);
-    return () => {
-      cancelAnimationFrame(raf);
-      timers.forEach(clearTimeout);
-      window.removeEventListener("touchmove", markUserScroll);
-      window.removeEventListener("wheel", markUserScroll);
-    };
-  }, [loading]);
+  // 只在结果页首帧绘制前回到顶部；流式结束、媒体加载和发音结果到达时都不再滚动。
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
 
   return (
     <div className="practice-page fb-page fade-in">
-      {modeSwitch}
-      {!isFree && (session?.videoUrl || session?.imageUrl) && (
-        <PracticeMedia
-          className="fb-img"
-          imageUrl={session.imageUrl}
-          videoUrl={session.videoUrl}
-        />
-      )}
-      {isFree
-        ? <PracticeFreeCard freeTopic={scenario?.freeTopic || session?.freeTopic || ""} t={t} />
-        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
-
-      <div ref={scoreAnchorRef} className="fb-score-anchor">
+      <div className="fb-score-anchor">
+        <ScoreBadge loading={loading} score={result.score} />
         <div>
           <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
         </div>
-        {!loading && <ScoreBadge score={result.score} />}
       </div>
 
       {loading && (
@@ -127,13 +92,17 @@ export default function PracticeFeedbackView({
 
       {!loading && result.summary && <p className="fb-summary-line">{result.summary}</p>}
 
-      {!loading && <div className="fb-result-share-row">
-        <button className="su-btn su-btn-tertiary share-btn" type="button" onClick={onShare} disabled={shareBusy}>
-          <Icon name="share" size={16} />
-          {shareBusy ? t("practice.sharingResult") : t("practice.shareResult")}
-        </button>
-        {shareStatus && <span className="fb-result-share-status" role="status">{shareStatus}</span>}
-      </div>}
+      {modeSwitch}
+      {!isFree && (session?.videoUrl || session?.imageUrl) && (
+        <PracticeMedia
+          className="fb-img"
+          imageUrl={session.imageUrl}
+          videoUrl={session.videoUrl}
+        />
+      )}
+      {isFree
+        ? <PracticeFreeCard freeTopic={scenario?.freeTopic || session?.freeTopic || ""} t={t} />
+        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
 
       {!loading && passed && <div className="fb-passed">{t("practice.soundedNative")}</div>}
 
@@ -240,6 +209,14 @@ export default function PracticeFeedbackView({
         <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
           {t(isFree ? "practice.nextTopic" : passed ? "practice.nextScenario" : "practice.next")}&nbsp;<Icon name="next" size={16} />
         </button>
+      </div>}
+
+      {!loading && <div className="fb-result-share-row">
+        <button className="su-btn su-btn-tertiary share-btn" type="button" onClick={onShare} disabled={shareBusy}>
+          <Icon name="share" size={16} />
+          {shareBusy ? t("practice.sharingResult") : t("practice.shareResult")}
+        </button>
+        {shareStatus && <span className="fb-result-share-status" role="status">{shareStatus}</span>}
       </div>}
     </div>
   );

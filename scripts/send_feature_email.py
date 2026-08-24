@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
-import html
 import json
 import os
 import re
@@ -17,25 +17,22 @@ from email.message import EmailMessage
 from email.utils import formatdate, parseaddr
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from scripts.feature_email_content import (
+    FEATURE_IMAGE_CID,
+    FeatureImage,
+    FeatureMessage,
+    NotificationError,
+    load_feature_message,
+    message_fingerprint,
+    render_html,
+    render_text,
+)
+
 RESEND_EMAILS_URL = "https://api.resend.com/emails"
-MAX_POINTS = 6
 RequestFn = Callable[..., Any]
 SmtpFactory = Callable[..., Any]
-
-
-class NotificationError(Exception):
-    """A safe, user-facing notification failure."""
-
-
-@dataclass(frozen=True)
-class FeatureMessage:
-    title: str
-    summary: str
-    points: tuple[str, ...]
-    view_url: str | None
 
 
 @dataclass(frozen=True)
@@ -50,15 +47,6 @@ class DeliveryConfig:
     smtp_port: int | None = None
     smtp_username: str | None = None
     smtp_password: str | None = None
-
-
-def _required(environ: Mapping[str, str], name: str) -> str:
-    value = environ.get(name, "").strip()
-    if not value:
-        raise NotificationError(
-            f"缺少必要环境变量 {name}；请在 Infisical 的 /notifications 路径配置后重试。"
-        )
-    return value
 
 
 def _require_config_values(environ: Mapping[str, str], names: tuple[str, ...]) -> dict[str, str]:
@@ -150,172 +138,9 @@ def load_delivery_config(environ: Mapping[str, str]) -> DeliveryConfig:
     raise NotificationError("EMAIL_PROVIDER 仅支持 smtp 或 resend；未发送任何邮件。")
 
 
-def _clean_points(raw_value: str) -> tuple[str, ...]:
-    points = []
-    for raw_line in raw_value.splitlines():
-        point = re.sub(r"^(?:[-*•]\s+|\d+[.)]\s+)", "", raw_line.strip())
-        if point:
-            points.append(point)
-    if len(points) > MAX_POINTS:
-        raise NotificationError(f"功能点最多 {MAX_POINTS} 条；请精简后重试。")
-    if any(len(point) > 220 for point in points):
-        raise NotificationError("单条功能点不能超过 220 个字符；请精简后重试。")
-    return tuple(points)
-
-
-def _validate_view_url(raw_value: str) -> str | None:
-    value = raw_value.strip()
-    if not value:
-        return None
-    parsed = urlparse(value)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
-        raise NotificationError("查看链接必须是无内嵌凭据的 HTTP(S) 地址；未发送任何邮件。")
-    if len(value) > 2_000:
-        raise NotificationError("查看链接过长；未发送任何邮件。")
-    return value
-
-
-def load_feature_message(environ: Mapping[str, str]) -> FeatureMessage:
-    title = _required(environ, "FEATURE_MAIL_TITLE")
-    summary = _required(environ, "FEATURE_MAIL_SUMMARY")
-    if "\n" in title or "\r" in title or len(title) > 120:
-        raise NotificationError("标题必须是 120 个字符以内的单行文字。")
-    if len(summary) > 1_200:
-        raise NotificationError("简述不能超过 1200 个字符；请精简后重试。")
-    return FeatureMessage(
-        title=title,
-        summary=summary,
-        points=_clean_points(environ.get("FEATURE_MAIL_POINTS", "")),
-        view_url=_validate_view_url(environ.get("FEATURE_MAIL_VIEW_URL", "")),
-    )
-
-
-def _html_text(value: str) -> str:
-    return "<br>".join(html.escape(line, quote=True) for line in value.splitlines())
-
-
-def _points_html(points: tuple[str, ...]) -> str:
-    if not points:
-        return ""
-    rows = []
-    for point in points:
-        rows.append(
-            f"""
-            <tr>
-              <td width="28" valign="top" style="padding:0 0 12px 0;color:#2563eb;font-size:18px;line-height:24px;">
-                &#10003;
-              </td>
-              <td valign="top" style="padding:0 0 12px 0;color:#25324b;font-size:15px;line-height:24px;">
-                {_html_text(point)}
-              </td>
-            </tr>
-            """
-        )
-    return f"""
-      <tr>
-        <td style="padding:0 28px 22px 28px;">
-          <div style="padding:0 0 12px 0;color:#64748b;font-size:12px;font-weight:700;letter-spacing:1px;">
-            本次完成
-          </div>
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-            {''.join(rows)}
-          </table>
-        </td>
-      </tr>
-    """
-
-
-def _link_html(view_url: str | None) -> str:
-    if not view_url:
-        return ""
-    escaped_url = html.escape(view_url, quote=True)
-    return f"""
-      <tr>
-        <td style="padding:2px 28px 30px 28px;">
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:10px;">
-                <a href="{escaped_url}"
-                   style="display:inline-block;padding:12px 20px;color:#ffffff;font-size:15px;
-                          font-weight:700;line-height:20px;text-decoration:none;">
-                  查看详情
-                </a>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    """
-
-
-def render_html(message: FeatureMessage) -> str:
-    title = _html_text(message.title)
-    summary = _html_text(message.summary)
-    return f"""<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{title}</title>
-  </head>
-  <body style="margin:0;padding:0;background-color:#f3f6fb;
-               font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',
-                           'Microsoft YaHei',Arial,sans-serif;">
-    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-      SpeakUp 已完成一项功能更新。
-    </div>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f3f6fb">
-      <tr>
-        <td align="center" style="padding:24px 12px;">
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"
-                 style="width:100%;max-width:600px;background-color:#ffffff;
-                        border:1px solid #e6ebf2;border-radius:16px;overflow:hidden;">
-            <tr>
-              <td bgcolor="#172554" style="padding:24px 28px;color:#ffffff;">
-                <div style="font-size:13px;font-weight:700;letter-spacing:1.2px;opacity:0.78;">SPEAKUP · 功能更新</div>
-                <div style="padding-top:10px;font-size:24px;font-weight:800;line-height:32px;">{title}</div>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:26px 28px 22px 28px;color:#334155;font-size:16px;line-height:27px;">
-                {summary}
-              </td>
-            </tr>
-            {_points_html(message.points)}
-            {_link_html(message.view_url)}
-            <tr>
-              <td style="padding:18px 28px;background-color:#f8fafc;border-top:1px solid #edf1f5;
-                         color:#8491a7;font-size:12px;line-height:19px;">
-                这是一封由 SpeakUp 工作流发送的功能完成通知。
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>
-"""
-
-
-def render_text(message: FeatureMessage) -> str:
-    lines = [f"SpeakUp 功能更新：{message.title}", "", message.summary]
-    if message.points:
-        lines.extend(["", "本次完成：", *(f"- {point}" for point in message.points)])
-    if message.view_url:
-        lines.extend(["", f"查看详情：{message.view_url}"])
-    lines.extend(["", "这是一封由 SpeakUp 工作流发送的功能完成通知。"])
-    return "\n".join(lines)
-
-
-def _message_fingerprint(message: FeatureMessage) -> str:
-    content = "\0".join((message.title, message.summary, *message.points, message.view_url or ""))
-    return hashlib.sha256(content.encode()).hexdigest()
-
-
 def _idempotency_key(notification_id: str, recipient: str, message: FeatureMessage) -> str:
     digest = hashlib.sha256(
-        f"{notification_id}\0{recipient}\0{_message_fingerprint(message)}".encode()
+        f"{notification_id}\0{recipient}\0{message_fingerprint(message)}".encode()
     ).hexdigest()
     return f"speakup-feature/{digest}"
 
@@ -351,20 +176,20 @@ def _send_with_resend(
     sent_count = 0
 
     for recipient in config.recipients:
-        body = json.dumps(
-            {
-                "from": _sender_header(config),
-                "to": [recipient],
-                "subject": subject,
-                "html": html_body,
-                "text": text_body,
-                "tags": [
-                    {"name": "project", "value": "speakup"},
-                    {"name": "type", "value": "feature_complete"},
-                ],
-            },
-            ensure_ascii=False,
-        ).encode("utf-8")
+        payload: dict[str, Any] = {
+            "from": _sender_header(config),
+            "to": [recipient],
+            "subject": subject,
+            "html": html_body,
+            "text": text_body,
+            "tags": [
+                {"name": "project", "value": "speakup"},
+                {"name": "type", "value": "feature_complete"},
+            ],
+        }
+        if message.image:
+            payload["attachments"] = [_resend_attachment(message.image)]
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         request = Request(
             RESEND_EMAILS_URL,
             data=body,
@@ -391,18 +216,38 @@ def _send_with_resend(
     return sent_count
 
 
+def _resend_attachment(image: FeatureImage) -> dict[str, str]:
+    return {
+        "content": base64.b64encode(image.content).decode("ascii"),
+        "filename": image.filename,
+        "content_type": image.content_type,
+        "content_id": FEATURE_IMAGE_CID,
+    }
+
+
 def _build_smtp_message(config: DeliveryConfig, message: FeatureMessage) -> EmailMessage:
     email_message = EmailMessage()
     email_message["Subject"] = f"SpeakUp 已更新｜{message.title}"
     email_message["From"] = Address(display_name=config.sender_name, addr_spec=config.sender_address)
     email_message["To"] = "undisclosed-recipients:;"
     email_message["Date"] = formatdate(localtime=False)
-    message_id_source = f"{config.notification_id}\0{_message_fingerprint(message)}"
+    message_id_source = f"{config.notification_id}\0{message_fingerprint(message)}"
     message_id = hashlib.sha256(message_id_source.encode()).hexdigest()
     sender_domain = config.sender_address.rsplit("@", 1)[1]
     email_message["Message-ID"] = f"<speakup-feature-{message_id}@{sender_domain}>"
     email_message.set_content(render_text(message))
     email_message.add_alternative(render_html(message), subtype="html")
+    if message.image:
+        html_part = email_message.get_payload()[-1]
+        image_subtype = message.image.content_type.split("/", 1)[1]
+        html_part.add_related(
+            message.image.content,
+            maintype="image",
+            subtype=image_subtype,
+            cid=f"<{FEATURE_IMAGE_CID}>",
+            filename=message.image.filename,
+            disposition="inline",
+        )
     return email_message
 
 

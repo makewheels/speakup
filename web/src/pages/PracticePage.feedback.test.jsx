@@ -85,7 +85,7 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("I'm in a bit of a rush.")).toBeInTheDocument();
   });
 
-  it("结果页挂载后锚定到雅思分数（题目卡片留在上方可回看）", async () => {
+  it("结果页只在首帧滚到顶部，并把固定高度的雅思分数放在最前面", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({
       ...SESSION,
@@ -101,19 +101,22 @@ describe("PracticePage feedback", () => {
         },
       ],
     });
-    // 滚动定位改为按锚点几何显式 window.scrollTo（对抗上方大图加载/塌缩造成的位移），
-    // jsdom 没有布局，打桩 window.scrollTo 验证其被触发
     const scrollSpy = vi.fn();
     const originalScrollTo = window.scrollTo;
     window.scrollTo = scrollSpy;
     try {
       setup("/practice/sess_abc?result=1");
       await waitFor(() => expect(screen.getByText("6.5")).toBeInTheDocument());
-      await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
-      // 锚点元素应包含分数本体
       const anchor = document.querySelector(".fb-score-anchor");
+      const resultPage = document.querySelector(".fb-page");
+      const scenarioCard = document.querySelector(".fb-page .sc-card");
       expect(anchor).toBeTruthy();
+      expect(scenarioCard).toBeTruthy();
       expect(anchor.querySelector(".fb-score")).toBeTruthy();
+      expect(resultPage.firstElementChild).toBe(anchor);
+      expect(anchor.compareDocumentPosition(scenarioCard) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy();
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
     } finally {
       window.scrollTo = originalScrollTo;
     }
