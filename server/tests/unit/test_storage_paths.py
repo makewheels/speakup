@@ -63,3 +63,39 @@ def test_attempt_path_requires_stable_attempt_id():
             "rec_1",
             "webm",
         )
+
+
+@pytest.mark.parametrize("created_at", [
+    "2026-08-13 17:24:36.826000",
+    "2026-08-13T17:24:36+00:00",
+    "20260813172436",
+])
+def test_month_accepts_string_created_at(created_at):
+    key = recording_original_key(
+        PracticeAssetContext("u_1", created_at, "ps_1", "pa_1"), "rec_1", "webm",
+    )
+
+    assert "/202608/" in key
+
+
+@pytest.mark.parametrize("created_at", ["", "2026", "abcdefgh", None])
+def test_month_rejects_values_without_year_month(created_at):
+    with pytest.raises(ValueError, match="year and month"):
+        recording_original_key(
+            PracticeAssetContext("u_1", created_at, "ps_1", "pa_1"), "rec_1", "webm",
+        )
+
+
+def test_speech_path_rejects_unknown_purpose():
+    with pytest.raises(ValueError, match="purpose"):
+        speech_key(CONTEXT, "karaoke", "tts_a", "wav")
+
+
+def test_avatar_key_rejects_unknown_variant():
+    with pytest.raises(ValueError, match="variant"):
+        avatar_key("u_1", "av_1", "medium")
+
+
+def test_feedback_image_rejects_unknown_extension():
+    with pytest.raises(ValueError, match="extension"):
+        feedback_image_key("u_1", CREATED_AT, "fb_1", "fi_1", "exe")
