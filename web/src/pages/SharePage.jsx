@@ -38,6 +38,7 @@ export default function SharePage() {
       <SessionView
         session={session}
         readOnly
+        shareToken={token}
         subtitle={owner ? t("share.sharedBy", { owner }) : null}
       />
     </div>

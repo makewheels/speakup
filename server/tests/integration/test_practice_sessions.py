@@ -354,6 +354,90 @@ def test_pronunciation_disabled_returns_503(client, auth_headers, practice_id, m
     assert resp.status_code == 503
 
 
+def test_pronunciation_clip_uses_linked_recording(client, auth_headers, practice_id, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    mongo = MongoClient("mongodb://localhost:27017/")
+    mongo[TEST_DB_NAME].practiceSessions.update_one(
+        {"_id": practice_id},
+        {
+            "$push": {
+                "attempts": {
+                    "transcript": "I am happy",
+                    "recordingKey": "recordings/r.webm",
+                    "pronunciation": {
+                        "status": "completed",
+                        "issues": [{"word": "happy", "startMs": 250, "endMs": 600}],
+                    },
+                }
+            }
+        },
+    )
+    mongo.close()
+    download = AsyncMock(return_value=b"original")
+    extract = AsyncMock(return_value=b"RIFFclip")
+    monkeypatch.setattr("routes.practice_sessions.download_bytes_async", download)
+    monkeypatch.setattr("routes.practice_sessions.extract_pronunciation_clip", extract)
+
+    resp = client.get(
+        f"/api/practice-sessions/{practice_id}/attempts/0/pronunciation/issues/0/audio",
+        headers=auth_headers,
+    )
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "audio/wav"
+    assert resp.content == b"RIFFclip"
+    download.assert_awaited_once_with("recordings/r.webm")
+    extract.assert_awaited_once_with(b"original", "webm", 250, 600)
+
+
+def test_pronunciation_clip_rejects_missing_issue(client, auth_headers, practice_id):
+    resp = client.get(
+        f"/api/practice-sessions/{practice_id}/attempts/0/pronunciation/issues/0/audio",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+def test_shared_pronunciation_clip_requires_active_share(client, practice_id, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    mongo = MongoClient("mongodb://localhost:27017/")
+    db = mongo[TEST_DB_NAME]
+    db.practiceSessions.update_one(
+        {"_id": practice_id},
+        {
+            "$set": {"shareToken": "clipToken", "shared": True},
+            "$push": {
+                "attempts": {
+                    "recordingKey": "recordings/r.webm",
+                    "pronunciation": {
+                        "status": "completed",
+                        "issues": [{"word": "happy", "startMs": 250, "endMs": 600}],
+                    },
+                }
+            },
+        },
+    )
+    mongo.close()
+    monkeypatch.setattr("routes.practice_sessions.download_bytes_async", AsyncMock(return_value=b"raw"))
+    monkeypatch.setattr(
+        "routes.practice_sessions.extract_pronunciation_clip",
+        AsyncMock(return_value=b"RIFFshared"),
+    )
+
+    active = client.get("/api/share/clipToken/attempts/0/pronunciation/issues/0/audio")
+    assert active.status_code == 200
+    assert active.content == b"RIFFshared"
+
+    mongo = MongoClient("mongodb://localhost:27017/")
+    db = mongo[TEST_DB_NAME]
+    db.practiceSessions.update_one({"_id": practice_id}, {"$set": {"shared": False}})
+    closed = client.get("/api/share/clipToken/attempts/0/pronunciation/issues/0/audio")
+    mongo.close()
+    assert closed.status_code == 404
+
+
 def test_upload_recording_wrong_user_returns_404(client, user_id, practice_id, monkeypatch):
     from unittest.mock import AsyncMock
     monkeypatch.setattr("routes.practice_sessions.upload_bytes_async", AsyncMock(return_value=None))

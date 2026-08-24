@@ -1,48 +1,106 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { api } from "../../api/client.js";
 import Icon from "../Icon.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 
-function SegmentPlayButton({ src, startMs = 0, endMs = 0, t }) {
+function SegmentPlayButton({ attemptIndex, issueIndex, practiceId, shareToken, t }) {
   const audioRef = useRef(null);
-  if (!src) return null;
-  const play = () => {
+  const clipUrlRef = useRef("");
+  const [state, setState] = useState("idle");
+
+  useEffect(() => () => {
+    if (clipUrlRef.current) URL.revokeObjectURL(clipUrlRef.current);
+  }, []);
+
+  if ((!practiceId && !shareToken) || attemptIndex == null) return null;
+  const play = async () => {
+    if (state === "loading") return;
     const audio = audioRef.current;
     if (!audio) return;
-    audio.currentTime = Math.max(0, startMs / 1000);
-    audio.play().catch(() => {});
-  };
-  const stopAtEnd = () => {
-    const audio = audioRef.current;
-    if (audio && endMs > startMs && audio.currentTime >= endMs / 1000) audio.pause();
+    if (state === "playing") {
+      audio.pause();
+      audio.currentTime = 0;
+      setState("idle");
+      return;
+    }
+    try {
+      setState("loading");
+      if (!clipUrlRef.current) {
+        const blob = shareToken
+          ? await api.getSharedPronunciationClip(shareToken, attemptIndex, issueIndex)
+          : await api.getPronunciationClip(practiceId, attemptIndex, issueIndex);
+        clipUrlRef.current = URL.createObjectURL(blob);
+        audio.src = clipUrlRef.current;
+      }
+      audio.currentTime = 0;
+      await audio.play();
+      setState("playing");
+    } catch {
+      setState("idle");
+    }
   };
   return (
     <>
-      <audio ref={audioRef} src={src} preload="metadata" onTimeUpdate={stopAtEnd} />
-      <button className="spk-btn" type="button" onClick={play} title={t("practice.playMyPronunciation")}>
-        <Icon name="volume" size={15} />
+      <audio
+        ref={audioRef}
+        preload="none"
+        onEnded={() => setState("idle")}
+        onPause={() => { if (state === "playing") setState("idle"); }}
+      />
+      <button
+        className={`pron-listen-btn${state === "playing" ? " playing" : ""}`}
+        type="button"
+        onClick={play}
+        title={t("practice.playMyPronunciation")}
+        disabled={state === "loading"}
+      >
+        <Icon name={state === "playing" ? "stop" : "volume"} size={15} />
+        <span>{state === "loading" ? t("player.synthesizing") : t("practice.listenMine")}</span>
       </button>
     </>
   );
 }
 
-function PhoneComparison({ phones, t }) {
-  const differences = (phones ?? []).filter(
-    (phone) => phone.detected && phone.reference && phone.detected !== phone.reference,
-  );
-  if (differences.length === 0) return null;
+function IpaComparison({ detected, reference, t }) {
+  if (!detected && !reference) return null;
   return (
-    <div className="pron-phone-list" aria-label={t("practice.soundComparison")}>
-      {differences.map((phone, index) => (
-        <span className="pron-phone" key={`${phone.reference}-${index}`}>
-          /{phone.detected}/ <span aria-hidden="true">→</span> /{phone.reference}/
-        </span>
-      ))}
+    <div className="pron-ipa" aria-label={t("practice.soundComparison")}>
+      <div>
+        <span className="pron-ipa-label">{t("practice.yourSound")}</span>
+        <strong>/{detected || "–"}/</strong>
+      </div>
+      <span className="pron-ipa-arrow" aria-hidden="true">→</span>
+      <div>
+        <span className="pron-ipa-label">{t("practice.targetSound")}</span>
+        <strong>/{reference || "–"}/</strong>
+      </div>
     </div>
   );
 }
 
+function PronunciationTip({ issue, t }) {
+  const phones = issue.phones ?? [];
+  const differences = phones.filter(
+    (phone) => phone.detected && phone.reference && phone.detected !== phone.reference,
+  );
+  const stressNeedsWork = phones.some(
+    (phone) => phone.stressExpected !== phone.stressDetected,
+  );
+  if (differences.length > 0) {
+    const actual = differences.slice(0, 2).map((phone) => `/${phone.detected}/`).join(", ");
+    const target = differences.slice(0, 2).map((phone) => `/${phone.reference}/`).join(", ");
+    return (
+      <p>{t(stressNeedsWork ? "practice.pronunciationSoundStressTip" : "practice.pronunciationSoundTip", {
+        actual, target,
+      })}</p>
+    );
+  }
+  if (stressNeedsWork) return <p>{t("practice.pronunciationStressTip")}</p>;
+  return <p>{t("practice.pronunciationClarityTip")}</p>;
+}
+
 export default function PronunciationFeedback({
-  canSpeak = true, loading, pronunciation, recordingUrl, practiceId, t,
+  attemptIndex, canSpeak = true, loading, pronunciation, practiceId, shareToken = "", t,
 }) {
   if (!loading && !pronunciation) return null;
   if (loading) {
@@ -78,26 +136,29 @@ export default function PronunciationFeedback({
             <article className="pron-issue" key={`${issue.word}-${index}`}>
               <div className="pron-word-row">
                 <strong>{issue.word}</strong>
-                <span className="pron-score">{Math.round(issue.score ?? 0)}</span>
-                <span className="pron-audio-actions">
-                  <SegmentPlayButton
-                    src={recordingUrl}
-                    startMs={issue.startMs}
-                    endMs={issue.endMs}
-                    t={t}
-                  />
-                  {canSpeak && <SpeakBtn text={issue.word} practiceId={practiceId} />}
-                </span>
+                <span className="pron-score">{Math.round(issue.score ?? 0)} / 100</span>
               </div>
-              {(issue.detectedIpa || issue.referenceIpa) && (
-                <div className="pron-ipa">
-                  <span>/{issue.detectedIpa || "–"}/</span>
-                  <span aria-hidden="true">→</span>
-                  <span>/{issue.referenceIpa || "–"}/</span>
-                </div>
-              )}
-              <PhoneComparison phones={issue.phones} t={t} />
-              {issue.coaching && <p>{issue.coaching}</p>}
+              <IpaComparison detected={issue.detectedIpa} reference={issue.referenceIpa} t={t} />
+              <PronunciationTip issue={issue} t={t} />
+              <div className="pron-audio-actions">
+                <SegmentPlayButton
+                  attemptIndex={attemptIndex}
+                  issueIndex={index}
+                  key={`${practiceId}-${shareToken}-${attemptIndex}-${index}`}
+                  practiceId={practiceId}
+                  shareToken={shareToken}
+                  t={t}
+                />
+                {canSpeak && (
+                  <SpeakBtn
+                    className="pron-listen-btn"
+                    label={t("practice.listenTarget")}
+                    practiceId={practiceId}
+                    size={15}
+                    text={issue.word}
+                  />
+                )}
+              </div>
             </article>
           ))}
         </div>

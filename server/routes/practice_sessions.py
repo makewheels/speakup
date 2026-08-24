@@ -3,13 +3,17 @@ import string
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import download_bytes_async, get_url as oss_signed_url, upload_bytes_async
-from services.pronunciation import evaluate_pronunciation, pronunciation_available
+from services.pronunciation import (
+    evaluate_pronunciation,
+    extract_pronunciation_clip,
+    pronunciation_available,
+)
 from utils.data_source import normalize_source_type
 from utils.id_generator import practice_session_id
 from utils.mongo_ids import id_filter
@@ -298,3 +302,61 @@ async def evaluate_attempt_pronunciation(
     result["finishedAt"] = datetime.now(timezone.utc)
     await get_db().practiceSessions.update_one(id_filter(practice_id), {"$set": {field: result}})
     return result
+
+
+def _pronunciation_issue(practice: dict | None, attempt_index: int, issue_index: int) -> tuple[dict, str]:
+    attempts = (practice or {}).get("attempts", [])
+    if not practice or attempt_index < 0 or attempt_index >= len(attempts):
+        raise HTTPException(404, "练习轮次不存在")
+    attempt = attempts[attempt_index]
+    issues = (attempt.get("pronunciation") or {}).get("issues") or []
+    if issue_index < 0 or issue_index >= len(issues):
+        raise HTTPException(404, "发音片段不存在")
+    recording_key = attempt.get("recordingKey")
+    if not recording_key:
+        raise HTTPException(404, "本轮录音不存在")
+    return issues[issue_index], recording_key
+
+
+async def _clip_response(practice: dict | None, attempt_index: int, issue_index: int) -> Response:
+    issue, recording_key = _pronunciation_issue(practice, attempt_index, issue_index)
+    try:
+        audio = await download_bytes_async(recording_key)
+        clip = await extract_pronunciation_clip(
+            audio,
+            recording_key.rsplit(".", 1)[-1],
+            int(issue.get("startMs") or 0),
+            int(issue.get("endMs") or 0),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(502, "发音片段暂时不可用") from None
+    return Response(
+        clip,
+        media_type="audio/wav",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
+@router.get("/{practice_id}/attempts/{attempt_index}/pronunciation/issues/{issue_index}/audio")
+async def get_pronunciation_issue_audio(
+    practice_id: str,
+    attempt_index: int,
+    issue_index: int,
+    token_user_id: str = Depends(current_user_id),
+):
+    """按腾讯评测使用的规范化 WAV 时间轴返回词片段，避免浏览器容器 seek 偏移。"""
+    practice = await get_db().practiceSessions.find_one({**id_filter(practice_id), "userId": token_user_id})
+    return await _clip_response(practice, attempt_index, issue_index)
+
+
+@share_router.get("/{token}/attempts/{attempt_index}/pronunciation/issues/{issue_index}/audio")
+async def get_shared_pronunciation_issue_audio(
+    token: str,
+    attempt_index: int,
+    issue_index: int,
+):
+    """分享页只在分享仍开启时提供同一词片段。"""
+    practice = await get_db().practiceSessions.find_one({"shareToken": token, "shared": True})
+    return await _clip_response(practice, attempt_index, issue_index)

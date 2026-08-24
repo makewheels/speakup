@@ -45,6 +45,7 @@ export default function SessionView({
   onSend = () => {},
   chatBusy = false,
   noteUserId = "",
+  shareToken = "",
 }) {
   const t = useT();
   const practiceId = session?._id;
@@ -160,10 +161,11 @@ export default function SessionView({
               )}
 
               <PronunciationFeedback
+                attemptIndex={idx}
                 canSpeak={canSpeak}
                 practiceId={practiceId}
                 pronunciation={attempt.pronunciation}
-                recordingUrl={attempt.recordingUrl || recording?.url}
+                shareToken={shareToken}
                 t={t}
               />
 

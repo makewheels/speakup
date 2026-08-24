@@ -33,7 +33,6 @@ export default function PracticeFeedbackView({
   streamingLen = 0,
   pronunciation,
   pronunciationLoading = false,
-  recordingUrl,
   result,
   retrySame,
   round,
@@ -141,10 +140,10 @@ export default function PracticeFeedbackView({
         )}
 
         {!loading && <PronunciationFeedback
+          attemptIndex={Math.max(0, round - 1)}
           loading={pronunciationLoading}
           practiceId={session?._id}
           pronunciation={pronunciation}
-          recordingUrl={recordingUrl}
           t={t}
         />}
 

@@ -58,6 +58,16 @@ async function request(path, options = {}) {
   }
 }
 
+async function requestBlob(path) {
+  const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    clearStoredUserOnUnauthorized(res.status);
+    throw new Error(err.detail || err.error || "Request failed");
+  }
+  return res.blob();
+}
+
 /**
  * 流式 AI 评估。使用 SSE（fetch + ReadableStream）。
  * handlers: { onChunk(text), onDone({result, autoSaved}), onError(err) }
@@ -238,6 +248,18 @@ export const api = {
     request(`/practice-sessions/${practiceId}/attempts/${attemptIndex}/pronunciation`, {
       method: "POST",
       timeout: 90_000,
+    }),
+  getPronunciationClip: (practiceId, attemptIndex, issueIndex) =>
+    requestBlob(
+      `/practice-sessions/${practiceId}/attempts/${attemptIndex}/pronunciation/issues/${issueIndex}/audio`,
+    ),
+  getSharedPronunciationClip: (shareToken, attemptIndex, issueIndex) =>
+    fetch(
+      `${BASE}/share/${shareToken}/attempts/${attemptIndex}/pronunciation/issues/${issueIndex}/audio`,
+    ).then(async (res) => {
+      if (res.ok) return res.blob();
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || "Request failed");
     }),
 
   // 全平台统一：录音上传 → 后端火山 openspeech ASR 返文本
