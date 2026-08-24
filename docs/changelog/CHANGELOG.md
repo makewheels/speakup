@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · versi
 
 > 时间戳精确到分钟（`YYYY-MM-DD HH:MM`，北京时间 UTC+8）。同一天多次改动按时间倒序——最新在最上。每段下面扁平列表，前缀标类型（`add` / `change` / `fix` / `test` / `chore`）。
 
+### 2026-08-24 10:05
+
+- **docs(design)**：发音纠正方案扩写为完整评审版（逐句归因/字段契约/模式选择/规则库首发 16 组/接口与数据模型/成本/四阶段），交互样张 pronunciation-card-demo.html 入库
+
 ### 2026-08-24 09:54
 
 - **docs(design)**：新增发音纠正产品与实施方案 `docs/design/发音纠正/pronunciation-correction.md`——三层分工（引擎尺子/规则库药方/文字 LLM 文案）、评测模式两段式（段落+音素纠错）、腾讯 SOE-N 与 Qwen-Omni A/B 路线、四阶段实施计划；docs/README 地图同步
