@@ -293,7 +293,7 @@ def test_upload_recording_links_attempt(client, user_id, auth_headers, practice_
     monkeypatch.setattr("routes.practice_sessions.upload_bytes_async", AsyncMock(return_value=None))
     monkeypatch.setattr("routes.practice_sessions.oss_signed_url", MagicMock(return_value="https://signed"))
 
-    fake_result = {"summary": "s", "nativeVersion": "n", "gaps": [], "progress": None}
+    fake_result = {"summary": "s", "score": 6.0, "gaps": [], "progress": None}
     with patch("routes.correct.correct_text", new=AsyncMock(return_value=fake_result)):
         client.post(
             "/api/correct",
@@ -316,7 +316,7 @@ def test_upload_recording_links_attempt(client, user_id, auth_headers, practice_
 def test_pronunciation_evaluates_linked_recording(client, user_id, auth_headers, practice_id, monkeypatch):
     from unittest.mock import AsyncMock, patch
 
-    fake_result = {"summary": "s", "nativeVersion": "n", "gaps": [], "progress": None}
+    fake_result = {"summary": "s", "score": 6.0, "gaps": [], "progress": None}
     with patch("routes.correct.correct_text", new=AsyncMock(return_value=fake_result)):
         client.post(
             "/api/correct",

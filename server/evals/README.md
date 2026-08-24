@@ -20,7 +20,7 @@ uv run python -m evals.run --suite regression --trials 3
 evals/
 ├── harness.py              # 直接调 services.corrector.correct_text，不经 mongo
 ├── graders/
-│   ├── schema.py           # 确定性：JSON/字段/语种/枚举/score 步进/better⊂nativeVersion
+│   ├── schema.py           # 确定性：JSON/字段/语种/枚举/score 步进/original 原话落地
 │   └── expectation.py      # 任务级断言：gaps_count / first_gap_category / progress_verdict ...
 ├── run.py                  # CLI：单配置跑基线
 ├── compare.py              # CLI：跨模型对比（多 trial、pass@k/pass^k、langfuse model tag）

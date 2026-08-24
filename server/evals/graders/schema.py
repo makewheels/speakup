@@ -13,7 +13,7 @@ from typing import Any
 # corrector 用的类别枚举（跟 SYSTEM_PROMPT 一致）
 ALLOWED_CATEGORIES = {"task", "grammar", "naturalness", "vocabulary", "register"}
 ALLOWED_VERDICTS = {"passed", "improved", "stuck"}
-REQUIRED_FIELDS = {"summary", "nativeVersion", "standardAnswer", "gaps"}
+REQUIRED_FIELDS = {"summary", "standardAnswer", "gaps"}
 
 # 中文字符（粗略检测，含中日韩统一表意，够用）
 _CHINESE_RE = re.compile(r"[一-鿿]")
@@ -94,41 +94,35 @@ def gap_why_in_chinese(out: dict | None, _input: dict) -> tuple[bool, str]:
     return True, "all gap.why have Chinese"
 
 
-def better_in_native_version(out: dict | None, _input: dict) -> tuple[bool, str]:
-    """硬约束：每条 gap.better 必须逐字（忽略大小写）出现在 nativeVersion 里。
-
-    这是 prompt 里写明的硬规则——回归最容易在这里发现 LLM 没按约束走。
-    """
+def gap_original_grounded(out: dict | None, task_input: dict) -> tuple[bool, str]:
+    """语言纠正的 original 必须来自原话；任务缺失项允许 original 为空。"""
     if (fail := _no_llm_output(out)) is not None:
         return fail
-    nv = out.get("nativeVersion", "") or ""
-    if not nv:
-        # nativeVersion 空且 gaps 也空 → OK（短输入 fast-path）
-        if not out.get("gaps"):
-            return True, "nativeVersion empty + no gaps (fast-path OK)"
-        return False, "nativeVersion is empty but gaps exist"
-    missing = []
+    source = str(task_input.get("text") or task_input.get("transcript") or "")
+    ungrounded = []
     for i, g in enumerate(out.get("gaps", [])):
-        better = (g.get("better") or "").strip()
-        if better and better.casefold() not in nv.casefold():
-            missing.append(f"gaps[{i}].better={better!r}")
-    if missing:
-        return False, f"better not in nativeVersion: {missing} | nv={nv!r}"
-    return True, "all gap.better appear verbatim in nativeVersion"
+        original = (g.get("original") or "").strip()
+        if g.get("category") == "task" and not original:
+            continue
+        if original and original.casefold() not in source.casefold():
+            ungrounded.append(f"gaps[{i}].original={original!r}")
+    if ungrounded:
+        return False, f"gap originals not found in transcript: {ungrounded}"
+    return True, "all language gap originals are grounded"
 
 
 def standard_answer_valid(out: dict | None, _input: dict) -> tuple[bool, str]:
     """standardAnswer（标准答案）：非空、英文。脱离学习者原话的独立示范。
 
-    短输入 fast-path 时 nativeVersion/gaps 都空 → standardAnswer 也允许空。
+    短输入 fast-path 时 score/gaps 都空 → standardAnswer 也允许空。
     """
     if (fail := _no_llm_output(out)) is not None:
         return fail
     sa = (out.get("standardAnswer") or "").strip()
     if not sa:
-        if not (out.get("nativeVersion") or "").strip() and not out.get("gaps"):
+        if out.get("score") is None and not out.get("gaps"):
             return True, "standardAnswer empty (fast-path OK)"
-        return False, "standardAnswer is empty but nativeVersion/gaps exist"
+        return False, "standardAnswer is empty but feedback exists"
     if _has_chinese(sa):
         return False, f"standardAnswer has Chinese: {sa!r}"
     return True, f"standardAnswer OK ({len(sa)} chars)"
@@ -179,7 +173,7 @@ ALL = {
     "summary": summary_constraints,
     "gaps_schema": gaps_schema,
     "gap_why_chinese": gap_why_in_chinese,
-    "better_in_native": better_in_native_version,
+    "gap_original_grounded": gap_original_grounded,
     "standard_answer": standard_answer_valid,
     "score_valid": score_valid,
     "progress_valid": progress_verdict_valid,

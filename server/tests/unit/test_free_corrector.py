@@ -56,11 +56,11 @@ def test_free_retry_prompt_has_no_task_wording():
     assert "任务确实办成" not in system
 
 
-def test_scenario_retry_prompt_unchanged():
+def test_scenario_retry_prompt_still_judges_task_completion():
     prev = {"transcript": "please change it", "gaps": []}
     sc = {"kind": "task", "where": "咖啡店", "story": "s", "mission": "m"}
     messages = _build_messages("please change it now", sc, prev, 2, "scenario")
-    assert "任务确实办成" in messages[0].content
+    assert "passed 表示任务完成" in messages[0].content
 
 
 def test_coerce_result_maps_task_to_naturalness_in_free_mode():

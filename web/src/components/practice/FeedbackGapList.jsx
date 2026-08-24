@@ -46,7 +46,7 @@ export default function FeedbackGapList({
             <div className="fb-gap-core">
               <div className="fb-gap-line is-said">
                 <span className="fb-gap-tag">{t("practice.gapYouSaid")}</span>
-                <span className="fb-gap-said">{gap.original}</span>
+                <span className="fb-gap-said">{gap.original || t("practice.notMentioned")}</span>
               </div>
               <div className="fb-gap-line is-fix">
                 <span className="fb-gap-tag">{t("practice.gapSayThis")}</span>

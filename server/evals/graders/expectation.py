@@ -130,13 +130,6 @@ def summary_contains_any(out: dict | None, spec: dict) -> tuple[bool, str]:
     return (bool(found), f"summary={s!r}, matched={found}, want any of {needles}")
 
 
-def native_version_empty(out: dict | None, _spec: dict) -> tuple[bool, str]:
-    """期望 nativeVersion 为空（fast-path / 短输入场景）。"""
-    if (f := _no_output(out)) is not None: return f
-    nv = (out.get("nativeVersion") or "").strip()
-    return (nv == "", f"nativeVersion={nv!r}, want empty")
-
-
 REGISTRY = {
     "schema_valid": lambda *_: (True, "see schema:* graders"),
     "gaps_count_eq": gaps_count_eq,
@@ -150,5 +143,4 @@ REGISTRY = {
     "progress_verdict": progress_verdict,
     "progress_verdict_in": progress_verdict_in,
     "summary_contains_any": summary_contains_any,
-    "native_version_empty": native_version_empty,
 }

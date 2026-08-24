@@ -16,7 +16,6 @@ from services.llm_audit import (
     extract_usage,
     serialize_messages,
 )
-from services.correction_alignment import normalize_sentence_corrections, split_source_sentences
 from services.standard_answer import generate_standard_answer
 from services.text_input import is_too_short as _is_too_short
 from services.corrector_prompts import (
@@ -50,16 +49,8 @@ class ProgressInfo(BaseModel):
     comment: str = ""
 
 
-class SentenceCorrection(BaseModel):
-    sourceId: int
-    original: str = ""
-    corrected: str = ""
-
-
 class CorrectResult(BaseModel):
     summary: str = ""
-    nativeVersion: str = ""
-    sentenceCorrections: list[SentenceCorrection] = Field(default_factory=list)
     standardAnswer: str = ""  # 由独立、只看题目的请求在组合层写入
     note: str = ""  # 旧 API/历史 attempt 兼容；新反馈不再由 LLM 生成
     noteChinese: str = ""
@@ -102,8 +93,6 @@ def _get_client() -> ChatOpenAI:
 
 _EMPTY = {
     "summary": "",
-    "nativeVersion": "",
-    "sentenceCorrections": [],
     "standardAnswer": "",
     "note": "",
     "noteChinese": "",
@@ -165,11 +154,8 @@ def _build_messages(
             prev_gaps=gaps_brief,
         )
     block = _free_topic_block(scenario) if free else _scenario_block(scenario)
-    sentence_lines = "\n".join(
-        f"[{index}] {sentence}" for index, sentence in enumerate(split_source_sentences(text))
-    )
     user = (
-        f"{block}学习者刚说的话（sourceId 必须沿用方括号里的编号）：\n{sentence_lines}\n\n"
+        f"{block}学习者刚说的话：\n{text}\n\n"
         "请按上面的 SYSTEM 指令，找出他和 native 之间的 gap。"
     )
     return [SystemMessage(content=system), HumanMessage(content=user)]
@@ -200,14 +186,14 @@ def _loads_model_json(raw: str) -> dict:
     return json.loads(repaired, strict=False)
 
 
-def _coerce_result(data: dict, free: bool = False, source_text: str = "") -> dict:
+def _coerce_result(data: dict, free: bool = False) -> dict:
     if isinstance(data.get("feedback"), dict):
         data = data["feedback"]
     if isinstance(data.get("result"), dict):
         data = data["result"]
 
     gaps = []
-    for item in data.get("gaps") or []:
+    for item in (data.get("gaps") or [])[:3]:
         if not isinstance(item, dict):
             continue
         category = item.get("category") if item.get("category") in _CATEGORIES else "vocabulary"
@@ -247,12 +233,8 @@ def _coerce_result(data: dict, free: bool = False, source_text: str = "") -> dic
     else:
         progress = None
 
-    sentence_corrections, native_version = normalize_sentence_corrections(data, source_text)
-
     return {
         "summary": str(data.get("summary") or ""),
-        "nativeVersion": native_version,
-        "sentenceCorrections": sentence_corrections,
         # 纠正模型没有权威性：即使越权输出这些字段，也必须在解析边界丢弃。
         "standardAnswer": "",
         "note": "",
@@ -263,11 +245,11 @@ def _coerce_result(data: dict, free: bool = False, source_text: str = "") -> dic
     }
 
 
-def _parse_result(raw: str, free: bool = False, source_text: str = "") -> dict:
+def _parse_result(raw: str, free: bool = False) -> dict:
     raw = _clean_model_json(raw)
     try:
         result = CorrectResult.model_validate(
-            _coerce_result(_loads_model_json(raw), free=free, source_text=source_text)
+            _coerce_result(_loads_model_json(raw), free=free)
         )
     except Exception:
         logger.warning("corrector parse failed; raw_len=%d raw_start=%r", len(raw), raw[:200])
@@ -276,7 +258,14 @@ def _parse_result(raw: str, free: bool = False, source_text: str = "") -> dict:
 
 
 def _is_usable(result: dict | None) -> bool:
-    return bool(result and ((result.get("nativeVersion") or "").strip() or result.get("gaps")))
+    return bool(
+        result
+        and (
+            result.get("score") is not None
+            or result.get("gaps")
+            or result.get("progress")
+        )
+    )
 
 
 async def _correct_text_only(
@@ -294,7 +283,7 @@ async def _correct_text_only(
     messages = _build_messages(text, scenario, prev_attempt, round, mode)
 
     def _parse(raw: str) -> dict:
-        return _parse_result(raw, free=(mode == "free"), source_text=text)
+        return _parse_result(raw, free=(mode == "free"))
 
     result = await audited_invoke(
         _get_client(), messages,
@@ -347,7 +336,7 @@ async def correct_text(
     round: int = 1,
     link_to: dict | None = None,
 ) -> dict:
-    """并发执行两条隔离请求，再保持原 API schema 组合返回。"""
+    """并发执行表达反馈与独立标准答案请求，再组合成当前结果契约。"""
     if _is_too_short(text):
         return {**_EMPTY, "summary": "Try saying more — speak in full sentences."}
 
@@ -374,7 +363,7 @@ async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
 ) -> AsyncGenerator[tuple[str, dict], None]:
     """流式版本，yield (event_type, data) 元组：
     - ("chunk", {"text": "..."})  — 原始 token
-    - ("done",  {summary, nativeVersion, standardAnswer, gaps, progress})
+    - ("done",  {summary, standardAnswer, gaps, progress})
     - ("error", {"message": "..."})
     """
     if _is_too_short(text):
@@ -410,7 +399,7 @@ async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
         if prompt_tok or completion_tok:
             yield "usage", {"model": model, "promptTokens": prompt_tok, "completionTokens": completion_tok}
 
-        parsed = _parse_result(full_text, free=(mode == "free"), source_text=text) if full_text.strip() else None
+        parsed = _parse_result(full_text, free=(mode == "free")) if full_text.strip() else None
         # 流式返空（生产偶发空 content）→ 只降级纠正请求，避免重复生成标准答案。
         if not _is_usable(parsed):
             try:

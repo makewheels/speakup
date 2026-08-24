@@ -49,7 +49,7 @@ export default function PracticePage() {
   // 错题本收录：gap 作为错题收录；好表达笔记从结果文字中手动选中添加
   const {
     savedMap, setSavedMap, resetReviewCollection, toggleGap,
-  } = useReviewCollection(session, result);
+  } = useReviewCollection(session);
   const [autoSaved, setAutoSaved] = useState(0);
   const [round, setRound] = useState(1);
   const { resetShare, shareBusy, shareResult, shareStatus } = useResultShare({

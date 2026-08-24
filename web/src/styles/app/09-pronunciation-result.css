@@ -1,4 +1,4 @@
-/* 逐句纠正与发音评测：从结果页主样式拆出，保持源文件物理行门禁。 */
+/* 结果页统一层级与发音评测。 */
 .fb-generating-dot {
   display: inline-block;
   width: 14px;
@@ -9,96 +9,117 @@
   border-radius: 50%;
   animation: spin .7s linear infinite;
 }
-.fb-generating-inline p {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--ff-cn);
-  font-weight: 500;
-}
-
-.fb-sentence-section {
-  margin-bottom: 10px;
-  border: 1px solid var(--rule);
-  border-radius: 14px;
-  overflow: hidden;
-  background: var(--bg-elev);
-}
-.fb-sentence-section > .fb-card-label {
-  justify-content: space-between;
-  margin: 0;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--bg-mute);
-}
-.fb-sentence-actions, .pron-audio-actions {
+.pron-audio-actions {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
-.fb-sentence-list { display: grid; gap: 0; }
-.fb-sentence-pair { border-bottom: 1px solid var(--rule); }
-.fb-sentence-pair:last-child { border-bottom: 0; }
-.fb-sentence-row {
-  display: grid;
-  grid-template-columns: 62px minmax(0, 1fr);
+
+.result-section { margin: 18px 0; }
+.result-section-head, .pron-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  padding: 11px 14px;
+  margin-bottom: 10px;
 }
-.fb-sentence-row + .fb-sentence-row { border-top: 1px dashed var(--rule); }
-.fb-sentence-row > span {
-  padding-top: 3px;
+.result-section-title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--ff-cn);
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+.result-section-meta {
   color: var(--ink-3);
   font-family: var(--ff-cn);
-  font-size: 12px;
+  font-size: 13px;
 }
-.fb-sentence-row p {
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-family: var(--ff-en);
-  font-size: 17px;
-  line-height: 1.55;
-}
-.fb-sentence-row.is-corrected { background: var(--accent-soft); }
-.fb-sentence-row.is-corrected > span, .fb-sentence-row.is-corrected p { color: var(--accent); }
-.fb-sentence-row.is-corrected p { font-weight: 700; }
+.result-expression .fb-gaps-section { margin: 0; }
 
-.fb-standard-card { padding: 0; }
-.fb-standard-card > summary {
-  justify-content: space-between;
-  margin: 0;
-  padding: 13px 16px;
-  cursor: pointer;
-}
-.fb-standard-card > .fb-native-text { padding: 0 16px 12px; }
-.fb-gap-details { margin: 12px 0; }
-.fb-gap-details > summary {
-  padding: 11px 14px;
-  border: 1px solid var(--rule);
-  border-radius: 10px;
-  color: var(--ink-2);
-  font-family: var(--ff-cn);
-  font-weight: 650;
-  cursor: pointer;
-}
-.fb-gap-details[open] > summary { margin-bottom: 8px; }
-.fb-gap-details .fb-gaps-section { margin-top: 0; }
-
-.pron-section {
-  margin: 12px 0;
-  padding: 14px;
+.result-loading {
+  padding: 14px 16px;
   border: 1px solid var(--rule);
   border-radius: 14px;
   background: var(--bg-elev);
 }
+.result-loading-transcript { margin-top: 12px; }
+.result-loading-transcript span {
+  color: var(--ink-3);
+  font-family: var(--ff-cn);
+  font-size: 12px;
+}
+.result-loading-transcript p {
+  margin: 4px 0 0;
+  font-family: var(--ff-en);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.result-loading-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: var(--ink-3);
+  font-family: var(--ff-cn);
+  font-size: 14px;
+}
+
+.result-disclosure {
+  position: relative;
+  margin: 14px 0;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--bg-elev);
+}
+.result-disclosure-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 54px 0 16px;
+  list-style: none;
+  cursor: pointer;
+}
+.result-disclosure-details > summary::-webkit-details-marker { display: none; }
+.result-disclosure-details > summary > svg {
+  margin-left: auto;
+  color: var(--ink-3);
+  transition: transform .15s;
+}
+.result-disclosure-details[open] > summary > svg { transform: rotate(90deg); }
+.result-disclosure-body {
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--rule);
+}
+.result-disclosure-action {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  right: 8px;
+}
+.result-disclosure .fb-native-text {
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.pron-section {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
 .pron-section.is-loading { color: var(--ink-3); }
 .pron-section.is-loading p, .pron-good { margin: 4px 0 0; font-size: 14px; }
 .pron-heading, .pron-word-row { display: flex; align-items: center; gap: 8px; }
-.pron-heading { justify-content: space-between; }
-.pron-heading .fb-card-label { margin: 0; }
 .pron-overall { color: var(--accent); font-family: var(--ff-en); font-weight: 750; }
 .pron-issues { display: grid; gap: 8px; margin-top: 8px; }
-.pron-issue { padding: 11px 12px; border-radius: 10px; background: var(--bg-mute); }
+.pron-issue {
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--bg-elev);
+}
 .pron-word-row strong { font-family: var(--ff-en); font-size: 18px; }
 .pron-score { color: var(--warn); font-family: var(--ff-en); font-size: 13px; }
 .pron-audio-actions { margin-left: auto; }

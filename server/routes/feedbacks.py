@@ -29,7 +29,7 @@ class FeedbackRequest(BaseModel):
     comment: str = ""
     practiceId: str | None = None
     attemptIndex: int | None = None
-    # 前端带的 AI 反馈快照（{score, summary, nativeVersion, gaps, transcript, round}），
+    # 前端带的 AI 反馈快照（{score, summary, gaps, transcript, round}），
     # 排查"反馈不好用"时直接还原当时 AI 说了啥，不依赖 attempt 还在
     snapshot: dict | None = None
 

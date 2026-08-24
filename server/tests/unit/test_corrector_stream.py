@@ -34,7 +34,7 @@ async def test_stream_short_input_yields_done_immediately():
 
 @pytest.mark.asyncio
 async def test_stream_emits_chunk_events_then_done():
-    payload = {"summary": "nice", "nativeVersion": "A cat sleeps.", "gaps": []}
+    payload = {"summary": "nice", "score": 6.0, "gaps": []}
     raw = json.dumps(payload)
     chunks = [_stream_chunk(c) for c in raw]
     fake = _fake_stream_client(chunks)
@@ -49,7 +49,7 @@ async def test_stream_emits_chunk_events_then_done():
 
 @pytest.mark.asyncio
 async def test_stream_runs_standard_request_in_parallel_and_merges_done():
-    correction = {"summary": "已纠正", "nativeVersion": "Could you remake it?", "gaps": []}
+    correction = {"summary": "已纠正", "score": 6.0, "gaps": []}
     client = _DualRequestClient(correction, "Excuse me, could you remake my latte?")
     with patch("services.corrector._get_client", return_value=client):
         events = await _collect("Please change my latte now", SCENARIO)
@@ -63,7 +63,7 @@ async def test_stream_runs_standard_request_in_parallel_and_merges_done():
 
 @pytest.mark.asyncio
 async def test_stream_correction_fallback_does_not_repeat_standard_request():
-    correction = {"summary": "已纠正", "nativeVersion": "Could you remake it?", "gaps": []}
+    correction = {"summary": "已纠正", "score": 6.0, "gaps": []}
     client = _DualRequestClient(
         correction,
         "Excuse me, could you remake my latte?",
@@ -76,13 +76,13 @@ async def test_stream_correction_fallback_does_not_repeat_standard_request():
     assert client.stream_calls == 1
     assert client.correction_calls == 1
     assert client.standard_calls == 1
-    assert done["nativeVersion"] == "Could you remake it?"
+    assert done["score"] == 6.0
     assert done["standardAnswer"] == "Excuse me, could you remake my latte?"
 
 
 @pytest.mark.asyncio
 async def test_stream_standard_failure_degrades_without_losing_correction():
-    correction = {"summary": "已纠正", "nativeVersion": "Could you remake it?", "gaps": []}
+    correction = {"summary": "已纠正", "score": 6.0, "gaps": []}
     client = _DualRequestClient(correction, "", modes={"fail_standard"})
     with patch("services.corrector._get_client", return_value=client):
         events = await _collect("Please change my latte now", SCENARIO)
@@ -91,13 +91,13 @@ async def test_stream_standard_failure_degrades_without_losing_correction():
     assert not [data for event, data in events if event == "error"]
     assert client.stream_calls == 1
     assert client.standard_calls == 1
-    assert done["nativeVersion"] == "Could you remake it?"
+    assert done["score"] == 6.0
     assert done["standardAnswer"] == ""
 
 
 @pytest.mark.asyncio
 async def test_stream_correction_and_fallback_failure_keep_standard_answer():
-    correction = {"summary": "", "nativeVersion": "", "gaps": []}
+    correction = {"summary": "", "gaps": []}
     client = _DualRequestClient(
         correction,
         "Excuse me, could you remake my latte?",
@@ -111,7 +111,7 @@ async def test_stream_correction_and_fallback_failure_keep_standard_answer():
     assert client.stream_calls == 1
     assert client.correction_calls == 1  # 仅纠正分支允许一次 fallback
     assert client.standard_calls == 1
-    assert done["nativeVersion"] == ""
+    assert "nativeVersion" not in done
     assert done["standardAnswer"] == "Excuse me, could you remake my latte?"
 
 
@@ -119,7 +119,7 @@ async def test_stream_correction_and_fallback_failure_keep_standard_answer():
 async def test_stream_emits_usage_event_before_done():
     """stream_usage=True 时，finish_reason chunk 带顶层 usage_metadata（input_tokens/output_tokens）
     → 在 done 之前 yield usage 事件，供前端展示本次 token 消耗。"""
-    payload = {"summary": "nice", "nativeVersion": "A cat sleeps.", "gaps": []}
+    payload = {"summary": "nice", "score": 6.0, "gaps": []}
     # 实测 langchain-openai 1.2.2 + DeepSeek 的 finish chunk 形态
     finish = _stream_chunk("", {"model_name": "deepseek-v4-flash", "finish_reason": "stop"})
     finish.usage_metadata = {"input_tokens": 321, "output_tokens": 65, "total_tokens": 386}
@@ -136,7 +136,7 @@ async def test_stream_emits_usage_event_before_done():
 @pytest.mark.asyncio
 async def test_stream_no_usage_event_when_metadata_missing():
     """末尾 chunk 不带 usage（上游没开 include_usage）→ 不 yield usage 事件，行为向后兼容。"""
-    payload = {"summary": "ok", "nativeVersion": "x", "gaps": []}
+    payload = {"summary": "ok", "score": 6.0, "gaps": []}
     fake = _fake_stream_client([_stream_chunk(json.dumps(payload))])
     with patch("services.corrector._get_client", return_value=fake):
         events = await _collect("There is a cat sleeping here")
@@ -146,7 +146,7 @@ async def test_stream_no_usage_event_when_metadata_missing():
 @pytest.mark.asyncio
 async def test_stream_done_carries_progress_on_retry():
     payload = {
-        "summary": "好多了", "nativeVersion": "x", "gaps": [],
+        "summary": "好多了", "score": 6.5, "gaps": [],
         "progress": {"verdict": "improved", "fixed": ["a"], "remaining": ["b"], "comment": "ok"},
     }
     fake = _fake_stream_client([_stream_chunk(json.dumps(payload))])
@@ -159,7 +159,7 @@ async def test_stream_done_carries_progress_on_retry():
 @pytest.mark.asyncio
 async def test_stream_skips_empty_content_chunk():
     """Chunks with empty content must not generate chunk events."""
-    payload = {"summary": "ok", "nativeVersion": "x", "gaps": []}
+    payload = {"summary": "ok", "score": 6.0, "gaps": []}
     raw = json.dumps(payload)
     chunks = [_stream_chunk(raw), _empty_content_chunk()]
     fake = _fake_stream_client(chunks)

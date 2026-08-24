@@ -108,7 +108,7 @@ sequenceDiagram
     W->>S: POST /correct/stream
     par 纠正请求
         S->>Q: 题目 + 用户原话（第2轮起可带上一轮）
-        Q-->>S: summary / nativeVersion / gaps / progress
+        Q-->>S: summary / score / gaps / progress
     and 独立标准答案请求
         S->>Q: 只含题目白名单快照
         Q-->>S: standardAnswer

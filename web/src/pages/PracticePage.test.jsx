@@ -280,7 +280,12 @@ describe("PracticePage", () => {
     const onDone = correctStream.mock.calls[0][1].onDone;
     await act(async () => {
       onDone({
-        result: { summary: "不错", nativeVersion: "Could you remake it?", gaps: [], score: 6.0, progress: null },
+        result: {
+          summary: "不错",
+          gaps: [{ original: "Can you redo it?", better: "Could you remake it?", why: "更自然" }],
+          score: 6.0,
+          progress: null,
+        },
         autoSaved: 0,
         round: 1,
       });

@@ -1,22 +1,14 @@
 import { useEffect, useRef } from "react";
 import Icon from "../Icon.jsx";
-import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./PracticeFreeCard.jsx";
 import FeedbackBar from "./FeedbackBar.jsx";
 import FeedbackGapList from "./FeedbackGapList.jsx";
 import SelectableNoteText from "./SelectableNoteText.jsx";
-import SentenceCorrectionList from "./SentenceCorrectionList.jsx";
 import PronunciationFeedback from "./PronunciationFeedback.jsx";
+import StandardAnswerCard from "./StandardAnswerCard.jsx";
 import { useT } from "../../i18n/useI18n.js";
-
-const splitSentences = (s = "") =>
-  s.match(/[^.!?]+[.!?]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [s];
-
-function SpeakBtns({ text, practiceId }) {
-  return <SpeakBtn text={text} practiceId={practiceId} />;
-}
 
 function ScoreBadge({ score }) {
   const t = useT();
@@ -66,9 +58,7 @@ export default function PracticeFeedbackView({
     progress?.comment || progress?.fixed?.length || progress?.remaining?.length,
   );
   const isFree = session?.mode === "free";
-  const hasAnswer = Boolean(
-    (result.nativeVersion || "").trim() || (result.standardAnswer || "").trim(),
-  );
+  const hasAnswer = Boolean((result.standardAnswer || "").trim());
 
   // 结果页从雅思分数开始看起：题目卡片和大图在上方，向上滚可回看。
   // 挂载瞬间上方的大图/视频高度可能尚未定型（加载失败会塌缩、慢加载会位移），
@@ -120,20 +110,18 @@ export default function PracticeFeedbackView({
       </div>
 
       {loading && (
-        <section className="fb-sentence-section" aria-live="polite">
-          <div className="fb-card-label">{t("practice.sentenceComparison")}</div>
-          <article className="fb-sentence-pair">
-            <div className="fb-sentence-row is-original">
-              <span>{t("practice.youSaid")}</span>
-              <p>{transcript}</p>
-            </div>
-            <div className="fb-sentence-row is-corrected fb-generating-inline">
-              <span>{t("practice.nativeVersion")}</span>
-              <p><i className="fb-generating-dot" aria-hidden="true" /> {streamingLen > 0
-                ? t("practice.writingChars", { n: streamingLen })
-                : t("practice.aiReviewing")}</p>
-            </div>
-          </article>
+        <section className="result-section result-loading" aria-live="polite">
+          <h2 className="result-section-title">{t("practice.expressionSuggestions")}</h2>
+          <div className="result-loading-transcript">
+            <span>{t("practice.youSaid")}</span>
+            <p>{transcript}</p>
+          </div>
+          <p className="result-loading-status">
+            <i className="fb-generating-dot" aria-hidden="true" />
+            {streamingLen > 0
+              ? t("practice.writingChars", { n: streamingLen })
+              : t("practice.aiReviewing")}
+          </p>
         </section>
       )}
 
@@ -168,13 +156,21 @@ export default function PracticeFeedbackView({
       )}
 
       <SelectableNoteText practiceId={session?._id} userId={userId}>
-        {!loading && <SentenceCorrectionList
-          practiceId={session?._id}
-          recordingUrl={recordingUrl}
-          result={result}
-          t={t}
-          transcript={transcript}
-        />}
+        {!loading && gaps.length > 0 && (
+          <section className="result-section result-expression">
+            <div className="result-section-head">
+              <h2 className="result-section-title">{t("practice.expressionSuggestions")}</h2>
+              <span className="result-section-meta">{t("practice.suggestionCount", { n: gaps.length })}</span>
+            </div>
+            <FeedbackGapList
+              gaps={gaps}
+              onToggleGap={toggleGap}
+              practiceId={session?._id}
+              savedMap={savedMap}
+              showTitle={false}
+            />
+          </section>
+        )}
 
         {!loading && <PronunciationFeedback
           loading={pronunciationLoading}
@@ -184,30 +180,11 @@ export default function PracticeFeedbackView({
           t={t}
         />}
 
-        {!loading && result.standardAnswer && (
-          <details className="fb-native-card fb-standard-card" data-note-context={result.standardAnswer}>
-            <summary className="fb-card-label standard">
-              {t("practice.standardAnswer")}
-              <SpeakBtns text={result.standardAnswer} practiceId={session?._id} />
-            </summary>
-            {splitSentences(result.standardAnswer).map((s, i) => (
-              <p key={i} className="fb-native-text">{s}</p>
-            ))}
-          </details>
-        )}
-
-        {!loading && gaps.length > 0 && (
-          <details className="fb-gap-details">
-            <summary>{t("practice.gapsTitle", { n: gaps.length })}</summary>
-            <FeedbackGapList
-              gaps={gaps}
-              onToggleGap={toggleGap}
-              practiceId={session?._id}
-              savedMap={savedMap}
-              showTitle={false}
-            />
-          </details>
-        )}
+        {!loading && <StandardAnswerCard
+          answer={result.standardAnswer}
+          practiceId={session?._id}
+          t={t}
+        />}
       </SelectableNoteText>
       {!loading && gaps.length === 0 && (
         <div className="fb-empty-feedback">
@@ -222,7 +199,7 @@ export default function PracticeFeedbackView({
       )}
 
       {!loading && <div className="fb-chat">
-        <div className="fb-section-label">{t("practice.askTheCoach")}</div>
+        <h2 className="result-section-title">{t("practice.askTheCoach")}</h2>
         {chat.map((m, i) => (
           <div key={i} className={"fb-chat-msg " + m.role}>
             {m.content || (chatBusy && i === chat.length - 1 ? <span className="fb-chat-typing">{t("practice.thinking")}</span> : "")}
@@ -249,7 +226,6 @@ export default function PracticeFeedbackView({
         snapshot={{
           score: result.score,
           summary: result.summary,
-          nativeVersion: result.nativeVersion,
           gaps: result.gaps,
           transcript,
           round,

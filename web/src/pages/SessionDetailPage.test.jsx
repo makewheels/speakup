@@ -75,7 +75,7 @@ describe("SessionDetailPage", () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);
     setup();
-    await waitFor(() => expect(screen.getByText("Was this AI feedback helpful?")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Give feedback on this result")).toBeInTheDocument());
   });
 
   it("shows loading while fetching", async () => {
@@ -181,22 +181,20 @@ describe("SessionDetailPage", () => {
     );
   });
 
-  it("renders transcript from attempt", async () => {
+  it("uses gap pairs instead of repeating the whole transcript", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);
     setup();
-    await waitFor(() =>
-      expect(screen.getByText("I tried to order")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("tried to order")).toBeInTheDocument());
+    expect(screen.queryByText("I tried to order")).not.toBeInTheDocument();
   });
 
-  it("renders native version from attempt", async () => {
+  it("does not render the legacy whole corrected version", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue(SESSION);
     setup();
-    await waitFor(() =>
-      expect(screen.getByText("I attempted to place an order.")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("attempted to place an order")).toBeInTheDocument());
+    expect(screen.queryByText("I attempted to place an order.")).not.toBeInTheDocument();
   });
 
   it("renders the standard answer when the attempt has one", async () => {
@@ -208,7 +206,7 @@ describe("SessionDetailPage", () => {
       ],
     });
     setup();
-    await waitFor(() => expect(screen.getByText("Native")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Standard answer")).toBeInTheDocument());
     expect(screen.getByText("Could I get a large coffee to go, please?")).toBeInTheDocument();
   });
 
@@ -263,8 +261,8 @@ describe("SessionDetailPage", () => {
     const multiSession = {
       ...SESSION,
       attempts: [
-        { ...SESSION.attempts[0], transcript: "First try" },
-        { ...SESSION.attempts[0], transcript: "Second try" },
+        { ...SESSION.attempts[0], gaps: [{ original: "First try", better: "First revision", why: "x" }] },
+        { ...SESSION.attempts[0], gaps: [{ original: "Second try", better: "Second revision", why: "x" }] },
       ],
     };
     api.getPractice.mockResolvedValue(multiSession);

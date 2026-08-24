@@ -50,10 +50,10 @@ def _round_context(practice: dict) -> tuple[dict | None, dict | None, int]:
 
 def _has_usable_feedback(result: dict) -> bool:
     return bool(
-        (result.get("nativeVersion") or "").strip()
-        or result.get("sentenceCorrections")
-        or (result.get("standardAnswer") or "").strip()
+        (result.get("standardAnswer") or "").strip()
+        or result.get("score") is not None
         or result.get("gaps")
+        or result.get("progress")
     )
 
 
@@ -116,7 +116,7 @@ async def _save_attempt_and_review(
             "original": gap.get("original", ""),
             "note": gap.get("why", ""),
             "chinese": gap.get("chinese", ""),
-            "contextSentence": result.get("nativeVersion", ""),
+            "contextSentence": gap.get("better") or req.text,
             "practiceId": req.practiceId,
             "status": "active",
             "createdAt": now,
@@ -134,8 +134,6 @@ async def _save_attempt_and_review(
         "mode": mode,
         "freeTopic": free_topic if mode == "free" else "",
         "summary": result["summary"],
-        "nativeVersion": result["nativeVersion"],
-        "sentenceCorrections": result.get("sentenceCorrections", []),
         "standardAnswer": result.get("standardAnswer", ""),
         "note": result.get("note", ""),
         "noteChinese": result.get("noteChinese", ""),

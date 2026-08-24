@@ -4,12 +4,31 @@
    ────────────────────────────────────────────── */
 
 .fb-bar {
-  margin: 20px 0 4px;
+  margin: 8px 0 4px;
   padding: 14px 16px;
   background: var(--bg-mute);
   border: 1px solid var(--rule);
   border-radius: 14px;
 }
+.fb-feedback { margin: 16px 0 4px; }
+.fb-feedback-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  color: var(--ink-2);
+  font-family: var(--ff-cn);
+  font-size: 16px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.fb-feedback-trigger svg { transition: transform .15s; }
+.fb-feedback-trigger[aria-expanded="true"] svg { transform: rotate(90deg); }
 .fb-bar-q {
   font-family: var(--ff-cn);
   font-size: 14px;
