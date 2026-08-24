@@ -1,6 +1,7 @@
 import Icon from "../Icon.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import { useT } from "../../i18n/useI18n.js";
+import { hasDistinctExample } from "./gapExamples.js";
 
 export default function FeedbackGapList({
   canSpeak = true,
@@ -21,6 +22,7 @@ export default function FeedbackGapList({
       {gaps.map((gap, index) => {
         const added = Boolean(savedMap[index]);
         const category = gap.category ? t(`practice.gapCat.${gap.category}`) : "";
+        const showExample = hasDistinctExample(gap.better, gap.example);
         return (
           <article key={index} className="fb-gap-card" data-note-context={gap.better || gap.original || ""}>
             <div className="fb-gap-head">
@@ -61,7 +63,7 @@ export default function FeedbackGapList({
               )}
             </div>
 
-            {gap.example && (
+            {showExample && (
               <details className="fb-gap-example-details">
                 <summary>{t("practice.expandExample")}</summary>
                 <div className="fb-gap-example-body">

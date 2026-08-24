@@ -18,7 +18,7 @@ const GAP = {
 };
 
 describe("FeedbackGapList", () => {
-  it("keeps the correction core together and moves the bilingual example into details", async () => {
+  it("keeps a distinct transfer example collapsed below the correction", async () => {
     render(<FeedbackGapList canSpeak={false} gaps={[GAP]} practiceId="practice_1" />);
 
     expect(screen.getByText("Grammar")).toBeInTheDocument();
@@ -30,13 +30,43 @@ describe("FeedbackGapList", () => {
       "Why",
     ]);
 
-    const summary = screen.getByText("Show example & translation");
+    const summary = screen.getByText("See another example");
     const details = summary.closest("details");
     expect(details).not.toHaveAttribute("open");
     await userEvent.click(summary);
     expect(details).toHaveAttribute("open");
     expect(screen.getByText(GAP.example)).toBeInTheDocument();
     expect(screen.getByText(GAP.exampleChinese)).toBeInTheDocument();
+  });
+
+  it("omits the disclosure when the example repeats Say this", () => {
+    render(
+      <FeedbackGapList
+        canSpeak={false}
+        gaps={[{
+          ...GAP,
+          example: "I went there yesterday!",
+          exampleChinese: "我昨天去了那里。",
+        }]}
+        practiceId="practice_1"
+      />,
+    );
+
+    expect(screen.getByText(GAP.better)).toBeInTheDocument();
+    expect(screen.queryByText("See another example")).not.toBeInTheDocument();
+    expect(screen.queryByText("我昨天去了那里。")).not.toBeInTheDocument();
+  });
+
+  it("omits a near-copy with only one filler word added", () => {
+    render(
+      <FeedbackGapList
+        canSpeak={false}
+        gaps={[{ ...GAP, example: "I actually went there yesterday." }]}
+        practiceId="practice_1"
+      />,
+    );
+
+    expect(screen.queryByText("See another example")).not.toBeInTheDocument();
   });
 
   it("uses complete Chinese result labels in Chinese mode", () => {

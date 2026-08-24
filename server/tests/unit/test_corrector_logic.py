@@ -218,6 +218,19 @@ def test_system_prompt_requires_chinese_hint_per_gap():
     assert "提示词" in system
 
 
+def test_system_prompt_only_allows_distinct_transfer_examples():
+    scenario_system = _build_messages("I want a hot latte", scenario=SCENARIO)[0].content
+    free_system = _build_messages(
+        "I went there yesterday and met my friend",
+        scenario={"kind": "free"},
+    )[0].content
+
+    for system in (scenario_system, free_system):
+        assert "另一个真实语境" in system
+        assert "轻微改写" in system
+        assert "空字符串" in system
+
+
 def test_parse_result_maps_gap_chinese():
     raw = """{"summary": "ok", "nativeVersion": "Could you remake it?", "gaps": [
         {"original": "redo", "better": "remake", "chinese": "重做一下", "why": "x", "category": "vocabulary"}
@@ -239,6 +252,36 @@ def test_parse_result_maps_example_chinese():
          "exampleChinese": "你能重做一下吗？", "why": "更自然", "category": "vocabulary"}
     ]}"""
     assert _parse_result(raw)["gaps"][0]["exampleChinese"] == "你能重做一下吗？"
+
+
+def test_parse_result_drops_example_that_repeats_better():
+    raw = """{"summary": "ok", "gaps": [
+        {"original": "I go there yesterday", "better": "I went there yesterday.",
+         "example": "I went there yesterday!", "exampleChinese": "我昨天去了那里。",
+         "why": "改用过去式", "category": "grammar"}
+    ]}"""
+    gap = _parse_result(raw)["gaps"][0]
+    assert gap["example"] == ""
+    assert gap["exampleChinese"] == ""
+
+
+def test_parse_result_drops_near_copy_example():
+    raw = """{"summary": "ok", "gaps": [
+        {"original": "I go there yesterday", "better": "I went there yesterday.",
+         "example": "I actually went there yesterday.", "why": "改用过去式", "category": "grammar"}
+    ]}"""
+    assert _parse_result(raw)["gaps"][0]["example"] == ""
+
+
+def test_parse_result_keeps_distinct_transfer_example():
+    raw = """{"summary": "ok", "gaps": [
+        {"original": "I go there yesterday", "better": "I went there yesterday.",
+         "example": "I met her last weekend.", "exampleChinese": "我上周末见到了她。",
+         "why": "改用过去式", "category": "grammar"}
+    ]}"""
+    gap = _parse_result(raw)["gaps"][0]
+    assert gap["example"] == "I met her last weekend."
+    assert gap["exampleChinese"] == "我上周末见到了她。"
 
 
 
