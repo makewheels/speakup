@@ -52,7 +52,7 @@ flowchart TD
 
 ```
 scenarios/{scenarioId}/cover.jpg                                    ← 场景图（题目共享资产）
-practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm ← 每轮录音
+practiceSessions/{userId}/{yyyyMM}/{practiceId}/attempts/{n}/recordings/{recordingId}/original.{ext} ← 每轮原声
 ```
 
 资源为根、类型做子目录（参考 video-2022）。详见 [storage.md](../storage.md)。

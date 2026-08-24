@@ -122,7 +122,11 @@ export default function PracticeFeedbackView({
         </div>
       )}
 
-      <SelectableNoteText practiceId={session?._id} userId={userId}>
+      <SelectableNoteText
+        attemptIndex={Math.max(0, round - 1)}
+        practiceId={session?._id}
+        userId={userId}
+      >
         {!loading && gaps.length > 0 && (
           <section className="result-section result-expression">
             <div className="result-section-head">
@@ -130,6 +134,7 @@ export default function PracticeFeedbackView({
               <span className="result-section-meta">{t("practice.suggestionCount", { n: gaps.length })}</span>
             </div>
             <FeedbackGapList
+              attemptIndex={Math.max(0, round - 1)}
               gaps={gaps}
               onToggleGap={toggleGap}
               practiceId={session?._id}
@@ -149,6 +154,7 @@ export default function PracticeFeedbackView({
 
         {!loading && <StandardAnswerCard
           answer={result.standardAnswer}
+          attemptIndex={Math.max(0, round - 1)}
           practiceId={session?._id}
           t={t}
         />}

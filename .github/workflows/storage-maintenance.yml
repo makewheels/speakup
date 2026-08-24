@@ -1,0 +1,88 @@
+name: 对象存储维护
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "audit=只审计；migrate=复制并切引用；cleanup=复验后清旧对象"
+        required: true
+        default: audit
+        type: choice
+        options:
+          - audit
+          - migrate
+          - cleanup
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-storage-maintenance
+  cancel-in-progress: false
+
+jobs:
+  storage:
+    name: 生产对象存储 ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 限制为默认分支
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]; then
+            echo "对象存储维护只允许从默认分支触发。" >&2
+            exit 1
+          fi
+
+      - name: 从 Infisical 读取部署身份
+        uses: Infisical/secrets-action@v1.0.16
+        with:
+          method: oidc
+          identity-id: e0d98dc2-4295-4092-9cb9-6bf891cc3c2d
+          oidc-audience: ${{ vars.INFISICAL_OIDC_AUDIENCE }}
+          domain: ${{ vars.INFISICAL_DOMAIN }}
+          project-slug: speakup-secrets
+          env-slug: prod
+          secret-path: /deployment
+          recursive: false
+          include-imports: false
+
+      - name: 准备临时 SSH 文件
+        run: |
+          runner_temp_resolved=$(cd "$RUNNER_TEMP" && pwd -P)
+          ssh_tmp_dir=$(mktemp -d "$runner_temp_resolved/speakup-storage-ssh.XXXXXX")
+          printf 'SSH_TMP_DIR=%s\n' "$ssh_tmp_dir" >> "$GITHUB_ENV"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$ssh_tmp_dir/key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$ssh_tmp_dir/known_hosts"
+          chmod 600 "$ssh_tmp_dir/key" "$ssh_tmp_dir/known_hosts"
+
+      - name: 在生产容器运行维护程序
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          case "$ACTION" in
+            audit) migration_args="" ;;
+            migrate) migration_args="--execute" ;;
+            cleanup) migration_args="--execute --delete-source" ;;
+            *) echo "不支持的 action: $ACTION" >&2; exit 1 ;;
+          esac
+          ssh -i "$SSH_TMP_DIR/key" -o IdentitiesOnly=yes \
+            -o UserKnownHostsFile="$SSH_TMP_DIR/known_hosts" -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "docker exec speakup python scripts/migrate_storage_layout.py $migration_args"
+
+      - name: 清理临时 SSH 文件
+        if: always()
+        run: |
+          [ -n "${SSH_TMP_DIR:-}" ] || exit 0
+          runner_temp_resolved=$(cd "$RUNNER_TEMP" && pwd -P)
+          ssh_tmp_dir_resolved=$(cd "$SSH_TMP_DIR" && pwd -P)
+          case "$ssh_tmp_dir_resolved" in
+            "$runner_temp_resolved"/speakup-storage-ssh.*)
+              [ -d "$ssh_tmp_dir_resolved" ]
+              [ ! -L "$ssh_tmp_dir_resolved" ]
+              rm -rf -- "$ssh_tmp_dir_resolved"
+              ;;
+            *) echo "拒绝清理非 Runner 临时目录。" >&2; exit 1 ;;
+          esac

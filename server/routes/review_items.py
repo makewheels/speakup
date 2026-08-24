@@ -88,6 +88,7 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
             "chinese": it.get("chinese", ""),
             "contextSentence": it.get("contextSentence", ""),
             "practiceId": it.get("practiceId", ""),
+            "attemptIndex": it.get("attemptIndex", -1),
             "status": "active",
             "createdAt": now,
             "nextReviewAt": now,

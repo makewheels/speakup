@@ -118,6 +118,7 @@ async def _save_attempt_and_review(
             "chinese": gap.get("chinese", ""),
             "contextSentence": gap.get("better") or req.text,
             "practiceId": req.practiceId,
+            "attemptIndex": round_no - 1,
             "status": "active",
             "createdAt": now,
             "nextReviewAt": now,

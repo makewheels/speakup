@@ -62,7 +62,8 @@ export default function SessionView({
   const [sel, setSel] = useState(Math.max(0, rawAttempts.length - 1));
   const idx = Math.min(sel, rawAttempts.length - 1);
   const attempt = rawAttempts[idx];
-  const recording = recordings[idx];
+  const legacyRecording = recordings.find((item) => item.attemptIndex === idx) || recordings[idx];
+  const recordingUrl = attempt?.recordingUrl || legacyRecording?.url;
   const isLatest = idx === rawAttempts.length - 1;
   const canSpeak = !readOnly; // 付费 TTS 朗读只对本人开放
 
@@ -132,7 +133,7 @@ export default function SessionView({
               <span className="attempt-idx">{t("session.attempt", { n: idx + 1 })}</span>
               {attempt.createdAt && <span className="attempt-time">{formatDateTime(attempt.createdAt)}</span>}
             </div>
-            {recording?.url && <RecordingPlayer src={recording.url} />}
+            {recordingUrl && <RecordingPlayer src={recordingUrl} />}
 
             {attempt.score != null && (
               <div className="fb-score">
@@ -144,7 +145,11 @@ export default function SessionView({
 
             {attempt.summary && <p className="fb-summary-line">{attempt.summary}</p>}
 
-            <SelectableNoteText practiceId={practiceId} userId={readOnly ? "" : noteUserId}>
+            <SelectableNoteText
+              attemptIndex={idx}
+              practiceId={practiceId}
+              userId={readOnly ? "" : noteUserId}
+            >
               {(attempt.gaps || []).length > 0 && (
                 <section className="result-section result-expression">
                   <div className="result-section-head">
@@ -152,6 +157,7 @@ export default function SessionView({
                     <span className="result-section-meta">{t("practice.suggestionCount", { n: attempt.gaps.length })}</span>
                   </div>
                   <FeedbackGapList
+                    attemptIndex={idx}
                     canSpeak={canSpeak}
                     gaps={attempt.gaps}
                     practiceId={practiceId}
@@ -171,6 +177,7 @@ export default function SessionView({
 
               <StandardAnswerCard
                 answer={attempt.standardAnswer}
+                attemptIndex={idx}
                 canSpeak={canSpeak}
                 practiceId={practiceId}
                 t={t}

@@ -227,13 +227,24 @@ export const api = {
 
   correct: (data) => request("/correct", { method: "POST", body: data }),
 
-  tts: (text, practiceId) => request("/tts", { method: "POST", body: { text, practiceId } }).then((r) => r.url),
+  tts: (text, practiceId, attemptIndex = -1, purpose = "other") => request("/tts", {
+    method: "POST",
+    body: { text, practiceId, attemptIndex, purpose },
+  }).then((r) => r.url),
 
   uploadRecording: (practiceId, userId, blob, attemptIndex = -1) => {
     const form = new FormData();
     form.append("userId", userId);
     form.append("attemptIndex", attemptIndex);
-    form.append("audio", blob, "recording.webm");
+    const extension = {
+      "audio/mp4": "m4a",
+      "audio/mpeg": "mp3",
+      "audio/ogg": "ogg",
+      "audio/wav": "wav",
+      "audio/webm": "webm",
+      "audio/x-m4a": "m4a",
+    }[(blob.type || "").split(";")[0]] || "webm";
+    form.append("audio", blob, `recording.${extension}`);
     return fetch(`${BASE}/practice-sessions/${practiceId}/recording`, {
       method: "POST",
       headers: authHeaders(),

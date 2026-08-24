@@ -272,7 +272,7 @@
 - 关于
   - 版本 / 反馈方式（一个邮箱）
 
-昵称在独立资料页编辑，保存后同步刷新个人页和本地登录态；输入规范为 1–24 个字符，自动整理首尾及连续空白。头像支持 JPG、PNG、WebP，最大 5 MB，上传后同步刷新；手机号当前不进入任何可写请求。
+昵称在独立资料页编辑，保存后同步刷新个人页和本地登录态；输入规范为 1–24 个字符，自动整理首尾及连续空白。头像支持 JPG、PNG、WebP，源文件最大 25 MB；前端先提供方形拖动/缩放裁剪，服务端生成主图与缩略图，上传后同步刷新。手机号当前不进入任何可写请求。
 
 ---
 
@@ -344,15 +344,21 @@ MVP 两个 tab（`我的` V1.1 再加）：
 
 ```
 users:
-  _id, phone, nickname, avatarKey?, avatarVersion?, lastLoginAt, updatedAt?, createdAt
+  _id, phone, nickname, avatar?, avatarVersion?, lastLoginAt, updatedAt?, createdAt
 
-sessions:               // 一次"看图说话"
+  avatar:
+    id, originalKey, thumbnailKey, contentType,
+    originalSize, thumbnailSize, createdAt
+
+practiceSessions:       // 一次场景练习或自由练习
   _id, userId, topic, imageUrl, attempts[], createdAt
 
   attempts:
-    transcript, correctedText, corrections[], tips[],
-    whatISee, missedElements[], suggestedVocabulary[],
-    createdAt
+    transcript, score, gaps[], standardAnswer,
+    recording?, speechAssets[], pronunciation?, createdAt
+
+  recording:
+    id, key, format, contentType, sizeBytes, createdAt
 
 mistakes:               // V1.1 新增，从 attempts 自动提取
   _id, userId, sessionId, attemptIndex,

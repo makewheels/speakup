@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import AvatarCropDialog from "../components/AvatarCropDialog.jsx";
 import Icon from "../components/Icon.jsx";
 import ProfileAvatar from "../components/ProfileAvatar.jsx";
 import { useUser } from "../context/useUser.js";
 import { useT } from "../i18n/useI18n.js";
 
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const MAX_AVATAR_BYTES = 25 * 1024 * 1024;
 const AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function maskedPhone(phone = "") {
@@ -18,8 +19,9 @@ function AvatarEditor({ user, updateAvatar, removeAvatar, t }) {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarMessage, setAvatarMessage] = useState("");
   const [avatarError, setAvatarError] = useState("");
+  const [cropFile, setCropFile] = useState(null);
 
-  const chooseAvatar = async (event) => {
+  const chooseAvatar = (event) => {
     const [file] = event.target.files || [];
     event.target.value = "";
     if (!file || avatarBusy) return;
@@ -33,9 +35,14 @@ function AvatarEditor({ user, updateAvatar, removeAvatar, t }) {
       setAvatarError(t("profile.avatarTypeInvalid"));
       return;
     }
+    setCropFile(file);
+  };
+
+  const saveCroppedAvatar = async (file) => {
     setAvatarBusy(true);
     try {
       await updateAvatar(file);
+      setCropFile(null);
       setAvatarMessage(t("profile.avatarSaved"));
     } catch {
       setAvatarError(t("profile.avatarSaveFailed"));
@@ -98,6 +105,15 @@ function AvatarEditor({ user, updateAvatar, removeAvatar, t }) {
       </div>
       {avatarError && <p className="profile-editor-error" role="alert">{avatarError}</p>}
       {avatarMessage && <p className="profile-editor-status" role="status">{avatarMessage}</p>}
+      {cropFile && (
+        <AvatarCropDialog
+          error={avatarError}
+          file={cropFile}
+          onCancel={() => setCropFile(null)}
+          onConfirm={saveCroppedAvatar}
+          t={t}
+        />
+      )}
     </section>
   );
 }

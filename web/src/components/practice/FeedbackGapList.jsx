@@ -5,6 +5,7 @@ import { hasDistinctExample } from "./gapExamples.js";
 
 export default function FeedbackGapList({
   canSpeak = true,
+  attemptIndex = -1,
   gaps = [],
   onToggleGap = null,
   practiceId,
@@ -53,7 +54,14 @@ export default function FeedbackGapList({
               <div className="fb-gap-line is-fix">
                 <span className="fb-gap-tag">{t("practice.gapSayThis")}</span>
                 <span className="fb-gap-fix">{gap.better}</span>
-                {canSpeak && <SpeakBtn text={gap.better} practiceId={practiceId} />}
+                {canSpeak && (
+                  <SpeakBtn
+                    attemptIndex={attemptIndex}
+                    practiceId={practiceId}
+                    purpose="correction"
+                    text={gap.better}
+                  />
+                )}
               </div>
               {gap.why && (
                 <div className="fb-gap-line is-why">
@@ -69,7 +77,14 @@ export default function FeedbackGapList({
                 <div className="fb-gap-example-body">
                   <div className="fb-gap-example-row">
                     <span className="fb-gap-example">{gap.example}</span>
-                    {canSpeak && <SpeakBtn text={gap.example} practiceId={practiceId} />}
+                    {canSpeak && (
+                      <SpeakBtn
+                        attemptIndex={attemptIndex}
+                        practiceId={practiceId}
+                        purpose="example"
+                        text={gap.example}
+                      />
+                    )}
                   </div>
                   {gap.exampleChinese && <p className="fb-gap-example-zh">{gap.exampleChinese}</p>}
                 </div>

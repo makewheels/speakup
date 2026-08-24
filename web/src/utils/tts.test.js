@@ -64,8 +64,8 @@ describe("utils/tts", () => {
     await speak("Same text", "sess_a");
     await speak("Same text", "sess_b");
     expect(ttsMock).toHaveBeenCalledTimes(2);
-    expect(ttsMock).toHaveBeenNthCalledWith(1, "Same text", "sess_a");
-    expect(ttsMock).toHaveBeenNthCalledWith(2, "Same text", "sess_b");
+    expect(ttsMock).toHaveBeenNthCalledWith(1, "Same text", "sess_a", -1, "other");
+    expect(ttsMock).toHaveBeenNthCalledWith(2, "Same text", "sess_b", -1, "other");
   });
 
   it("同 (practiceId, text) 重复调用走本地 url 缓存，不再请求后端", async () => {
@@ -74,6 +74,15 @@ describe("utils/tts", () => {
     await speak("Replay this", "sess_a");
     await speak("Replay this", "sess_a");
     expect(ttsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("同一句话按 attempt 和业务用途分开归档", async () => {
+    const { speak } = await import("./tts.js");
+    ttsMock.mockResolvedValue("https://oss/clip.mp3");
+    await speak("Try this", "sess_a", 0, "correction");
+    await speak("Try this", "sess_a", 0, "example");
+    await speak("Try this", "sess_a", 1, "correction");
+    expect(ttsMock).toHaveBeenCalledTimes(3);
   });
 
   it("isCached 也按 practiceId 分键", async () => {

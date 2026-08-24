@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -32,6 +32,22 @@ describe("EditProfilePage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:avatar-preview"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      value: vi.fn(() => ({ drawImage: vi.fn(), fillRect: vi.fn() })),
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+      configurable: true,
+      value: vi.fn((callback) => callback(new Blob(["cropped"], { type: "image/jpeg" }))),
+    });
   });
 
   it("saves a normalized nickname and persists local state", async () => {
@@ -66,7 +82,15 @@ describe("EditProfilePage", () => {
 
     await userEvent.upload(screen.getByLabelText("Choose avatar file"), file);
 
-    expect(api.uploadAvatar).toHaveBeenCalledWith(file);
+    const preview = await screen.findByRole("img", { name: "Avatar crop preview" });
+    Object.defineProperties(preview, {
+      naturalWidth: { configurable: true, value: 1200 },
+      naturalHeight: { configurable: true, value: 900 },
+    });
+    fireEvent.load(preview);
+    await userEvent.click(screen.getByRole("button", { name: "Save avatar" }));
+
+    expect(api.uploadAvatar).toHaveBeenCalledWith(expect.objectContaining({ type: "image/jpeg" }));
     expect(await screen.findByRole("img", { name: "Profile avatar" })).toHaveAttribute(
       "src",
       "/api/auth/avatar/u_1?v=2",

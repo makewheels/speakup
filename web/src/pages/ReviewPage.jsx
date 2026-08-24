@@ -281,10 +281,10 @@ export default function ReviewPage() {
                       <p className={`rv-quiz-verdict${quizPickedCorrect ? " ok" : ""}`}>
                         {quizPickedCorrect ? t("review.quizCorrect") : t("review.quizWrong")}
                       </p>
-                      <p className="rv-card-a">{w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} /></p>
+                      <p className="rv-card-a">{w.expression}<SpeakBtn attemptIndex={w.attemptIndex} text={w.expression} practiceId={w.practiceId} purpose="review" /></p>
                       {w.note && <p className="rv-card-note">{w.note}</p>}
                       {w.contextSentence && (
-                        <p className="rv-card-ctx">{w.contextSentence}<SpeakBtn text={w.contextSentence} practiceId={w.practiceId} /></p>
+                        <p className="rv-card-ctx">{w.contextSentence}<SpeakBtn attemptIndex={w.attemptIndex} text={w.contextSentence} practiceId={w.practiceId} purpose="review" /></p>
                       )}
                       <button
                         className="su-btn su-btn-primary rv-practice-btn"
@@ -307,10 +307,10 @@ export default function ReviewPage() {
               ) : (
                 <>
                   <div className="rv-card-label answer">{t("review.nativeVersion")}</div>
-                  <p className="rv-card-a">{w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} /></p>
+                  <p className="rv-card-a">{w.expression}<SpeakBtn attemptIndex={w.attemptIndex} text={w.expression} practiceId={w.practiceId} purpose="review" /></p>
                   {w.note && <p className="rv-card-note">{w.note}</p>}
                   {w.contextSentence && (
-                    <p className="rv-card-ctx">{w.contextSentence}<SpeakBtn text={w.contextSentence} practiceId={w.practiceId} /></p>
+                    <p className="rv-card-ctx">{w.contextSentence}<SpeakBtn attemptIndex={w.attemptIndex} text={w.contextSentence} practiceId={w.practiceId} purpose="review" /></p>
                   )}
                   <button
                     className="su-btn su-btn-primary rv-practice-btn"
@@ -356,7 +356,7 @@ export default function ReviewPage() {
         <div className="review-card-body">
           {w.chinese && <div className="review-zh">{w.chinese}</div>}
           <div className="review-better">
-            {w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} />
+            {w.expression}<SpeakBtn attemptIndex={w.attemptIndex} text={w.expression} practiceId={w.practiceId} purpose="review" />
           </div>
           {w.note && <div className="review-why">{w.note}</div>}
           <div className="review-foot">
@@ -417,7 +417,7 @@ export default function ReviewPage() {
               <div className="review-card-body">
                 {w.chinese && <div className="review-zh">{w.chinese}</div>}
                 <div className="review-better">
-                  {w.expression}<SpeakBtn text={w.expression} practiceId={w.practiceId} />
+                  {w.expression}<SpeakBtn attemptIndex={w.attemptIndex} text={w.expression} practiceId={w.practiceId} purpose="review" />
                 </div>
                 <div className="review-foot">
                   <button className="review-cta-btn" onClick={() => restoreItem(w._id)}>

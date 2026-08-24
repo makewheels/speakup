@@ -6,6 +6,7 @@ const splitSentences = (text = "") =>
 
 export default function StandardAnswerCard({
   answer,
+  attemptIndex = -1,
   canSpeak = true,
   practiceId,
   t,
@@ -29,7 +30,12 @@ export default function StandardAnswerCard({
         </details>
         {canSpeak && (
           <div className="result-disclosure-action">
-            <SpeakBtn text={answer} practiceId={practiceId} />
+            <SpeakBtn
+              attemptIndex={attemptIndex}
+              practiceId={practiceId}
+              purpose="standard-answer"
+              text={answer}
+            />
           </div>
         )}
       </div>
