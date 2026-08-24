@@ -58,4 +58,18 @@ describe("FeedbackGapList", () => {
     expect(t("practice.nativeVersion")).toBe("纠正版");
     expect(t("practice.standardAnswer")).toBe("标准答案");
   });
+
+  it("can omit its title when a parent disclosure already provides it", () => {
+    render(
+      <FeedbackGapList
+        canSpeak={false}
+        gaps={[GAP]}
+        practiceId="practice_1"
+        showTitle={false}
+      />,
+    );
+
+    expect(screen.queryByText("Gaps · 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Use the past tense")).toBeInTheDocument();
+  });
 });

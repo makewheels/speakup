@@ -78,6 +78,9 @@
       "summary":        "...",
       "score":          6.5,               // 雅思口语 band，0~9，0.5 进制
       "nativeVersion":  "...",             // 基于学习者原话的 native 改写
+      "sentenceCorrections": [               // 按 sourceId 对齐；corrected 可比原句长/短或包含两句
+        { "sourceId": 0, "original": "I need helps.", "corrected": "I need help." }
+      ],
       "standardAnswer": "...",             // 独立标准答案：单独请求只看题目白名单快照，不看 transcript/纠正/历史（可空=旧数据或单路降级）
       "gaps": [
         { "title": "...", "original": "...", "better": "...", "chinese": "...", "example": "...", "exampleChinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
@@ -87,6 +90,27 @@
         { "role": "user | assistant", "content": "...", "createdAt": datetime }
       ],
       "recordingKey":  "practiceSessions/{userId}/{yyyyMM}/{practiceId}/recording/{ts}.webm",  // 本轮录音（上传成功才有）
+      "pronunciation": {                     // feature flag 开启且评测成功才有
+        "status": "completed | processing | failed",
+        "provider": "tencent",
+        "overallScore": 81,
+        "accuracyScore": 79,
+        "fluencyScore": 84,
+        "completionScore": 100,
+        "issues": [
+          {
+            "word": "three", "score": 62, "startMs": 200, "endMs": 650,
+            "detectedIpa": "sriː", "referenceIpa": "θriː",
+            "phones": [
+              { "detected": "s", "reference": "θ", "score": 40,
+                "stressExpected": false, "stressDetected": false,
+                "startMs": 0, "endMs": 180 }
+            ],
+            "coaching": "你更接近 /s/ → /θ/；先听标准音，再慢速跟读。"
+          }
+        ],
+        "finishedAt": datetime
+      },
       "createdAt": datetime
     }
   ],

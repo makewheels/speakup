@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import Icon from "../Icon.jsx";
-import RecordingPlayBtn from "../RecordingPlayBtn.jsx";
 import SpeakBtn from "../SpeakBtn.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
@@ -8,6 +7,8 @@ import PracticeFreeCard from "./PracticeFreeCard.jsx";
 import FeedbackBar from "./FeedbackBar.jsx";
 import FeedbackGapList from "./FeedbackGapList.jsx";
 import SelectableNoteText from "./SelectableNoteText.jsx";
+import SentenceCorrectionList from "./SentenceCorrectionList.jsx";
+import PronunciationFeedback from "./PronunciationFeedback.jsx";
 import { useT } from "../../i18n/useI18n.js";
 
 const splitSentences = (s = "") =>
@@ -37,6 +38,10 @@ export default function PracticeFeedbackView({
   chatInput,
   modeSwitch,
   onShare,
+  loading = false,
+  streamingLen = 0,
+  pronunciation,
+  pronunciationLoading = false,
   recordingUrl,
   result,
   retrySame,
@@ -57,6 +62,9 @@ export default function PracticeFeedbackView({
   const gaps = result.gaps ?? [];
   const progress = result.progress;
   const passed = progress?.verdict === "passed";
+  const hasProgressDetails = Boolean(
+    progress?.comment || progress?.fixed?.length || progress?.remaining?.length,
+  );
   const isFree = session?.mode === "free";
   const hasAnswer = Boolean(
     (result.nativeVersion || "").trim() || (result.standardAnswer || "").trim(),
@@ -88,7 +96,7 @@ export default function PracticeFeedbackView({
       window.removeEventListener("touchmove", markUserScroll);
       window.removeEventListener("wheel", markUserScroll);
     };
-  }, []);
+  }, [loading]);
 
   return (
     <div className="practice-page fb-page fade-in">
@@ -108,22 +116,40 @@ export default function PracticeFeedbackView({
         <div>
           <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
         </div>
-        <ScoreBadge score={result.score} />
+        {!loading && <ScoreBadge score={result.score} />}
       </div>
 
-      {result.summary && <p className="fb-summary-line">{result.summary}</p>}
+      {loading && (
+        <section className="fb-sentence-section" aria-live="polite">
+          <div className="fb-card-label">{t("practice.sentenceComparison")}</div>
+          <article className="fb-sentence-pair">
+            <div className="fb-sentence-row is-original">
+              <span>{t("practice.youSaid")}</span>
+              <p>{transcript}</p>
+            </div>
+            <div className="fb-sentence-row is-corrected fb-generating-inline">
+              <span>{t("practice.nativeVersion")}</span>
+              <p><i className="fb-generating-dot" aria-hidden="true" /> {streamingLen > 0
+                ? t("practice.writingChars", { n: streamingLen })
+                : t("practice.aiReviewing")}</p>
+            </div>
+          </article>
+        </section>
+      )}
 
-      <div className="fb-result-share-row">
+      {!loading && result.summary && <p className="fb-summary-line">{result.summary}</p>}
+
+      {!loading && <div className="fb-result-share-row">
         <button className="su-btn su-btn-tertiary share-btn" type="button" onClick={onShare} disabled={shareBusy}>
           <Icon name="share" size={16} />
           {shareBusy ? t("practice.sharingResult") : t("practice.shareResult")}
         </button>
         {shareStatus && <span className="fb-result-share-status" role="status">{shareStatus}</span>}
-      </div>
+      </div>}
 
-      {passed && <div className="fb-passed">{t("practice.soundedNative")}</div>}
+      {!loading && passed && <div className="fb-passed">{t("practice.soundedNative")}</div>}
 
-      {progress && (
+      {!loading && hasProgressDetails && (
         <div className="fb-progress">
           {progress.comment && <p className="fb-progress-comment">{progress.comment}</p>}
           {progress.fixed?.length > 0 && (
@@ -142,48 +168,48 @@ export default function PracticeFeedbackView({
       )}
 
       <SelectableNoteText practiceId={session?._id} userId={userId}>
-        {transcript && (
-          <div className="fb-transcript-card" data-note-context={transcript}>
-            <div className="fb-card-label">
-              {t("practice.youSaid")}
-              {recordingUrl && <RecordingPlayBtn src={recordingUrl} />}
-            </div>
-            <p className="fb-transcript-text">{transcript}</p>
-          </div>
-        )}
+        {!loading && <SentenceCorrectionList
+          practiceId={session?._id}
+          recordingUrl={recordingUrl}
+          result={result}
+          t={t}
+          transcript={transcript}
+        />}
 
-        {result.nativeVersion && (
-          <div className="fb-native-card" data-note-context={result.nativeVersion}>
-            <div className="fb-card-label native">
-              {t("practice.nativeVersion")}
-              <SpeakBtns text={result.nativeVersion} practiceId={session?._id} />
-            </div>
-            {splitSentences(result.nativeVersion).map((s, i) => (
-              <p key={i} className="fb-native-text">{s}</p>
-            ))}
-          </div>
-        )}
+        {!loading && <PronunciationFeedback
+          loading={pronunciationLoading}
+          practiceId={session?._id}
+          pronunciation={pronunciation}
+          recordingUrl={recordingUrl}
+          t={t}
+        />}
 
-        {result.standardAnswer && (
-          <div className="fb-native-card fb-standard-card" data-note-context={result.standardAnswer}>
-            <div className="fb-card-label standard">
+        {!loading && result.standardAnswer && (
+          <details className="fb-native-card fb-standard-card" data-note-context={result.standardAnswer}>
+            <summary className="fb-card-label standard">
               {t("practice.standardAnswer")}
               <SpeakBtns text={result.standardAnswer} practiceId={session?._id} />
-            </div>
+            </summary>
             {splitSentences(result.standardAnswer).map((s, i) => (
               <p key={i} className="fb-native-text">{s}</p>
             ))}
-          </div>
+          </details>
         )}
 
-        <FeedbackGapList
-          gaps={gaps}
-          onToggleGap={toggleGap}
-          practiceId={session?._id}
-          savedMap={savedMap}
-        />
+        {!loading && gaps.length > 0 && (
+          <details className="fb-gap-details">
+            <summary>{t("practice.gapsTitle", { n: gaps.length })}</summary>
+            <FeedbackGapList
+              gaps={gaps}
+              onToggleGap={toggleGap}
+              practiceId={session?._id}
+              savedMap={savedMap}
+              showTitle={false}
+            />
+          </details>
+        )}
       </SelectableNoteText>
-      {gaps.length === 0 && (
+      {!loading && gaps.length === 0 && (
         <div className="fb-empty-feedback">
           {hasAnswer
             ? t("practice.noGaps")
@@ -191,11 +217,11 @@ export default function PracticeFeedbackView({
         </div>
       )}
 
-      {autoSaved > 0 && (
+      {!loading && autoSaved > 0 && (
         <p className="fb-autosaved">{t("practice.autoSaved", { n: autoSaved })}</p>
       )}
 
-      <div className="fb-chat">
+      {!loading && <div className="fb-chat">
         <div className="fb-section-label">{t("practice.askTheCoach")}</div>
         {chat.map((m, i) => (
           <div key={i} className={"fb-chat-msg " + m.role}>
@@ -215,9 +241,9 @@ export default function PracticeFeedbackView({
             <Icon name="next" size={16} />
           </button>
         </div>
-      </div>
+      </div>}
 
-      <FeedbackBar
+      {!loading && <FeedbackBar
         practiceId={session?._id}
         attemptIndex={Math.max(0, (round ?? 1) - 1)}
         snapshot={{
@@ -228,17 +254,17 @@ export default function PracticeFeedbackView({
           transcript,
           round,
         }}
-      />
+      />}
 
       {/* 重说不封顶：重试按钮常驻，带上即将开始的第 N 次尝试；不想再说就点下一个 */}
-      <div className="actions-row" style={{ marginTop: 8 }}>
+      {!loading && <div className="actions-row" style={{ marginTop: 8 }}>
         <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
           <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain", { n: (round ?? 1) + 1 })}
         </button>
         <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
           {t(isFree ? "practice.nextTopic" : passed ? "practice.nextScenario" : "practice.next")}&nbsp;<Icon name="next" size={16} />
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

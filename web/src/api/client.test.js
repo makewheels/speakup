@@ -328,6 +328,18 @@ describe("api/client FormData 上传方法", () => {
     await expect(api.uploadRecording("p1", "u1", blob)).rejects.toThrow("录音上传失败");
   });
 
+  it("evaluatePronunciation POSTs the linked attempt", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ status: "completed", overallScore: 82 }),
+    });
+    const result = await api.evaluatePronunciation("p1", 2);
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/practice-sessions/p1/attempts/2/pronunciation");
+    expect(opts.method).toBe("POST");
+    expect(result.overallScore).toBe(82);
+  });
+
   it("transcribeAudio 成功返回 json，webm 扩展名", async () => {
     fetchMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({ text: "hi" }) });
     const blob = new Blob(["x"], { type: "audio/webm" });

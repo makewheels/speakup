@@ -8,7 +8,8 @@ from pydantic import BaseModel
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
-from services.oss_storage import get_url as oss_signed_url, upload_bytes_async
+from services.oss_storage import download_bytes_async, get_url as oss_signed_url, upload_bytes_async
+from services.pronunciation import evaluate_pronunciation, pronunciation_available
 from utils.data_source import normalize_source_type
 from utils.id_generator import practice_session_id
 from utils.mongo_ids import id_filter
@@ -232,7 +233,15 @@ async def upload_recording(
 
     data = await audio.read()
     content_type = (audio.content_type or "audio/webm").split(";")[0].strip()
-    ext = "webm" if "webm" in content_type else "ogg"
+    extension_by_type = {
+        "audio/webm": "webm",
+        "audio/ogg": "ogg",
+        "audio/mp4": "m4a",
+        "audio/x-m4a": "m4a",
+        "audio/wav": "wav",
+        "audio/mpeg": "mp3",
+    }
+    ext = extension_by_type.get(content_type, "webm")
     now = datetime.now(timezone.utc)
     ts = int(time.time() * 1000)
     # 路径规范参考 video-2022：资源为根、类型做子目录
@@ -243,4 +252,49 @@ async def upload_recording(
     if 0 <= attemptIndex < len(practice.get("attempts", [])):
         update["$set"] = {f"attempts.{attemptIndex}.recordingKey": key}
     await get_db().practiceSessions.update_one(id_filter(practice_id), update)
-    return {"url": oss_signed_url(key)}
+    return {"url": oss_signed_url(key), "pronunciationEnabled": pronunciation_available()}
+
+
+@router.post("/{practice_id}/attempts/{attempt_index}/pronunciation")
+async def evaluate_attempt_pronunciation(
+    practice_id: str,
+    attempt_index: int,
+    token_user_id: str = Depends(current_user_id),
+):
+    """对已落库的本轮原声做发音评测；浏览器等待最终规范化 JSON，不透传供应商流。"""
+    if not pronunciation_available():
+        raise HTTPException(503, "发音评测尚未配置")
+    practice = await get_db().practiceSessions.find_one(
+        {**id_filter(practice_id), "userId": token_user_id}
+    )
+    attempts = (practice or {}).get("attempts", [])
+    if not practice or attempt_index < 0 or attempt_index >= len(attempts):
+        raise HTTPException(404, "练习轮次不存在")
+    attempt = attempts[attempt_index]
+    existing = attempt.get("pronunciation") or {}
+    if existing.get("status") == "completed":
+        return existing
+    recording_key = attempt.get("recordingKey")
+    if not recording_key:
+        raise HTTPException(409, "本轮录音尚未上传")
+
+    now = datetime.now(timezone.utc)
+    field = f"attempts.{attempt_index}.pronunciation"
+    await get_db().practiceSessions.update_one(
+        id_filter(practice_id),
+        {"$set": {field: {"status": "processing", "startedAt": now}}},
+    )
+    try:
+        audio = await download_bytes_async(recording_key)
+        suffix = recording_key.rsplit(".", 1)[-1]
+        result = await evaluate_pronunciation(audio, suffix, attempt.get("transcript", ""))
+    except Exception:
+        await get_db().practiceSessions.update_one(
+            id_filter(practice_id),
+            {"$set": {field: {"status": "failed", "finishedAt": datetime.now(timezone.utc)}}},
+        )
+        raise HTTPException(502, "发音评测暂时不可用") from None
+
+    result["finishedAt"] = datetime.now(timezone.utc)
+    await get_db().practiceSessions.update_one(id_filter(practice_id), {"$set": {field: result}})
+    return result

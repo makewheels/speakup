@@ -1,4 +1,6 @@
-from tests.conftest import login_headers
+from pymongo import MongoClient
+
+from tests.conftest import TEST_DB_NAME, login_headers
 
 
 def test_create_practice_snapshots_scenario(client, user_id, auth_headers, scenario_id):
@@ -309,6 +311,47 @@ def test_upload_recording_links_attempt(client, user_id, auth_headers, practice_
     p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
     assert p["attempts"][0].get("recordingKey")
     assert p["attempts"][0].get("recordingUrl") == "https://signed"
+
+
+def test_pronunciation_evaluates_linked_recording(client, user_id, auth_headers, practice_id, monkeypatch):
+    from unittest.mock import AsyncMock, patch
+
+    fake_result = {"summary": "s", "nativeVersion": "n", "gaps": [], "progress": None}
+    with patch("routes.correct.correct_text", new=AsyncMock(return_value=fake_result)):
+        client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "one two three four"},
+            headers=auth_headers,
+        )
+    mongo = MongoClient("mongodb://localhost:27017/")
+    mongo[TEST_DB_NAME].practiceSessions.update_one(
+        {"_id": practice_id}, {"$set": {"attempts.0.recordingKey": "recordings/r.webm"}}
+    )
+    mongo.close()
+    monkeypatch.setattr("routes.practice_sessions.pronunciation_available", lambda: True)
+    monkeypatch.setattr("routes.practice_sessions.download_bytes_async", AsyncMock(return_value=b"audio"))
+    normalized = {"status": "completed", "provider": "tencent", "overallScore": 81, "issues": []}
+    monkeypatch.setattr(
+        "routes.practice_sessions.evaluate_pronunciation", AsyncMock(return_value=normalized)
+    )
+
+    resp = client.post(
+        f"/api/practice-sessions/{practice_id}/attempts/0/pronunciation",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["overallScore"] == 81
+    practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert practice["attempts"][0]["pronunciation"]["status"] == "completed"
+
+
+def test_pronunciation_disabled_returns_503(client, auth_headers, practice_id, monkeypatch):
+    monkeypatch.setattr("routes.practice_sessions.pronunciation_available", lambda: False)
+    resp = client.post(
+        f"/api/practice-sessions/{practice_id}/attempts/0/pronunciation",
+        headers=auth_headers,
+    )
+    assert resp.status_code == 503
 
 
 def test_upload_recording_wrong_user_returns_404(client, user_id, practice_id, monkeypatch):

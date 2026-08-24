@@ -27,6 +27,15 @@ async def upload_bytes_async(key: str, data: bytes, content_type: str = "image/j
     await asyncio.to_thread(upload_bytes, key, data, content_type)
 
 
+def download_bytes(key: str) -> bytes:
+    """读取私有对象字节，不生成可外泄的长效地址。"""
+    return _get_bucket().get_object(key).read()
+
+
+async def download_bytes_async(key: str) -> bytes:
+    return await asyncio.to_thread(download_bytes, key)
+
+
 def get_url(key: str) -> str:
     """生成签名 URL（1 小时有效），私有桶浏览器可临时访问。"""
     return _get_bucket().sign_url("GET", key, 3600)
