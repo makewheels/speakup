@@ -7,7 +7,7 @@
 ```
 docs/
 ├── README.md            # 本文件：导航 + 代码架构
-├── changelog/           # 全仓库唯一 changelog（CHANGELOG.md，只增不改，格式见 changelog/README.md）
+├── changelog/           # 每次修改一个 markdown 文件（<YYYYMMDD-HHMMSS>-<名字>.md，只增不改，见 changelog/README.md）
 ├── 业务/                # 当前已实现行为的分模块文档（错题本/用户反馈/自由录入/历史与分享/主题设置）
 ├── design/              # 数据模型 + 设计稿
 │   ├── schema.md / ids.md / storage.md / spec.md   # 跨模块基础
@@ -31,7 +31,7 @@ docs/
 | `docs/design/*.md` | 跨模块基础（schema/ids/storage/spec） | 落地后回写进展 |
 | `docs/design/场景练习/*.md` | 场景模式总览 / 公共题分类 / 混合练习 / 题目评测 | 场景链路变化时同步 |
 | `docs/评测/*.md` | 评测方法、模型横评基线、发音纠正选型调研 | 跑完横评/调研后回写 |
-| `docs/changelog/CHANGELOG.md` | 全仓库唯一 changelog（北京时间倒序；小改动一行，大功能自然补根因/权衡/验证，只增不改） | 每次改动必须追加 |
+| `docs/changelog/*.md` | 每次修改一个文件（北京时间秒级命名；小改动几行、大功能补背景/权衡/验证，只增不改） | 每次改动必须追加 |
 | `docs/原型设计/` | UI 设计稿画布原型（SpeakUp.html） | — |
 | `docs/脚本说明.md` | scripts/ 与 server/scripts/ 各脚本用途 | 脚本增删时同步 |
 | `docs/deploy.md` | 部署指南（架构 / 首次部署 / 回滚 / 运维命令） | 部署形态变化时同步 |
