@@ -24,6 +24,7 @@ from services.corrector_prompts import (
     RETRY_PROMPT,
     SYSTEM_PROMPT,
 )
+from services.gap_examples import normalized_example
 
 _API_TIMEOUT = 60.0
 _client: ChatOpenAI | None = None
@@ -200,13 +201,15 @@ def _coerce_result(data: dict, free: bool = False) -> dict:
         # 自由说不判任务完成度：模型偶尔仍会吐 task，归一到 naturalness
         if free and category == "task":
             category = "naturalness"
+        better = str(item.get("better") or "")
+        example, example_chinese = normalized_example(item, better)
         gaps.append({
             "title": str(item.get("title") or ""),
             "original": str(item.get("original") or ""),
-            "better": str(item.get("better") or ""),
+            "better": better,
             "chinese": str(item.get("chinese") or ""),
-            "example": str(item.get("example") or ""),
-            "exampleChinese": str(item.get("exampleChinese") or item.get("example_chinese") or ""),
+            "example": example,
+            "exampleChinese": example_chinese,
             "why": str(item.get("why") or ""),
             "category": category,
             "saveToReview": bool(item.get("saveToReview")),
