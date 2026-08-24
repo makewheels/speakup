@@ -196,10 +196,10 @@ export default function PracticeFeedbackView({
         }}
       />}
 
-      {/* 重说不封顶：重试按钮常驻，带上即将开始的第 N 次尝试；不想再说就点下一个 */}
+      {/* 重说不封顶：重试按钮常驻；当前轮次由页面顶部徽章统一表达。 */}
       {!loading && <div className="actions-row" style={{ marginTop: 8 }}>
         <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
-          <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain", { n: (round ?? 1) + 1 })}
+          <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain")}
         </button>
         <button className="su-btn su-btn-secondary" onClick={() => startNewRound(session?.scenarioId)} disabled={actionsDisabled} style={{ flex: 1, height: 48 }}>
           {t(isFree ? "practice.nextTopic" : passed ? "practice.nextScenario" : "practice.next")}&nbsp;<Icon name="next" size={16} />

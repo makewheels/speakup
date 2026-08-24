@@ -120,7 +120,7 @@
     "resultShareCancelRollbackFailed": "Share cancelled, but the new public link could not be turned off: {rollbackMsg}",
     "resultShareFailureRollbackFailed": "Could not share ({shareMsg}), and the new public link could not be turned off: {rollbackMsg}",
     "nextScenario": "Next scenario",
-    "sayItAgain": "Say it again (attempt {n})",
+    "sayItAgain": "Say it again",
     "next": "Next",
     "attemptBadge": "Attempt #{n}",
     "ieltsBand": "IELTS band",

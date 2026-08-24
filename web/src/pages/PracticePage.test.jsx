@@ -421,7 +421,7 @@ describe("PracticePage", () => {
 
   // ── 重说不封顶 ─────────────────────────────────────────
 
-  it("retry button never disappears — after two attempts it offers attempt 3", async () => {
+  it("keeps a plain retry label after two attempts while the badge shows the round", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({
       ...SESSION,
@@ -431,9 +431,8 @@ describe("PracticePage", () => {
       ],
     });
     setup("/practice/sess_abc?result=1");
-    await waitFor(() =>
-      expect(screen.getByText(/Say it again \(attempt 3\)/)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("Attempt #2")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Say it again" })).toBeInTheDocument();
     expect(screen.getByText(/Next/)).toBeInTheDocument();
   });
 

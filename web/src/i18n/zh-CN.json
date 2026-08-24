@@ -120,7 +120,7 @@
     "resultShareCancelRollbackFailed": "已取消系统分享，但新开启的公开链接关闭失败：{rollbackMsg}",
     "resultShareFailureRollbackFailed": "分享失败（{shareMsg}），且新开启的公开链接关闭失败：{rollbackMsg}",
     "nextScenario": "下一个场景",
-    "sayItAgain": "再说一遍（第 {n} 次）",
+    "sayItAgain": "再说一遍",
     "next": "下一个",
     "attemptBadge": "第 {n} 次尝试",
     "ieltsBand": "雅思口语",
