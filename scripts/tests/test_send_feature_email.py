@@ -87,9 +87,9 @@ def resend_environ() -> dict[str, str]:
 
 def feature_image() -> emailer.FeatureImage:
     return emailer.FeatureImage(
-        content=b"\x89PNG\r\n\x1a\npreview",
-        content_type="image/png",
-        filename="speakup-feature.png",
+        content=b'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><rect width="100" height="60" fill="#fff"/></svg>',
+        content_type="image/svg+xml",
+        filename="speakup-feature.svg",
         alt='结果页预览 "新版"',
     )
 
@@ -142,11 +142,11 @@ class FeatureEmailTest(unittest.TestCase):
             repo_root = Path(temp_dir)
             image_root = repo_root / "docs/assets/feature-notifications"
             image_root.mkdir(parents=True)
-            image_path = image_root / "result-preview.png"
+            image_path = image_root / "result-preview.svg"
             image_path.write_bytes(feature_image().content)
             environ = {
                 **base_environ(),
-                "FEATURE_MAIL_IMAGE_PATH": "docs/assets/feature-notifications/result-preview.png",
+                "FEATURE_MAIL_IMAGE_PATH": "docs/assets/feature-notifications/result-preview.svg",
                 "FEATURE_MAIL_IMAGE_ALT": '结果页预览 "新版"',
             }
             with (
@@ -155,13 +155,13 @@ class FeatureEmailTest(unittest.TestCase):
             ):
                 message = emailer.load_feature_message(environ)
 
-        self.assertEqual(message.image.content_type, "image/png")
+        self.assertEqual(message.image.content_type, "image/svg+xml")
         rendered = emailer.render_html(message)
         self.assertIn('src="cid:speakup-feature-image"', rendered)
         self.assertIn('alt="结果页预览 &quot;新版&quot;"', rendered)
 
     def test_rejects_feature_image_outside_allowed_folder(self):
-        environ = {**base_environ(), "FEATURE_MAIL_IMAGE_PATH": "docs/private.png"}
+        environ = {**base_environ(), "FEATURE_MAIL_IMAGE_PATH": "docs/private.svg"}
 
         with self.assertRaisesRegex(emailer.NotificationError, "只能来自"):
             emailer.load_feature_message(environ)
@@ -266,7 +266,7 @@ class FeatureEmailTest(unittest.TestCase):
         payload = json.loads(requests[0].data)
         attachment = payload["attachments"][0]
         self.assertEqual(attachment["content_id"], "speakup-feature-image")
-        self.assertEqual(attachment["content_type"], "image/png")
+        self.assertEqual(attachment["content_type"], "image/svg+xml")
         self.assertEqual(base64.b64decode(attachment["content"]), message.image.content)
         self.assertIn('src="cid:speakup-feature-image"', payload["html"])
 
@@ -284,7 +284,7 @@ class FeatureEmailTest(unittest.TestCase):
             message,
         )
 
-        image_parts = [part for part in mime_message.walk() if part.get_content_type() == "image/png"]
+        image_parts = [part for part in mime_message.walk() if part.get_content_type() == "image/svg+xml"]
         self.assertEqual(len(image_parts), 1)
         self.assertEqual(image_parts[0]["Content-ID"], "<speakup-feature-image>")
         self.assertEqual(image_parts[0].get_content_disposition(), "inline")

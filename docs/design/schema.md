@@ -84,61 +84,7 @@
   "scenario":    { "kind": "...", "title": "...", "where": "...", "story": "...", "mission": "...", "targetWords": [] },  // 快照，题目改动不影响历史
   "imageKey":    "scenarios/sc_.../cover.jpg",  // 从题目复制的场景图 key，读取时现签
   "videoKey":    "scenarios/sc_.../cover.mp4",  // 从题目复制的场景视频 key，读取时现签；前端视频优先、图片兜底
-  "attempts": [
-    {
-      "round":          1,                 // 第几轮重说（不封顶，同一题可无限重说）
-      "transcript":     "I ordered a hot latte but...",
-      "summary":        "...",
-      "score":          6.5,               // 雅思口语 band，0~9，0.5 进制
-      "standardAnswer": "...",             // 独立标准答案：单独请求只看题目白名单快照，不看 transcript/纠正/历史（可空=旧数据或单路降级）
-      "gaps": [
-        { "title": "...", "original": "连续原话短语或完整句子", "better": "同范围改写", "chinese": "...", "example": "...", "exampleChinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
-      ],
-      "progress":      { "verdict": "passed | improved | stuck", "fixed": [], "remaining": [], "comment": "" },  // 第 2 轮起
-      "chat": [        // 追问对话：用户拿到反馈后基于本次上下文继续问 AI（可空）
-        { "role": "user | assistant", "content": "...", "createdAt": datetime }
-      ],
-      "recording": {                       // 本轮原声（上传成功才有）
-        "id": "rec_178...",
-        "key": "practiceSessions/{userId}/{yyyyMM}/{practiceId}/attempts/1/recordings/{recordingId}/original.webm",
-        "format": "webm | m4a | ogg | wav | mp3",
-        "contentType": "audio/webm;codecs=opus",
-        "sizeBytes": 123456,
-        "createdAt": datetime
-      },
-      "speechAssets": [                    // 点击播放后惰性生成；同文本/用途幂等
-        {
-          "id": "sp_<content-hash>",
-          "key": "practiceSessions/{userId}/{yyyyMM}/{practiceId}/attempts/1/speech/example/sp_....wav",
-          "purpose": "standard-answer | correction | example | pronunciation-target | review | other",
-          "format": "wav | mp3",
-          "contentType": "audio/wav | audio/mpeg"
-        }
-      ],
-      "pronunciation": {                     // feature flag 开启且评测成功才有
-        "status": "completed | processing | failed",
-        "provider": "tencent",
-        "overallScore": 81,
-        "accuracyScore": 79,
-        "fluencyScore": 84,
-        "completionScore": 100,
-        "issues": [
-          {
-            "word": "three", "score": 62, "startMs": 200, "endMs": 650,
-            "detectedIpa": "sriː", "referenceIpa": "θriː",
-            "phones": [
-              { "detected": "s", "reference": "θ", "score": 40,
-                "stressExpected": false, "stressDetected": false,
-                "startMs": 0, "endMs": 180 }
-            ],
-            "coaching": "你更接近 /s/ → /θ/；先听标准音，再慢速跟读。"
-          }
-        ],
-        "finishedAt": datetime
-      },
-      "createdAt": datetime
-    }
-  ],
+  "attemptSeq":  3,                         // 原子分配下一轮 round；身份不用这个序号
   "shareToken":  "Ab3xK9random",           // 12 位纯字母数字 token；取消分享时保留，再开启可复用；URL = /s/{shareToken}
   "shared":      true,                       // 是否正在分享；取消时置 false，旧链接立即不可读
   "sharedAt":    datetime,                    // 最近一次开启分享时间
@@ -146,9 +92,59 @@
 }
 ```
 
+## practiceAttempts（一次真实作答）
+
+```json
+{
+  "_id":             "pa_1781276...",
+  "practiceId":      "ps_1781276...",
+  "userId":          "u_1781276...",
+  "sourceType":      "human | ai_test",
+  "round":           1,                    // 只用于排序和显示，不是关联主键
+  "status":          "evaluating | completed",
+  "mode":            "scenario | free",
+  "freeTopic":       "",
+  "transcript":      "I ordered a hot latte but...",
+  "summary":         "...",
+  "score":           6.5,
+  "standardAnswer":  "...",
+  "standardAnswerNotes": [
+    { "expression": "in a bit of a rush", "chinese": "有点赶时间", "explanation": "礼貌说明时间紧。" }
+  ],
+  "gaps": [
+    { "title": "...", "original": "连续原话短语或完整句子", "better": "同范围改写", "chinese": "...", "example": "跨语境例句", "exampleChinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
+  ],
+  "progress": { "verdict": "passed | improved | stuck", "fixed": [], "remaining": [], "comment": "" },
+  "chat": [
+    { "role": "user | assistant", "content": "...", "createdAt": datetime }
+  ],
+  "recording": {
+    "id": "rec_178...",
+    "key": "practiceSessions/{userId}/{yyyyMM}/{practiceId}/attempts/{attemptId}/recordings/{recordingId}/original.webm",
+    "format": "webm | m4a | ogg | wav | mp3",
+    "contentType": "audio/webm;codecs=opus",
+    "sizeBytes": 123456,
+    "createdAt": datetime
+  },
+  "speechAssets": [
+    {
+      "id": "sp_<content-hash>",
+      "key": "practiceSessions/{userId}/{yyyyMM}/{practiceId}/attempts/{attemptId}/speech/example/sp_....wav",
+      "purpose": "standard-answer | correction | example | review | other",
+      "format": "wav | mp3",
+      "contentType": "audio/wav | audio/mpeg"
+    }
+  ],
+  "createdAt": datetime,
+  "updatedAt": datetime
+}
+```
+
+写入纠正前先创建 `evaluating` Attempt，并通过 SSE `started` 事件返回 `attemptId`；可用 JSON 完成后更新同一文档为 `completed`，失败则删除尚未完成的预留文档。读取练习时 API 为兼容前端会把独立文档按 `round` 排序后组装成响应里的 `attempts`，数据库不再新写嵌入数组。
+
 > 分享：`POST /api/practice-sessions/{pid}/share` 生成或复用 token（幂等），`DELETE /api/practice-sessions/{pid}/share?userId=` 撤销当前公开状态但保留 token。公开读取走 `GET /api/share/{token}`（无鉴权，额外返回 `ownerNickname`）。token 为 12 位纯字母数字并做唯一性校验，不可枚举。
 
-> 新 attempt 不再生成 `nativeVersion`、`sentenceCorrections` 或好表达笔记；历史记录中的旧字段允许留在数据库，但当前结果页不展示。为了兼容历史数据，API 仍可读到空的 `note/noteChinese` 字段。
+> 新 Attempt 不再生成 `nativeVersion`、`sentenceCorrections`、整段纠正版或模型自动好表达笔记。Pronunciation 评测与片段接口当前返回 410，前端不请求；完整原声仍保存在 Attempt 中。
 
 > 图片、视频与音频库里都只存 OSS key，签名 URL 一律读取时现生成（`get_url`，1 小时有效），不把 URL 写进库。读取期兼容历史 `recordingKey` / 顶层 `recordings[]` / `avatarKey`，生产迁移后不再新写这些字段。
 
@@ -170,7 +166,7 @@
   "chinese":       "能帮我看看吗？",            // expression 的中文提示词：错题可由 corrector 产出，手动笔记/历史缺项走 translate 接口惰性补齐
   "contextSentence": "Could you take a look at this for me?",
   "practiceId":    "ps_1781276...",            // 来源练习，供复习卡展示场景图 + 原题重练
-  "attemptIndex":  0,                            // 来源轮次；历史数据可缺省
+  "attemptId":     "pa_1781276...",             // 来源 Attempt；历史 attemptIndex 仅迁移兼容
   "status":        "active | retired",         // 会说即收纳（retired）：复习队列/出题取材不再出现；列表可恢复；历史无此字段按 active 兼容
   "retiredAt":     datetime,                    // 收纳时间（仅 retired）
   "retiredBy":     "self",                      // 收纳来源：self=复习卡「会说」（预留 practice=练习达标）
@@ -187,6 +183,8 @@
 - `reviewItems`: `{userId, expression, kind}` 唯一索引（同一类型内去重；迁移前应先把历史缺失 `kind` 的记录补为 `mistake`）
 - `scenarios`: `{slug}` 唯一索引（脚本幂等）
 - `practiceSessions`: `{userId, createdAt}` 复合索引（历史列表）
+- `practiceAttempts`: `{practiceId, round}` 唯一复合索引
+- `practiceAttempts`: `{userId, createdAt}` 复合索引（历史查询）
 
 ## feedbacks（产品与结果反馈）
 
@@ -200,7 +198,10 @@
   "tags":         ["gap_wrong"],
   "comment":      "...",
   "practiceId":   "ps_...",           // practice 类型才有
-  "attemptIndex": 0,                    // practice 类型才有
+  "attemptId":    "pa_...",           // practice 类型才有；同一 Attempt upsert
+  "images": [
+    { "id": "fi_...", "key": "feedbacks/{userId}/{yyyyMM}/{feedbackId}/images/{imageId}/original.png", "fileName": "screen.png", "contentType": "image/png", "sizeBytes": 12345, "createdAt": datetime }
+  ],
   "createdAt":    datetime,
   "updatedAt":    datetime
 }
@@ -234,6 +235,7 @@
   "linkedTo": {                           // 反查用：业务实体 → 这次调用
     "scenarioId":   "sc_xxx",             // 出题 / 图片生成时
     "sessionId":    "ps_xxx",             // 评估时
+    "attemptId":    "pa_xxx",             // 具体作答
     "round":        1,                    // 评估第几轮
     "userId":       "u_xxx",              // 评估 / 定制题
     "subId":        "tech.ai_at_work"     // 公共题坐标系

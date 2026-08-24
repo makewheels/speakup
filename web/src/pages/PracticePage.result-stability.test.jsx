@@ -53,7 +53,7 @@ describe("PracticePage result stability", () => {
     installMediaStubs();
   });
 
-  it("渐进加载保留顶部评分占位，完成后不再次滚动", async () => {
+  it("渐进加载保留题目后的评分占位，完成后不再次滚动", async () => {
     const { correctStream } = await import("../api/client.js");
     let streamHandlers;
     correctStream.mockImplementation((_data, handlers) => {
@@ -67,16 +67,22 @@ describe("PracticePage result stability", () => {
       setup("/practice/sess_abc");
       await waitFor(() => screen.getByText("Tap once to record"));
       await recordUntilEvaluating();
+      await act(async () => {
+        streamHandlers.onStarted({ attemptId: "pa_test_1", round: 1 });
+      });
       await waitFor(() => expect(document.querySelector(".fb-score.is-loading")).toBeTruthy());
 
       const anchor = document.querySelector(".fb-score-anchor");
-      expect(document.querySelector(".fb-page").firstElementChild).toBe(anchor);
+      const scenarioCard = document.querySelector(".fb-page .sc-card");
+      expect(scenarioCard.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy();
       expect(anchor.querySelector(".fb-score-num")).toHaveTextContent("–");
       expect(scrollSpy).toHaveBeenCalledTimes(1);
 
       await act(async () => {
         streamHandlers.onChunk("partial result");
         streamHandlers.onDone({
+          attemptId: "pa_test_1",
           result: {
             summary: "整体不错",
             standardAnswer: "Could you remake my latte?",
@@ -90,7 +96,7 @@ describe("PracticePage result stability", () => {
       });
 
       await waitFor(() => expect(screen.getByText("6.5")).toBeInTheDocument());
-      expect(document.querySelector(".fb-page").firstElementChild).toBe(anchor);
+      expect(document.querySelector(".fb-score-anchor")).toBe(anchor);
       expect(scrollSpy).toHaveBeenCalledTimes(1);
     } finally {
       window.scrollTo = originalScrollTo;

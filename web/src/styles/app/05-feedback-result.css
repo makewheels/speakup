@@ -123,6 +123,9 @@
   grid-column: 1;
   grid-row: 1;
   justify-content: center;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: color-mix(in oklch, var(--warn) 42%, var(--rule));
 }
 .fb-result-footer > .share-btn {
   grid-column: 2;
@@ -133,12 +136,50 @@
   border-radius: 12px;
   font-size: 16px;
   font-weight: 650;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
 }
 .fb-result-footer .fb-bar {
   grid-column: 1 / -1;
   grid-row: 2;
   margin: 0;
 }
+.fb-share-link-popover {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  padding: 12px;
+  border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--rule));
+  border-radius: 12px;
+  background: var(--accent-soft);
+  box-shadow: 0 10px 28px color-mix(in oklch, var(--ink) 12%, transparent);
+}
+.fb-share-link-head,
+.fb-share-link-row { display: flex; align-items: center; gap: 8px; }
+.fb-share-link-head { justify-content: space-between; margin-bottom: 9px; }
+.fb-share-link-head strong { font-family: var(--ff-cn); font-size: 14px; }
+.fb-share-link-head > button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 22px;
+  cursor: pointer;
+}
+.fb-share-link-row input {
+  min-width: 0;
+  flex: 1;
+  height: 42px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  background: var(--bg-elev);
+  color: var(--ink-2);
+  padding: 0 10px;
+  font: 13px/1.4 var(--ff-en);
+}
+.fb-share-link-row .su-btn { flex: none; height: 42px; padding: 0 14px; }
+.fb-share-link-popover + .fb-result-footer-status { grid-row: 4; }
 .fb-result-footer-status {
   grid-column: 1 / -1;
   grid-row: 3;
@@ -411,7 +452,7 @@
   color: var(--ink-3);
 }
 
-/* 选中文本后手动加入笔记：浮条固定在底部导航上方，兼容手机原生选区手柄。 */
+/* 选中文字后手动加入笔记：跟随实际选区，移动端靠近视口底部时自动放到选区上方。 */
 .note-selection-bar {
   position: fixed;
   z-index: 180;
@@ -428,9 +469,19 @@
   background: var(--bg-elev);
   box-shadow: 0 10px 32px color-mix(in oklch, var(--ink) 18%, transparent);
 }
+.note-selection-bar.is-anchored {
+  left: clamp(96px, var(--note-selection-left), calc(100vw - 96px));
+  top: var(--note-selection-top);
+  bottom: auto;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  transform: translate(-50%, 0);
+}
+.note-selection-bar.is-anchored.is-above { transform: translate(-50%, -100%); }
 .note-selection-preview {
-  flex: 1;
-  min-width: 0;
+  flex: 0 1 190px;
+  min-width: 48px;
+  max-width: 190px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;

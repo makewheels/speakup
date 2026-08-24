@@ -17,11 +17,13 @@ import useFreeTopic from "./useFreeTopic.js";
 import useFollowupChat from "./useFollowupChat.js";
 import usePressGuard from "./usePressGuard.js";
 import usePracticeRecorder from "./usePracticeRecorder.js";
-import usePronunciationEvaluation, {
+import { resolveRequestedAttempt } from "./practiceAttemptRouting.js";
+import { readSkippedScenarios, writeSkippedScenarios } from "./practiceSkippedScenarios.js";
+import { trackPracticeRecordingStarted, trackPracticeResult } from "./practiceTelemetry.js";
+import {
   EMPTY_FEEDBACK, hasUsableFeedback, resultFromAttempt, reviewMapFromGaps,
-} from "./usePronunciationEvaluation.js";
+} from "./practiceFeedbackState.js";
 import useResultShare from "./useResultShare.js";
-import { track } from "../lib/analytics.js";
 
 export default function PracticePage() {
   const { practiceId } = useParams();
@@ -46,52 +48,46 @@ export default function PracticePage() {
   const [transcriptionError, setTranscriptionError] = useState(false);
   const [result, setResult] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [activeAttemptId, setActiveAttemptId] = useState("");
   // 错题本收录：gap 作为错题收录；好表达笔记从结果文字中手动选中添加
   const {
     savedMap, setSavedMap, resetReviewCollection, toggleGap,
-  } = useReviewCollection(session);
+  } = useReviewCollection(session, activeAttemptId);
   const [round, setRound] = useState(1);
-  const { resetShare, shareBusy, shareResult, shareStatus } = useResultShare({
-    result, round, session, setSession, t, userId: user.userId,
+  const {
+    closeShareLink, copyShareLink, resetShare, shareBusy, shareLink, shareResult, shareStatus,
+  } = useResultShare({
+    session, setSession, t, userId: user.userId,
   });
   const [hintGaps, setHintGaps] = useState([]);
+  const [hintAttemptId, setHintAttemptId] = useState("");
   const [evalElapsed, setEvalElapsed] = useState(0);
   const [streamingLen, setStreamingLen] = useState(0);
   const [feedbackActionsDisabled, setFeedbackActionsDisabled] = useState(false);
   // 追问教练对话（流式）：question 从输入框取，错误文案用 i18n 在调用处拼
   const { chat, chatInput, setChatInput, chatBusy, sendChat: sendChatStream, resetChat } =
-    useFollowupChat(user.userId, session?._id);
+    useFollowupChat(user.userId, session?._id, activeAttemptId);
   const {
     elapsed, paused, pauseSupported,
     resetCapture, startCapture, stopCapture, pauseResumeCapture,
     discardCapture, takeAudioBlob,
   } = usePracticeRecorder();
-  const {
-    evaluateRecording, pronunciation, pronunciationLoading,
-    resetPronunciation, restorePronunciation,
-  } = usePronunciationEvaluation();
-
   const evalTimerRef = useRef(null);
   const evalAnchorRef = useRef(null);
   const sseControllerRef = useRef(null);
-
-  const skipKey = `skipped:${user.userId}`;
-  const readSkipped = () => {
-    try { return JSON.parse(sessionStorage.getItem(skipKey) || "[]"); } catch { return []; }
-  };
-  const writeSkipped = (arr) => sessionStorage.setItem(skipKey, JSON.stringify(arr));
 
   // 一轮新练习的公共状态重置（场景题 / 自由说共用）
   const resetRoundState = () => {
     setPhase("loading");
     setResult(null);
     setFeedbackLoading(false);
-    resetPronunciation();
     setTranscript("");
     setTranscriptionError(false);
     resetShare();
     setRound(1);
+    setActiveAttemptId("");
     setHintGaps([]);
+    setHintAttemptId("");
     resetReviewCollection();
     resetCapture();
     setSession(null);
@@ -100,10 +96,10 @@ export default function PracticePage() {
   const startNewRound = async (extraSkip = null, overridePrefs = null) => {
     resetRoundState();
     clearTopic();
-    let skipped = readSkipped();
+    let skipped = readSkippedScenarios(user.userId);
     if (extraSkip && !skipped.includes(extraSkip)) {
       skipped = [...skipped, extraSkip];
-      writeSkipped(skipped);
+      writeSkippedScenarios(user.userId, skipped);
     }
     try {
       const activePrefs = overridePrefs || getPracticePreferences(user.userId);
@@ -176,17 +172,21 @@ export default function PracticePage() {
         // 会话模式决定顶部切换器高亮与「下一个」行为（旧数据无 mode 按场景题）
         setMode(s?.mode === "free" ? "free" : "scenario");
         const attempts = s.attempts ?? [];
-        // URL 带 ?result=1 且已有 attempt → 从最近一轮重建反馈视图（刷新不丢结果页）
-        if (searchParams.get("result") && attempts.length > 0) {
-          const last = attempts[attempts.length - 1];
-          setResult(resultFromAttempt(last));
-          setTranscript(last.transcript ?? "");
-          restorePronunciation(last.pronunciation ?? null);
-          setSavedMap(reviewMapFromGaps(last.gaps));
-          setRound(attempts.length);
-          resetChat(last.chat);
+        const requested = resolveRequestedAttempt(attempts, searchParams);
+        if (requested) {
+          const selectedAttempt = requested.attempt;
+          setResult(resultFromAttempt(selectedAttempt));
+          setTranscript(selectedAttempt.transcript ?? "");
+          setSavedMap(reviewMapFromGaps(selectedAttempt.gaps));
+          setRound(requested.round);
+          setActiveAttemptId(requested.attemptId);
+          resetChat(selectedAttempt.chat);
           setPhase("feedback");
+          if (requested.shouldReplace) {
+            navigate(`/practice/${practiceId}?attempt=${requested.attemptId}`, { replace: true });
+          }
         } else {
+          setActiveAttemptId("");
           setRound(attempts.length + 1);
           setPhase("ready");
         }
@@ -235,16 +235,17 @@ export default function PracticePage() {
   // 同一场景再说一遍：保留 session，带着上一轮差距提示重录（不封顶，可无限重说）
   const retrySame = () => {
     setHintGaps((result?.gaps ?? []).filter((g) => g.better));
+    setHintAttemptId(activeAttemptId);
     setResult(null);
     setFeedbackLoading(false);
-    resetPronunciation();
     setTranscript("");
     setTranscriptionError(false);
     resetShare();
     setRound((r) => r + 1);
+    setActiveAttemptId("");
     resetReviewCollection();
     setPhase("ready");
-    // 离开结果态，清掉 ?result 标记；同样用 navigate 显式带 pathname，避免 setSearchParams 丢 pathname 触发自动跳题
+    // 离开结果态，清掉 attempt 标记；显式带 pathname，避免只改查询参数时触发自动跳题。
     if (session?._id) navigate(`/practice/${session._id}`, { replace: true });
     window.scrollTo(0, 0);
   };
@@ -256,9 +257,7 @@ export default function PracticePage() {
     if (!text || !active) return;
     setResult(EMPTY_FEEDBACK);
     setFeedbackLoading(true);
-    resetPronunciation();
     setPhase("feedback");
-    navigate(`/practice/${active._id}?result=1`, { replace: true });
     setEvalElapsed(0);
     setStreamingLen(0);
     evalTimerRef.current = setInterval(() => setEvalElapsed((s) => s + 1), 1000);
@@ -273,8 +272,13 @@ export default function PracticePage() {
         freeTopic: active.freeTopic || "",
       },
       {
+        onStarted: ({ attemptId, round: startedRound }) => {
+          setActiveAttemptId(attemptId);
+          if (startedRound) setRound(startedRound);
+          navigate(`/practice/${active._id}?attempt=${attemptId}`, { replace: true });
+        },
         onChunk: (chunk) => setStreamingLen((n) => n + chunk.length),
-        onDone: ({ result: res, round: r }) => {
+        onDone: ({ result: res, attemptId, round: r }) => {
           clearInterval(evalTimerRef.current);
           if (!hasUsableFeedback(res)) {
             alert(t("practice.feedbackFailed", { msg: res?.summary || t("practice.emptyFeedback") }));
@@ -286,30 +290,28 @@ export default function PracticePage() {
           }
           setResult(res);
           setFeedbackLoading(false);
-          track("practice_result", {
-            mode: active.mode === "free" ? "free" : "scenario",
-            score: res.score ?? null,
-            gaps: (res.gaps ?? []).length,
-            round: r ?? round,
-            userId: user.userId,
-          });
+          trackPracticeResult(active, res, r ?? round, user.userId);
           // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
           setSavedMap(reviewMapFromGaps(res.gaps));
-          if (r) setRound(r);
+          if (r) {
+            setRound(r);
+          }
+          if (attemptId) {
+            setActiveAttemptId(attemptId);
+            navigate(`/practice/${active._id}?attempt=${attemptId}`, { replace: true });
+          }
           resetChat();
           // 结果页首帧在绘制前回到顶部；后续流式完成和媒体加载不再重复滚动。
           setFeedbackActionsDisabled(true);
           setTimeout(() => setFeedbackActionsDisabled(false), 1500);
-          // URL 标记结果态，刷新能恢复到这一页（见 load effect 的 ?result 分支）
+          // URL 标记具体轮次，刷新能恢复到同一个 attempt。
           // 必须用 navigate 显式带 pathname：setSearchParams 在当前 react-router 版本下会丢掉
           // pathname 使 useParams 的 practiceId 变空，触发 useEffect 走"无 practiceId"分支自动跳下一题
-          // 评估完成后异步上传录音，关联到本轮 attempt（失败静默忽略）
+          // 评估完成后异步上传完整原声，供历史回听；当前不再触发发音评测。
           const audioBlob = takeAudioBlob();
-          if (audioBlob && active?._id) {
-            const attemptIndex = (r ?? round) - 1;
-            evaluateRecording({
-              audioBlob, practiceId: active._id, userId: user.userId, attemptIndex,
-            });
+          if (audioBlob && active?._id && attemptId) {
+            api.uploadRecording(active._id, user.userId, audioBlob, attemptId)
+              .catch((error) => console.warn("Recording upload unavailable:", error));
           }
         },
         onError: (err) => {
@@ -317,6 +319,7 @@ export default function PracticePage() {
           alert(t("practice.feedbackFailed", { msg: err.message }));
           setFeedbackLoading(false);
           setResult(null);
+          setActiveAttemptId("");
           setPhase("review");
           navigate(`/practice/${active._id}`, { replace: true });
         },
@@ -382,7 +385,7 @@ export default function PracticePage() {
         setPhase("ready");
       },
     });
-    if (started) track("practice_recording_started", { mode, userId: user.userId });
+    if (started) trackPracticeRecordingStarted(mode, user.userId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, t, session, mode, freeTopic, startCapture]);
 
@@ -427,14 +430,13 @@ export default function PracticePage() {
   if (phase === "feedback" && result) {
     return (
       <PracticeFeedbackView
+        attemptId={activeAttemptId}
         chat={chat}
         chatBusy={chatBusy}
         chatInput={chatInput}
         result={result}
         loading={feedbackLoading}
         streamingLen={streamingLen}
-        pronunciation={pronunciation}
-        pronunciationLoading={pronunciationLoading}
         retrySame={retrySame}
         round={round}
         savedMap={savedMap}
@@ -451,7 +453,10 @@ export default function PracticePage() {
         transcript={transcript}
         userId={user.userId}
         shareBusy={shareBusy}
+        shareLink={shareLink}
         shareStatus={shareStatus}
+        onCloseShareLink={closeShareLink}
+        onCopyShareLink={copyShareLink}
       />
     );
   }
@@ -468,6 +473,7 @@ export default function PracticePage() {
       handleRecordPressEnd={pressEnd}
       handleRecordPressStart={pressStart}
       hintGaps={hintGaps}
+      hintAttemptId={hintAttemptId}
       mode={mode}
       modeSwitch={modeSwitch}
       onChangeTopic={handleNextFreeRound}

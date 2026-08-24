@@ -32,18 +32,26 @@ const SHARED = {
   ownerNickname: "Alice",
   attempts: [
     {
+      attemptId: "pa_1",
       round: 1,
       transcript: "I tried to order",
       score: 6.5,
       gaps: [{ original: "I tried to order", better: "I attempted to place an order.", why: "More natural" }],
     },
+    {
+      attemptId: "pa_2",
+      round: 2,
+      transcript: "The second attempt",
+      score: 7,
+      gaps: [{ original: "The second attempt", better: "The improved second attempt", why: "Clearer" }],
+    },
   ],
   recordings: [],
 };
 
-function setup(token = "tok_1") {
+function setup(token = "tok_1", query = "") {
   return render(
-    <MemoryRouter initialEntries={[`/s/${token}`]}>
+    <MemoryRouter initialEntries={[`/s/${token}${query}`]}>
       <Routes>
         <Route path="/s/:token" element={<SharePage />} />
       </Routes>
@@ -61,8 +69,15 @@ describe("SharePage", () => {
     await waitFor(() => {
       expect(screen.getByText("Coffee shop")).toBeInTheDocument();
       expect(screen.getByText("Shared by Alice")).toBeInTheDocument();
-      expect(screen.getByText("I tried to order")).toBeInTheDocument();
+      expect(screen.getByText("The second attempt")).toBeInTheDocument();
     });
+  });
+
+  it("opens the attempt selected by the share link", async () => {
+    const { api } = await import("../api/client.js");
+    api.getSharedSession.mockResolvedValue(SHARED);
+    setup("tok_1", "?attempt=pa_1");
+    expect(await screen.findByText("I tried to order")).toBeInTheDocument();
   });
 
   it("hides the ask-the-coach input in read-only mode", async () => {

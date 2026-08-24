@@ -109,7 +109,7 @@ describe("PracticePage result actions", () => {
     expect(feedback.closest(".fb-result-footer")).toBe(share.closest(".fb-result-footer"));
   });
 
-  it("shares directly from the result page", async () => {
+  it("shows a page link and copies it only when requested", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     const { api } = await import("../api/client.js");
@@ -132,8 +132,11 @@ describe("PracticePage result actions", () => {
 
     await waitFor(() => {
       expect(api.sharePractice).toHaveBeenCalledWith("sess_abc", USER.userId);
-      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/s/tok_result"));
+      expect(screen.getByDisplayValue(/\/s\/tok_result$/)).toBeInTheDocument();
     });
-    expect(screen.getByText("Share message copied")).toBeInTheDocument();
+    expect(writeText).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/s\/tok_result$/));
+    expect(screen.getByText("Link copied")).toBeInTheDocument();
   });
 });

@@ -13,8 +13,9 @@ gaps 是唯一的纠正主体，最多 3 条，不要再输出整段纠正版、
 - better 改写与 original 相同范围，可以是短语或完整句子；保留学习者原意，不凭空扩写。
 - 同一句里的语法、搭配和自然度问题应尽量合并成一个有用的整句建议，避免重复。
 - 只有任务信息完全没说时，task gap 的 original 才可以是空字符串，better 写应该补说的完整句子。
-- example/exampleChinese 是可选的“举一反三”：只有能用同一表达规律写出另一个真实语境的新例句时才填写。
-- example 不能复述、轻微改写或翻译 better；没有额外教学价值时，两字段都必须是空字符串。
+- example/exampleChinese 是可选的“举一反三”：只有能把同一表达规律迁移到明显不同的真实语境时才填写。
+- example 必须更换当前题目的地点、人物关系或任务目标，不能继续围绕同一事件、商品、症状或沟通任务换词复述。
+- example 不能复述、轻微改写或翻译 better；想不到真正跨语境的例子时，两字段都必须是空字符串。
 
 score 是 IELTS speaking 0-9、0.5 步进。典型中国学习者 5.0-6.5，跑题或太短要低。
 语言：summary 中文≤25字；gap 的 original/better/example 用英文；title 中文短语；why 中文≤30字；
@@ -56,8 +57,8 @@ saveToReview 从严判断，每次最多 2 条 true：
       "original": "I want a coffee, big cup",
       "better": "I'd like a large coffee, please.",
       "chinese": "请给我来杯大杯咖啡",
-      "example": "I'd like a latte to go, please.",
-      "exampleChinese": "我想要一杯外带拿铁，谢谢。",
+      "example": "I'd like two tickets for the evening show, please.",
+      "exampleChinese": "我想要两张晚场电影票，谢谢。",
       "why": "I'd like 更礼貌，杯型放在名词前",
       "category": "naturalness",
       "saveToReview": true
@@ -94,8 +95,8 @@ gaps 是唯一的纠正主体，最多 3 条，不要输出整段纠正版、逐
 - original 必须逐字复制原话中的连续片段。
 - better 改写相同范围并保留原意。
 - 同一句里的相关问题尽量合并成一个完整建议，不要切成很多一两个词的小补丁。
-- example/exampleChinese 仅用于同一表达规律在另一个真实语境中的新例句；不能复述、轻微改写或翻译 better。
-- 没有额外教学价值时，example 和 exampleChinese 都输出空字符串。
+- example/exampleChinese 仅用于把同一表达规律迁移到明显不同的真实语境；必须更换话题、地点、人物关系或表达目的。
+- 不能复述、轻微改写或翻译 better，也不能继续围绕本次自由说的同一事件或主题；没有真正跨语境的例子时输出空字符串。
 
 score 是 IELTS speaking 0-9、0.5 步进。summary 中文≤25字；original/better/example 用英文；
 title 中文短语；why 中文≤30字；chinese 是 better 的简短中文意思；exampleChinese 是自然中文翻译。

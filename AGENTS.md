@@ -12,7 +12,7 @@
 | 后端 | FastAPI + uv | Python 3.14, 异步 |
 | 数据库 | MongoDB | 本地 localhost（生产已下线）|
 | 场景配图 | 火山方舟 Agent Plan Seedream（env `IMAGE_*`）| 题库预生成 + 定制题后台生成，存 OSS。**成本高，`IMAGE_ENABLED=false` 默认关闭**，新题按无图渲染 |
-| 语音 ASR + TTS | 阿里云百炼 Qwen（env `VOICE_*`）| 录音转写 + nativeVersion 朗读 |
+| 语音 ASR + TTS | 阿里云百炼 Qwen（env `VOICE_*`）| 录音转写 + gap/标准答案朗读 |
 | AI 评估 | DeepSeek 官方 `deepseek-v4-flash`（env `CHAT_*`）| 场景文案 + 口述文本 → JSON 反馈，SSE 流式。换厂只改 `.env` 值不改名 |
 | 部署 | Docker + ACR + Caddy | GitHub Actions 通过 OIDC 从 Infisical 取配置，push→构建→推 ACR `b4/speakup`→SSH compose up；生产域名和凭据均不进 GitHub Secrets |
 
@@ -38,20 +38,21 @@ speakup/
 │   │   └── ...                      # 另有 transcriber / tts / translator / followup_chat / scenario_images 等
 │   ├── routes/                      # auth, scenarios, correct, practice_sessions, review_items, feedbacks, transcribe, tts
 │   ├── utils/
-│   │   └── id_generator.py          # 业务 _id 前缀：u_ / ps_ / rv_ / sc_ / llm_ / fb_
+│   │   └── id_generator.py          # 业务 _id 前缀：u_ / ps_ / pa_ / rv_ / sc_ / llm_ / fb_
 │   └── tests/
 │       ├── conftest.py              # 测试 DB 初始化 + cost guard fixture
 │       ├── unit/                    # 纯逻辑单元测试，全 mock，毫秒级
 │       └── integration/             # 走 HTTP + 真实 test DB，秒级
 ├── docs/                    # 文档（地图与维护约定见 docs/README.md）
 │   ├── 业务/                # 「当前已实现」行为的分模块文档（错题本/用户反馈/自由录入）
-│   ├── changelog/           # 追加式变更档案（背景/权衡/验证，只增不改）
+│   ├── requirements/        # 需求问题/目标/权衡/验收/进度，供实施和接力
+│   ├── changelog/           # 已完成变更档案（新文件按 feat/fix/chore 分类，只增不改）
 │   ├── 评测/                # 评测方法 + 发音纠正选型调研
 │   ├── 原型设计/            # UI 设计稿画布原型（SpeakUp.html，非运行代码）
 │   ├── 脚本说明.md          # scripts/ 与 server/scripts/ 各脚本用途
 │   ├── deploy.md            # 部署指南（架构/首次部署/回滚/运维命令）
 │   ├── langfuse.md          # Langfuse 自托管部署与埋点
-│   └── design/              # 数据模型 + 设计稿（改动涉及 schema/存储/ID 时同步更新）
+│   └── design/              # 当前数据模型与设计事实（不记录实施进度）
 │       ├── spec.md          # 产品功能文档（定位/用户旅程/逐页 UI 规格）
 │       ├── schema.md        # MongoDB 集合 schema（数据模型事实源）
 │       ├── ids.md           # ID 规范
@@ -84,7 +85,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 
 ## 注意事项
 
-- **UI 文案走 i18n（zh-CN / en）**：新增/修改 UI 文案必须走 `web/src/i18n/` 字典；默认跟随浏览器语言，用户可在 Profile → 设置切换；选择存 localStorage，不入库（属个人偏好）。代码注释仍用中文。AI 输出（gaps/nativeVersion/summary）保持中文不动——这是另一坨工作，跟 corrector prompt 和场景库捆绑，需要另起 PR。
+- **UI 文案走 i18n（zh-CN / en）**：新增/修改 UI 文案必须走 `web/src/i18n/` 字典；默认跟随浏览器语言，用户可在 Profile → 设置切换；选择存 localStorage，不入库（属个人偏好）。代码注释仍用中文。AI 输出中的 `summary` 和 gap 解释保持中文；`standardAnswer`、`gap.original/better/example` 保持英文。
 - 语音识别走全平台 MediaRecorder + 后端百炼 Qwen ASR
 - 云 ASR 失败时前端允许手动补录转写继续评估；云 TTS 失败时降级浏览器 `speechSynthesis`。这是可用性兜底，运维验收仍须分别实测 `/api/transcribe` 与 `/api/tts`
 - AI/自动化生产体验必须先用 `POST /api/auth/login` 创建 `sourceType=ai_test` 的专用账号，再用该账号走页面；不得用普通 `human` 账号产生测试数据
@@ -93,6 +94,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 - uv 全局 cache: `~/.cache/uv`
 - **不要重复启动 dev server**：前端默认跑在 :5173，启动前先 `lsof -ti :5173` 检查是否已有进程；有则直接用，不要再 `pnpm run dev`
 - **开工先 pull**：开分支前必须 `git checkout master && git pull`（CONTRIBUTING 标准流程第 1 步），不得基于过时本地 master 开分支或合并；多 agent/多机协作时本地 master 经常是旧的
+- **Git 不存栅格截图/说明图**：不得把 PNG、JPG/JPEG、GIF、WebP、HEIC 等截图或一次性视觉验收图片提交到仓库。需要入库的产品说明图、邮件配图或架构图至少使用可审查的 SVG；真实截图只能放在操作系统临时目录，用于当次验收或邮件附件，使用后立即清理。用户在产品内上传的图片属于运行时业务数据，只能进入私有对象存储，不得落入 Git。
 - 部署详情见 `docs/deploy.md`（回滚、多服务约定、运维命令）
 - 开发流程 / 测试分层 / CHANGELOG 格式 / PR 约定 见 [CONTRIBUTING.md](CONTRIBUTING.md)（人 + agent 共用）
 

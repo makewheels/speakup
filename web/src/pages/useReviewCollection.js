@@ -5,7 +5,7 @@ import { api } from "../api/client.js";
 import { track } from "../lib/analytics.js";
 
 // 错题本收录：gap 加入/取消（错题）。好表达笔记由用户在结果文字中选中后手动添加。
-export function useReviewCollection(session) {
+export function useReviewCollection(session, attemptId = "") {
   const { user } = useUser();
   const t = useT();
   const [savedMap, setSavedMap] = useState({}); // gap 下标 -> reviewItem id（自动收录的初始就带，手动加/取消同步）
@@ -35,6 +35,7 @@ export function useReviewCollection(session) {
         chinese: g.chinese || "",
         contextSentence: g.better || "",
         practiceId: session._id,
+        attemptId,
       }]);
       const id = ids?.[0];
       if (id) {

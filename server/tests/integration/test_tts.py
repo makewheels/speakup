@@ -37,9 +37,16 @@ def test_tts_too_long_413(client, auth_headers):
 def test_tts_passes_practice_id_to_speak_url(client, auth_headers, practice_id):
     """带业务上下文的朗读按用户、月份、session、attempt 和用途归档。"""
     mongo = MongoClient("mongodb://localhost:27017/")
-    mongo[TEST_DB_NAME].practiceSessions.update_one(
-        {"_id": practice_id}, {"$push": {"attempts": {"round": 1}}}
-    )
+    practice = mongo[TEST_DB_NAME].practiceSessions.find_one({"_id": practice_id})
+    attempt_id = "pa_1787579000000aaaaaaaaaa"
+    mongo[TEST_DB_NAME].practiceAttempts.insert_one({
+        "_id": attempt_id,
+        "practiceId": practice_id,
+        "userId": practice["userId"],
+        "round": 1,
+        "status": "completed",
+        "createdAt": practice["createdAt"],
+    })
     mongo.close()
     fake = AsyncMock(return_value="https://oss.example/speech.wav?sig=x")
     with patch("routes.tts.speak_url", new=fake):
@@ -48,7 +55,7 @@ def test_tts_passes_practice_id_to_speak_url(client, auth_headers, practice_id):
             json={
                 "text": "Could you remake my latte?",
                 "practiceId": practice_id,
-                "attemptIndex": 0,
+                "attemptId": attempt_id,
                 "purpose": "correction",
             },
             headers=auth_headers,
@@ -56,7 +63,7 @@ def test_tts_passes_practice_id_to_speak_url(client, auth_headers, practice_id):
     assert resp.status_code == 200
     fake.assert_awaited_once()
     key = fake.await_args.kwargs["storage_key"]
-    assert f"/{practice_id}/attempts/1/speech/correction/sp_" in key
+    assert f"/{practice_id}/attempts/{attempt_id}/speech/correction/sp_" in key
     practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
     assert practice["attempts"][0]["speechAssets"][0]["key"] == key
 

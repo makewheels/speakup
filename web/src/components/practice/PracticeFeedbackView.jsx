@@ -5,7 +5,6 @@ import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./PracticeFreeCard.jsx";
 import FeedbackGapList from "./FeedbackGapList.jsx";
 import SelectableNoteText from "./SelectableNoteText.jsx";
-import PronunciationFeedback from "./PronunciationFeedback.jsx";
 import ResultFooterActions from "./ResultFooterActions.jsx";
 import StandardAnswerCard from "./StandardAnswerCard.jsx";
 import { useT } from "../../i18n/useI18n.js";
@@ -24,15 +23,16 @@ function ScoreBadge({ loading, score }) {
 
 export default function PracticeFeedbackView({
   actionsDisabled = false,
+  attemptId = "",
   chat,
   chatBusy,
   chatInput,
   modeSwitch,
   onShare,
+  onCloseShareLink,
+  onCopyShareLink,
   loading = false,
   streamingLen = 0,
-  pronunciation,
-  pronunciationLoading = false,
   result,
   retrySame,
   round,
@@ -42,6 +42,7 @@ export default function PracticeFeedbackView({
   session,
   setChatInput,
   shareBusy = false,
+  shareLink = "",
   shareStatus = "",
   startNewRound,
   t,
@@ -65,6 +66,18 @@ export default function PracticeFeedbackView({
 
   return (
     <div className="practice-page fb-page fade-in">
+      {modeSwitch}
+      {!isFree && (session?.videoUrl || session?.imageUrl) && (
+        <PracticeMedia
+          className="fb-img"
+          imageUrl={session.imageUrl}
+          videoUrl={session.videoUrl}
+        />
+      )}
+      {isFree
+        ? <PracticeFreeCard freeTopic={scenario?.freeTopic || session?.freeTopic || ""} t={t} />
+        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
+
       <div className="fb-score-anchor">
         <ScoreBadge loading={loading} score={result.score} />
         <div>
@@ -90,18 +103,6 @@ export default function PracticeFeedbackView({
 
       {!loading && result.summary && <p className="fb-summary-line">{result.summary}</p>}
 
-      {modeSwitch}
-      {!isFree && (session?.videoUrl || session?.imageUrl) && (
-        <PracticeMedia
-          className="fb-img"
-          imageUrl={session.imageUrl}
-          videoUrl={session.videoUrl}
-        />
-      )}
-      {isFree
-        ? <PracticeFreeCard freeTopic={scenario?.freeTopic || session?.freeTopic || ""} t={t} />
-        : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
-
       {!loading && passed && <div className="fb-passed">{t("practice.soundedNative")}</div>}
 
       {!loading && hasProgressDetails && (
@@ -123,6 +124,7 @@ export default function PracticeFeedbackView({
       )}
 
       <SelectableNoteText
+        attemptId={attemptId}
         attemptIndex={Math.max(0, round - 1)}
         practiceId={session?._id}
         userId={userId}
@@ -134,6 +136,7 @@ export default function PracticeFeedbackView({
               <span className="result-section-meta">{t("practice.suggestionCount", { n: gaps.length })}</span>
             </div>
             <FeedbackGapList
+              attemptId={attemptId}
               attemptIndex={Math.max(0, round - 1)}
               gaps={gaps}
               onToggleGap={toggleGap}
@@ -144,16 +147,10 @@ export default function PracticeFeedbackView({
           </section>
         )}
 
-        {!loading && <PronunciationFeedback
-          attemptIndex={Math.max(0, round - 1)}
-          loading={pronunciationLoading}
-          practiceId={session?._id}
-          pronunciation={pronunciation}
-          t={t}
-        />}
-
         {!loading && <StandardAnswerCard
           answer={result.standardAnswer}
+          attemptId={attemptId}
+          notes={result.standardAnswerNotes}
           attemptIndex={Math.max(0, round - 1)}
           practiceId={session?._id}
           t={t}
@@ -200,13 +197,17 @@ export default function PracticeFeedbackView({
       </div>}
 
       {!loading && <ResultFooterActions
+        attemptId={attemptId}
         attemptIndex={Math.max(0, (round ?? 1) - 1)}
         onShare={onShare}
+        onCloseShareLink={onCloseShareLink}
+        onCopyShareLink={onCopyShareLink}
         practiceId={session?._id}
         shareAriaLabel={t("practice.shareResult")}
         shareBusy={shareBusy}
         shareBusyLabel={t("practice.sharingResult")}
         shareLabel={t("session.share")}
+        shareLink={shareLink}
         shareStatus={shareStatus}
         snapshot={{
           score: result.score,

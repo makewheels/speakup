@@ -226,8 +226,10 @@ def test_system_prompt_only_allows_distinct_transfer_examples():
     )[0].content
 
     for system in (scenario_system, free_system):
-        assert "另一个真实语境" in system
+        assert "迁移到明显不同的真实语境" in system
         assert "轻微改写" in system
+        assert "明显不同的真实语境" in system
+        assert "地点、人物关系或任务目标" in system
         assert "空字符串" in system
 
 

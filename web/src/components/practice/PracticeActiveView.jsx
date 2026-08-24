@@ -11,9 +11,10 @@ function preferenceNoticeKey(match) {
   return "";
 }
 
-function SpeakBtns({ attemptIndex, text, practiceId }) {
+function SpeakBtns({ attemptId, attemptIndex, text, practiceId }) {
   return (
     <SpeakBtn
+      attemptId={attemptId}
       attemptIndex={attemptIndex}
       practiceId={practiceId}
       purpose="correction"
@@ -46,6 +47,7 @@ export default function PracticeActiveView({
   handleRecordPressEnd,
   handleRecordPressStart,
   hintGaps,
+  hintAttemptId,
   mode,
   modeSwitch,
   onChangeTopic,
@@ -105,6 +107,7 @@ export default function PracticeActiveView({
             <span key={i} className="sc-hint-item">
               <b>{g.better}</b>
               <SpeakBtns
+                attemptId={hintAttemptId}
                 attemptIndex={Math.max(0, (round ?? 1) - 2)}
                 text={g.better}
                 practiceId={session?._id}

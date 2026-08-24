@@ -63,8 +63,40 @@ def test_free_standard_answer_messages_only_contain_topic():
 def test_parse_standard_answer_accepts_wrapped_json_and_snake_case():
     raw = 'result: ```json\n{"result":{"standard_answer":"Could I get a hot latte, please?"}}\n```'
     assert standard_answer.parse_standard_answer(raw) == {
-        "standardAnswer": "Could I get a hot latte, please?"
+        "standardAnswer": "Could I get a hot latte, please?",
+        "standardAnswerNotes": [],
     }
+
+
+def test_parse_standard_answer_keeps_only_notes_from_the_answer_and_caps_at_four():
+    raw = json.dumps({
+        "standardAnswer": (
+            "I've had a sharp pain in my lower right abdomen for two days. "
+            "I've had gastritis before, and I'm allergic to penicillin."
+        ),
+        "standardAnswerNotes": [
+            {"expression": "sharp pain", "chinese": "尖锐疼痛", "explanation": "描述针刺般的痛感。"},
+            {"expression": "lower right abdomen", "chinese": "右下腹", "explanation": "用于描述疼痛位置。"},
+            {"expression": "gastritis", "chinese": "胃炎", "explanation": "用于说明既往病史。"},
+            {
+                "expression": "allergic to penicillin",
+                "chinese": "对青霉素过敏",
+                "explanation": "be allergic to 表示过敏。",
+            },
+            {"expression": "aspirin", "chinese": "阿司匹林", "explanation": "不在答案中，应过滤。"},
+        ],
+    })
+    parsed = standard_answer.parse_standard_answer(raw)
+    assert [note["expression"] for note in parsed["standardAnswerNotes"]] == [
+        "sharp pain", "lower right abdomen", "gastritis", "allergic to penicillin",
+    ]
+    assert parsed["standardAnswerNotes"][-1]["chinese"] == "对青霉素过敏"
+
+
+def test_standard_answer_prompt_distinguishes_penicillin_from_aspirin():
+    system = standard_answer.build_standard_answer_messages(SCENARIO)[0].content
+    assert "penicillin 是青霉素" in system
+    assert "aspirin 才是阿司匹林" in system
 
 
 @pytest.mark.asyncio
@@ -86,7 +118,7 @@ async def test_invalid_standard_answer_makes_one_clean_request_then_degrades(mon
         },
     )
 
-    assert answer == ""
+    assert answer == {"standardAnswer": "", "standardAnswerNotes": []}
     assert [kind for kind, _ in calls] == ["standard_answer"]
     for _, messages in calls:
         text = _serialized_text(messages)

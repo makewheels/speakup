@@ -92,6 +92,78 @@
   text-align: center;
 }
 .fb-bar-err { color: #d64545; font-family: var(--ff-cn); font-size: 13px; margin: 6px 0 0; }
+.feedback-images { margin: 10px 0 12px; }
+.feedback-image-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.feedback-image-add {
+  border: 1px solid color-mix(in oklch, var(--accent) 38%, var(--rule));
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 8px 12px;
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.feedback-image-hint {
+  margin-left: 9px;
+  color: var(--ink-3);
+  font-family: var(--ff-cn);
+  font-size: 12px;
+}
+.feedback-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.feedback-image-item {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--bg-elev);
+}
+.feedback-image-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 7px;
+  object-fit: cover;
+  background: var(--bg-mute);
+}
+.feedback-image-item figcaption {
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feedback-image-item > button {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 25px;
+  height: 25px;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--ink) 78%, transparent);
+  color: var(--bg-elev);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
 .fb-existing { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
 .fb-existing-rating { font-size: 20px; line-height: 1.4; }
 .fb-existing-tags { display: flex; flex-wrap: wrap; gap: 6px; }

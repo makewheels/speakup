@@ -4,7 +4,7 @@ import { api } from "../../api/client.js";
 import Icon from "../Icon.jsx";
 import { useT } from "../../i18n/useI18n.js";
 import { track } from "../../lib/analytics.js";
-import { selectionFrom } from "./noteSelection.js";
+import { selectionAnchorFrom, selectionFrom } from "./noteSelection.js";
 
 const MAX_NOTE_LENGTH = 500;
 
@@ -12,10 +12,14 @@ const MAX_NOTE_LENGTH = 500;
  * 结果文字手动摘录：用户先用系统选区选中文字，再从底部浮条加入笔记。
  * 不调用 AI；后续解释能力可使用这里保留的 contextSentence 惰性生成。
  */
-export default function SelectableNoteText({ attemptIndex = -1, children, practiceId, userId }) {
+export default function SelectableNoteText({
+  attemptId = "", attemptIndex = -1, children, practiceId, userId,
+}) {
   const t = useT();
   const rootRef = useRef(null);
   const statusTimerRef = useRef(null);
+  const touchTimersRef = useRef([]);
+  const toolbarInteractingRef = useRef(false);
   const [selection, setSelection] = useState(null);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
@@ -26,8 +30,15 @@ export default function SelectableNoteText({ attemptIndex = -1, children, practi
       setSelection(null);
       return;
     }
-    const next = selectionFrom(rootRef.current, window.getSelection?.());
-    setSelection(next && next.text.length <= MAX_NOTE_LENGTH ? next : null);
+    const liveSelection = window.getSelection?.();
+    const next = selectionFrom(rootRef.current, liveSelection);
+    if (next && next.text.length <= MAX_NOTE_LENGTH) {
+      const anchor = selectionAnchorFrom(liveSelection);
+      const placeAbove = Boolean(anchor && anchor.bottom + 64 > window.innerHeight);
+      setSelection({ ...next, anchor, placeAbove });
+    } else if (!toolbarInteractingRef.current) {
+      setSelection(null);
+    }
     if (next?.text.length > MAX_NOTE_LENGTH) setStatus(t("practice.noteTooLong"));
   }, [enabled, t]);
 
@@ -42,6 +53,7 @@ export default function SelectableNoteText({ attemptIndex = -1, children, practi
     return () => {
       document.removeEventListener("selectionchange", onSelectionChange);
       cancelAnimationFrame(frame);
+      touchTimersRef.current.forEach(clearTimeout);
       clearTimeout(statusTimerRef.current);
     };
   }, [captureSelection, enabled]);
@@ -64,6 +76,7 @@ export default function SelectableNoteText({ attemptIndex = -1, children, practi
         chinese: "",
         contextSentence: selection.contextSentence,
         practiceId,
+        attemptId,
         attemptIndex,
       }]);
       flash(response?.added === 0 ? t("practice.noteAlreadySaved") : t("practice.noteSaved"));
@@ -73,9 +86,20 @@ export default function SelectableNoteText({ attemptIndex = -1, children, practi
     } catch (error) {
       flash(t("practice.noteSaveFailed", { msg: error.message }));
     } finally {
+      toolbarInteractingRef.current = false;
       setSaving(false);
     }
   };
+
+  const captureTouchSelection = () => {
+    touchTimersRef.current.forEach(clearTimeout);
+    touchTimersRef.current = [0, 120, 360].map((delay) => setTimeout(captureSelection, delay));
+  };
+
+  const anchorStyle = selection?.anchor ? {
+    "--note-selection-left": `${selection.anchor.left}px`,
+    "--note-selection-top": `${selection.placeAbove ? selection.anchor.top - 8 : selection.anchor.bottom + 8}px`,
+  } : undefined;
 
   return (
     <>
@@ -83,18 +107,24 @@ export default function SelectableNoteText({ attemptIndex = -1, children, practi
         ref={rootRef}
         className="note-selectable-area"
         onMouseUp={captureSelection}
-        onTouchEnd={() => setTimeout(captureSelection, 0)}
+        onTouchEnd={captureTouchSelection}
       >
         {children}
       </div>
       {selection && (
-        <div className="note-selection-bar" role="toolbar" aria-label={t("practice.noteSelectionToolbar")}>
+        <div
+          className={`note-selection-bar${selection.anchor ? " is-anchored" : ""}${selection.placeAbove ? " is-above" : ""}`}
+          role="toolbar"
+          aria-label={t("practice.noteSelectionToolbar")}
+          style={anchorStyle}
+          onPointerDown={() => { toolbarInteractingRef.current = true; }}
+          onPointerCancel={() => { toolbarInteractingRef.current = false; }}
+        >
           <span className="note-selection-preview">“{selection.text}”</span>
           <button
             className="su-btn su-btn-primary"
             type="button"
             disabled={saving}
-            onPointerDown={(event) => event.preventDefault()}
             onClick={saveSelection}
           >
             <Icon name="save" size={15} />

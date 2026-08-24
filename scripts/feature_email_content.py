@@ -1,4 +1,4 @@
-"""Validate and render feature-email content, including an optional inline screenshot."""
+"""Validate and render feature-email content, including an optional inline SVG."""
 
 from __future__ import annotations
 
@@ -72,12 +72,27 @@ def _validate_view_url(raw_value: str) -> str | None:
     return value
 
 
-def _image_type(content: bytes) -> tuple[str, str] | None:
-    if content.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png", "png"
-    if content.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg", "jpg"
-    return None
+_DANGEROUS_SVG = re.compile(
+    r"<(?:script|foreignObject|iframe|object|embed|audio|video)\b"
+    r"|\bon[a-z]+\s*="
+    r"|(?:href|src)\s*=\s*['\"]\s*(?:https?:|//|data:)"
+    r"|url\s*\(\s*['\"]?\s*(?:https?:|//|data:)"
+    r"|<!DOCTYPE|<!ENTITY",
+    flags=re.IGNORECASE,
+)
+
+
+def _validate_svg(content: bytes) -> bool:
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    stripped = text.lstrip("\ufeff\t\r\n ")
+    if not (stripped.startswith("<svg") or stripped.startswith("<?xml")):
+        return False
+    if "<svg" not in stripped[:500] or _DANGEROUS_SVG.search(text):
+        return False
+    return True
 
 
 def _load_feature_image(environ: Mapping[str, str]) -> FeatureImage | None:
@@ -101,13 +116,12 @@ def _load_feature_image(environ: Mapping[str, str]) -> FeatureImage | None:
         raise NotificationError("功能截图不能为空；未发送任何邮件。")
     if len(content) > MAX_IMAGE_BYTES:
         raise NotificationError("功能截图不能超过 2 MB；未发送任何邮件。")
-    detected = _image_type(content)
-    if not detected:
-        raise NotificationError("功能截图仅支持 PNG 或 JPG；未发送任何邮件。")
-    content_type, extension = detected
-    alt = environ.get("FEATURE_MAIL_IMAGE_ALT", "").strip() or "功能界面截图"
+    if resolved.suffix.lower() != ".svg" or not _validate_svg(content):
+        raise NotificationError("功能说明图仅支持不含脚本或外部资源的安全 SVG；未发送任何邮件。")
+    content_type, extension = "image/svg+xml", "svg"
+    alt = environ.get("FEATURE_MAIL_IMAGE_ALT", "").strip() or "功能说明图"
     if len(alt) > 120 or "\n" in alt or "\r" in alt:
-        raise NotificationError("功能截图说明必须是 120 个字符以内的单行文字。")
+        raise NotificationError("功能说明图描述必须是 120 个字符以内的单行文字。")
     return FeatureImage(
         content=content,
         content_type=content_type,
@@ -217,7 +231,7 @@ def render_html(message: FeatureMessage) -> str:
 def render_text(message: FeatureMessage) -> str:
     lines = [f"SpeakUp 功能更新：{message.title}", "", message.summary]
     if message.image:
-        lines.extend(["", f"邮件中附有界面截图：{message.image.alt}"])
+        lines.extend(["", f"邮件中附有功能说明图：{message.image.alt}"])
     if message.points:
         lines.extend(["", "本次完成：", *(f"- {point}" for point in message.points)])
     if message.view_url:

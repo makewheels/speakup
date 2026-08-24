@@ -5,9 +5,10 @@ import { speak, stop, isCached } from "../utils/tts.js";
 
 // 点击 → 没缓存就先合成（显示「生成中」动画文字），合成完播放；缓存命中直接播放。
 // 三态：idle(喇叭) / loading(生成中动画点) / playing(停止键+实心高亮)，播放中再点即停。
-// practiceId + attemptIndex + purpose：决定朗读音频在该轮次下的业务目录；不传走全局兜底。
+// practiceId + attemptId + purpose：决定朗读音频在该 Attempt 下的业务目录。
 // stopPropagation 让按钮可以嵌进可点击行里不连带触发。
 export default function SpeakBtn({
+  attemptId = "",
   attemptIndex = -1,
   className = "spk-btn",
   label = "",
@@ -28,8 +29,9 @@ export default function SpeakBtn({
     if (state === "playing") { stop(); reset(); return; }
     if (state === "loading") return;
     try {
-      if (!isCached(text, practiceId, attemptIndex, purpose)) setState("loading");
-      const audio = await speak(text, practiceId, attemptIndex, purpose);
+      const attemptRef = attemptId || attemptIndex;
+      if (!isCached(text, practiceId, attemptRef, purpose)) setState("loading");
+      const audio = await speak(text, practiceId, attemptRef, purpose);
       if (!audio) { reset(); return; }
       audioRef.current = audio;
       setState("playing");

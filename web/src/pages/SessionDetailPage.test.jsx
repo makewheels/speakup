@@ -299,7 +299,7 @@ describe("SessionDetailPage", () => {
     expect(screen.queryByText("Not shared")).not.toBeInTheDocument();
   });
 
-  it("shares: calls api.sharePractice, copies text+link, shows Shared state", async () => {
+  it("shares: creates an in-page link and copies only the URL on request", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     const { api } = await import("../api/client.js");
@@ -312,12 +312,11 @@ describe("SessionDetailPage", () => {
 
     await waitFor(() => {
       expect(api.sharePractice).toHaveBeenCalledWith("sess_1", "u_1");
-      expect(writeText).toHaveBeenCalled();
+      expect(screen.getByDisplayValue(/\/s\/tok_abc$/)).toBeInTheDocument();
     });
-    // 复制内容含文案 + 链接
-    const copied = writeText.mock.calls[0][0];
-    expect(copied).toContain("Coffee shop");
-    expect(copied).toContain("/s/tok_abc");
+    expect(writeText).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/s\/tok_abc$/));
     // 页尾按钮不变，只在下面保留轻量的公开状态与撤销入口。
     await waitFor(() => {
       expect(screen.getByText("Anyone with the link can view")).toBeInTheDocument();

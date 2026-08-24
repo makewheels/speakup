@@ -5,7 +5,7 @@ import { useUser } from "../context/useUser.js";
 import { useT } from "../i18n/useI18n.js";
 import Icon from "../components/Icon.jsx";
 import SessionView from "../components/SessionView.jsx";
-import { copyShare } from "../lib/share.js";
+import { shareUrl } from "../lib/share.js";
 
 export default function SessionDetailPage() {
   const { practiceId } = useParams();
@@ -19,6 +19,7 @@ export default function SessionDetailPage() {
   const [chatBusy, setChatBusy] = useState(false);
   const [shareToken, setShareToken] = useState(null);
   const [shareBusy, setShareBusy] = useState(false);
+  const [shareLink, setShareLink] = useState("");
   const [toast, setToast] = useState("");
   const chatControllerRef = useRef(null);
 
@@ -46,8 +47,14 @@ export default function SessionDetailPage() {
     setChatInput("");
     setChat((c) => [...c, { role: "user", content: q }, { role: "assistant", content: "" }]);
     setChatBusy(true);
+    const latestAttempt = session?.attempts?.[session.attempts.length - 1];
     chatControllerRef.current = chatStream(
-      { userId: user.userId, practiceId, question: q },
+      {
+        userId: user.userId,
+        practiceId,
+        attemptId: latestAttempt?.attemptId || latestAttempt?._id || "",
+        question: q,
+      },
       {
         onChunk: (text) =>
           setChat((c) => {
@@ -68,7 +75,7 @@ export default function SessionDetailPage() {
     );
   };
 
-  const doShare = async () => {
+  const doShare = async (attemptId = "") => {
     if (shareBusy) return;
     setShareBusy(true);
     try {
@@ -78,8 +85,7 @@ export default function SessionDetailPage() {
         token = r.shareToken;
         setShareToken(token);
       }
-      await copyShare(session, token);
-      flash(t("session.linkCopied"));
+      setShareLink(shareUrl(token, attemptId));
     } catch (e) {
       flash(t("session.failed", { msg: e.message }));
     } finally {
@@ -93,11 +99,22 @@ export default function SessionDetailPage() {
     try {
       await api.unsharePractice(practiceId, user.userId);
       setShareToken(null);
+      setShareLink("");
       flash(t("session.sharingStopped"));
     } catch (e) {
       flash(t("session.failed", { msg: e.message }));
     } finally {
       setShareBusy(false);
+    }
+  };
+
+  const copyCurrentShareLink = async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      flash(t("session.linkCopied"));
+    } catch (e) {
+      flash(t("session.failed", { msg: e.message }));
     }
   };
 
@@ -119,8 +136,11 @@ export default function SessionDetailPage() {
         chatBusy={chatBusy}
         noteUserId={user.userId}
         onShare={doShare}
+        onCloseShareLink={() => setShareLink("")}
+        onCopyShareLink={copyCurrentShareLink}
         onUnshare={shareToken ? doUnshare : null}
         shareBusy={shareBusy}
+        shareLink={shareLink}
         shareStatus={shareToken ? t("session.sharedSub") : ""}
       />
 

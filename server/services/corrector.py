@@ -53,6 +53,7 @@ class ProgressInfo(BaseModel):
 class CorrectResult(BaseModel):
     summary: str = ""
     standardAnswer: str = ""  # 由独立、只看题目的请求在组合层写入
+    standardAnswerNotes: list[dict] = Field(default_factory=list)
     note: str = ""  # 旧 API/历史 attempt 兼容；新反馈不再由 LLM 生成
     noteChinese: str = ""
     score: float | None = None  # 雅思口语级别 0~9，0.5 进制
@@ -95,6 +96,7 @@ def _get_client() -> ChatOpenAI:
 _EMPTY = {
     "summary": "",
     "standardAnswer": "",
+    "standardAnswerNotes": [],
     "note": "",
     "noteChinese": "",
     "score": None,
@@ -323,13 +325,13 @@ async def _correct_text_only(
     return parsed
 
 
-async def _standard_answer_or_empty(scenario: dict | None, link_to: dict | None) -> str:
+async def _standard_answer_or_empty(scenario: dict | None, link_to: dict | None) -> dict:
     """标准答案失败不拖垮纠正主路径；该分支严格只发一次模型请求。"""
     try:
         return await generate_standard_answer(scenario, _get_client(), link_to=link_to)
     except Exception as e:
         logger.warning("standard answer generation failed; degrading to empty: %s", e)
-        return ""
+        return {"standardAnswer": "", "standardAnswerNotes": []}
 
 
 async def correct_text(
@@ -353,8 +355,8 @@ async def correct_text(
         correction = {**_EMPTY, "summary": "AI correction unavailable. Independent answer is still available."}
     if isinstance(standard_answer, BaseException):
         logger.warning("standard answer branch failed; keeping correction: %s", standard_answer)
-        standard_answer = ""
-    return {**correction, "standardAnswer": standard_answer}
+        standard_answer = {"standardAnswer": "", "standardAnswerNotes": []}
+    return {**correction, **standard_answer}
 
 
 async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
@@ -413,7 +415,7 @@ async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
                 logger.warning("correct_text_stream fallback failed: %s", e)
         if parsed is None:
             parsed = dict(_PARSE_FAIL)
-        final_result = {**parsed, "standardAnswer": await standard_task}
+        final_result = {**parsed, **(await standard_task)}
         yield "done", final_result
     except Exception as e:
         logger.error("correct_text_stream error: %s: %s", type(e).__name__, e)
@@ -424,8 +426,8 @@ async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
             logger.warning("correct_text_stream exception fallback failed: %s", fallback_error)
             parsed = {**_EMPTY, "summary": "AI correction unavailable. Independent answer is still available."}
         standard_answer = await standard_task
-        if _is_usable(parsed) or standard_answer:
-            yield "done", {**parsed, "standardAnswer": standard_answer}
+        if _is_usable(parsed) or standard_answer.get("standardAnswer"):
+            yield "done", {**parsed, **standard_answer}
         else:
             msg = "AI service timed out. Please try again." if "timeout" in type(e).__name__.lower() else f"AI service error ({type(e).__name__}). Please try again."
             yield "error", {"message": msg}

@@ -6,8 +6,10 @@ const splitSentences = (text = "") =>
 
 export default function StandardAnswerCard({
   answer,
+  attemptId = "",
   attemptIndex = -1,
   canSpeak = true,
+  notes = [],
   practiceId,
   t,
 }) {
@@ -17,7 +19,7 @@ export default function StandardAnswerCard({
     <section className="result-section result-standard" data-note-context={answer}>
       <h2 className="result-section-title">{t("practice.standardAnswer")}</h2>
       <div className="result-disclosure">
-        <details className="result-disclosure-details">
+        <details className="result-disclosure-details" open>
           <summary>
             <span>{t("practice.viewStandardAnswer")}</span>
             <Icon name="next" size={15} />
@@ -26,11 +28,26 @@ export default function StandardAnswerCard({
             {splitSentences(answer).map((sentence, index) => (
               <p key={index} className="fb-native-text">{sentence}</p>
             ))}
+            {notes.length > 0 && (
+              <div className="standard-answer-notes">
+                <h3>{t("practice.standardAnswerNotes")}</h3>
+                {notes.map((note, index) => (
+                  <div key={`${note.expression}-${index}`} className="standard-answer-note" data-note-context={note.expression}>
+                    <div>
+                      <strong>{note.expression}</strong>
+                      {note.chinese && <span>{note.chinese}</span>}
+                    </div>
+                    {note.explanation && <p>{note.explanation}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </details>
         {canSpeak && (
           <div className="result-disclosure-action">
             <SpeakBtn
+              attemptId={attemptId}
               attemptIndex={attemptIndex}
               practiceId={practiceId}
               purpose="standard-answer"

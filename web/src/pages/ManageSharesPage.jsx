@@ -4,7 +4,7 @@ import { useUser } from "../context/useUser.js";
 import { useT } from "../i18n/useI18n.js";
 import { api } from "../api/client.js";
 import Icon from "../components/Icon.jsx";
-import { copyShare } from "../lib/share.js";
+import { copyShareLink } from "../lib/share.js";
 import { formatDateTime } from "../lib/formatDateTime.js";
 
 export default function ManageSharesPage() {
@@ -31,7 +31,9 @@ export default function ManageSharesPage() {
   const copy = async (s, e) => {
     e.stopPropagation();
     try {
-      await copyShare(s, s.shareToken);
+      const attempts = s.attempts || [];
+      const latestAttempt = attempts[attempts.length - 1];
+      await copyShareLink(s.shareToken, latestAttempt?.attemptId || latestAttempt?._id || "");
       flash(t("manageShares.linkCopied"));
     } catch (err) {
       flash(t("manageShares.copyFailed", { msg: err.message }));

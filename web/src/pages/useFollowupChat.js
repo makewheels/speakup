@@ -6,7 +6,7 @@ import { track } from "../lib/analytics.js";
  * 追问教练对话：基于本次练习反馈继续问 AI（SSE 流式）。
  * sendChat(question, onError?) 追加 user+assistant 占位后流式填充。
  */
-export default function useFollowupChat(userId, practiceId) {
+export default function useFollowupChat(userId, practiceId, attemptId = "") {
   const [chat, setChat] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
@@ -25,7 +25,7 @@ export default function useFollowupChat(userId, practiceId) {
     setChatBusy(true);
     track("followup_asked", { userId });
     controllerRef.current = chatStream(
-      { userId, practiceId, question: q },
+      { userId, practiceId, attemptId, question: q },
       {
         onChunk: (text) =>
           setChat((c) => {
@@ -45,7 +45,7 @@ export default function useFollowupChat(userId, practiceId) {
         },
       }
     );
-  }, [userId, practiceId, chatBusy]);
+  }, [userId, practiceId, attemptId, chatBusy]);
 
   const resetChat = useCallback((history) => setChat(history || []), []);
 

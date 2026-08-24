@@ -30,7 +30,7 @@ describe("FeedbackGapList", () => {
       "Why",
     ]);
 
-    const summary = screen.getByText("See another example");
+    const summary = screen.getByText("See it in a different situation");
     const details = summary.closest("details");
     expect(details).not.toHaveAttribute("open");
     await userEvent.click(summary);
@@ -53,7 +53,7 @@ describe("FeedbackGapList", () => {
     );
 
     expect(screen.getByText(GAP.better)).toBeInTheDocument();
-    expect(screen.queryByText("See another example")).not.toBeInTheDocument();
+    expect(screen.queryByText("See it in a different situation")).not.toBeInTheDocument();
     expect(screen.queryByText("我昨天去了那里。")).not.toBeInTheDocument();
   });
 
@@ -66,7 +66,7 @@ describe("FeedbackGapList", () => {
       />,
     );
 
-    expect(screen.queryByText("See another example")).not.toBeInTheDocument();
+    expect(screen.queryByText("See it in a different situation")).not.toBeInTheDocument();
   });
 
   it("uses complete Chinese result labels in Chinese mode", () => {

@@ -5,6 +5,7 @@ import { hasDistinctExample } from "./gapExamples.js";
 
 export default function FeedbackGapList({
   canSpeak = true,
+  attemptId = "",
   attemptIndex = -1,
   gaps = [],
   onToggleGap = null,
@@ -56,6 +57,7 @@ export default function FeedbackGapList({
                 <span className="fb-gap-fix">{gap.better}</span>
                 {canSpeak && (
                   <SpeakBtn
+                    attemptId={attemptId}
                     attemptIndex={attemptIndex}
                     practiceId={practiceId}
                     purpose="correction"
@@ -79,6 +81,7 @@ export default function FeedbackGapList({
                     <span className="fb-gap-example">{gap.example}</span>
                     {canSpeak && (
                       <SpeakBtn
+                        attemptId={attemptId}
                         attemptIndex={attemptIndex}
                         practiceId={practiceId}
                         purpose="example"

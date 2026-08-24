@@ -57,4 +57,20 @@ describe("FeedbackPage", () => {
 
     await waitFor(() => expect(screen.getByText(/Got your feedback/)).toBeInTheDocument());
   });
+
+  it("allows image-only feedback and submits all selected originals", async () => {
+    const { api } = await import("../api/client.js");
+    const { container } = setup();
+    const files = [
+      new File(["one"], "one.png", { type: "image/png" }),
+      new File(["two"], "two.jpg", { type: "image/jpeg" }),
+    ];
+    await userEvent.upload(container.querySelector('input[type="file"]'), files);
+    await userEvent.click(screen.getByText("Send feedback"));
+
+    await waitFor(() => expect(api.submitFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "general", comment: "" }),
+      files,
+    ));
+  });
 });

@@ -1,11 +1,19 @@
 from copy import deepcopy
 from unittest.mock import AsyncMock, patch
 
+from pymongo import MongoClient
+
+from tests.conftest import TEST_DB_NAME
 from tests.conftest import login_headers
 
 FAKE_AI_RESULT = {
     "summary": "请求语气太硬，催促方式不像母语者。",
     "standardAnswer": "Excuse me, I ordered a hot latte. Could you remake it? I'm in a bit of a rush.",
+    "standardAnswerNotes": [{
+        "expression": "in a bit of a rush",
+        "chinese": "有点赶时间",
+        "explanation": "用来礼貌说明时间紧张。",
+    }],
     "note": "I'm in a bit of a rush",
     "noteChinese": "我有点赶时间",
     "gaps": [
@@ -73,6 +81,8 @@ def test_correct_returns_layered_schema(client, user_id, auth_headers, practice_
     assert data["summary"]
     assert "nativeVersion" not in data
     assert data["standardAnswer"] == FAKE_AI_RESULT["standardAnswer"]
+    assert data["standardAnswerNotes"] == FAKE_AI_RESULT["standardAnswerNotes"]
+    assert data["attemptId"].startswith("pa_")
     assert data["round"] == 1
     assert len(data["gaps"]) == 2
     g = data["gaps"][0]
@@ -100,6 +110,8 @@ def test_correct_rejects_unusable_ai_feedback_without_persisting_attempt(client,
     assert resp.status_code == 502
     p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
     assert p["attempts"] == []
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+    assert db.practiceAttempts.count_documents({"practiceId": practice_id}) == 0
 
 
 def test_correct_persists_correction_when_independent_standard_answer_degrades(
@@ -161,6 +173,8 @@ def test_correct_stream_streams_chunks_and_persists_attempt(client, user_id, aut
 
     assert resp.status_code == 200
     assert '"type": "chunk"' in body    # 流式 chunk 推送（前端字数动画来源）
+    assert '"type": "started"' in body
+    assert '"attemptId": "pa_' in body
     assert '"type": "done"' in body
     assert "Could you remake it?" in body
     p = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
@@ -180,6 +194,7 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     assert a["transcript"] == "test text here ok"
     assert a["summary"] == FAKE_AI_RESULT["summary"]
     assert a["standardAnswer"] == FAKE_AI_RESULT["standardAnswer"]
+    assert a["standardAnswerNotes"] == FAKE_AI_RESULT["standardAnswerNotes"]
     assert len(a["gaps"]) == 2
     assert a["gaps"][0]["better"] == FAKE_AI_RESULT["gaps"][0]["better"]
     assert a["gaps"][0]["exampleChinese"] == "你能重做这杯饮料吗？"
@@ -188,6 +203,13 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     assert a["note"] == ""
     assert a["noteChinese"] == ""
     assert a["round"] == 1
+    assert a["attemptId"].startswith("pa_")
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+    stored_session = db.practiceSessions.find_one({"_id": practice_id})
+    stored_attempt = db.practiceAttempts.find_one({"_id": a["attemptId"]})
+    assert "attempts" not in stored_session
+    assert stored_attempt["status"] == "completed"
+    assert stored_attempt["practiceId"] == practice_id
 
 
 def test_correct_ignores_legacy_llm_note_and_does_not_auto_save(client, user_id, auth_headers, practice_id):

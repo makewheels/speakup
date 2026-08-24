@@ -1,5 +1,30 @@
+import json
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock
+
 from pymongo import MongoClient
 from tests.conftest import TEST_DB_NAME, login_headers
+
+
+def _ensure_attempt(practice_id, attempt_index):
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+    practice = db.practiceSessions.find_one({"_id": practice_id})
+    attempt_id = f"pa_test_{practice_id}_{attempt_index + 1}"
+    db.practiceAttempts.update_one(
+        {"_id": attempt_id},
+        {"$setOnInsert": {
+            "practiceId": practice_id,
+            "userId": practice["userId"],
+            "sourceType": practice.get("sourceType", "human"),
+            "round": attempt_index + 1,
+            "status": "completed",
+            "transcript": "test",
+            "createdAt": datetime.now(timezone.utc),
+        }},
+        upsert=True,
+    )
+    db.practiceSessions.update_one({"_id": practice_id}, {"$max": {"attemptSeq": attempt_index + 1}})
+    return attempt_id
 
 
 def _submit_practice(client, user_id, auth_headers, practice_id, **overrides):
@@ -17,6 +42,8 @@ def _submit_practice(client, user_id, auth_headers, practice_id, **overrides):
         },
     }
     body.update(overrides)
+    index = body.get("attemptIndex", 0)
+    body["attemptId"] = body.get("attemptId") or _ensure_attempt(practice_id, index)
     return client.post("/api/feedbacks", json=body, headers=auth_headers)
 
 
@@ -178,3 +205,87 @@ def test_submit_clears_historical_duplicates(client, user_id, auth_headers, prac
     items = client.get(f"/api/feedbacks?userId={user_id}", headers=auth_headers).json()
     assert len(items) == 1
     assert items[0]["comment"] == "新的"
+
+
+def test_general_feedback_uploads_multiple_original_images_without_reencoding(
+    client, user_id, auth_headers, monkeypatch,
+):
+    uploaded = AsyncMock()
+    monkeypatch.setattr("routes.feedbacks.upload_bytes_async", uploaded)
+    png = b"\x89PNG\r\n\x1a\nORIGINAL-PNG-BYTES"
+    jpeg = b"\xff\xd8\xffORIGINAL-JPEG-BYTES"
+
+    response = client.post(
+        "/api/feedbacks/with-images",
+        data={"payload": json.dumps({
+            "type": "general", "tags": ["bug"], "comment": "移动端按钮错位",
+        })},
+        files=[
+            ("images", ("screen-one.png", png, "image/png")),
+            ("images", ("screen-two.jpg", jpeg, "image/jpeg")),
+        ],
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "general"
+    assert len(body["images"]) == 2
+    assert body["images"][0]["fileName"] == "screen-one.png"
+    assert body["images"][0]["key"].startswith(f"feedbacks/{user_id}/")
+    assert uploaded.await_args_list[0].args[1:] == (png, "image/png")
+    assert uploaded.await_args_list[1].args[1:] == (jpeg, "image/jpeg")
+
+    stored = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME].feedbacks.find_one(
+        {"_id": body["_id"]}
+    )
+    assert "url" not in stored["images"][0]
+    assert stored["images"][0]["sizeBytes"] == len(png)
+
+
+def test_practice_feedback_images_keep_attempt_association(
+    client, user_id, auth_headers, practice_id, monkeypatch,
+):
+    monkeypatch.setattr("routes.feedbacks.upload_bytes_async", AsyncMock())
+    attempt_id = _ensure_attempt(practice_id, 1)
+    response = client.post(
+        "/api/feedbacks/with-images",
+        data={"payload": json.dumps({
+            "type": "practice",
+            "rating": "bad",
+            "practiceId": practice_id,
+            "attemptId": attempt_id,
+            "attemptIndex": 1,
+            "comment": "第二轮布局有问题",
+        })},
+        files=[("images", ("layout.png", b"\x89PNG\r\n\x1a\nraw", "image/png"))],
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["practiceId"] == practice_id
+    assert response.json()["attemptIndex"] == 1
+    assert response.json()["attemptId"] == attempt_id
+    assert len(response.json()["images"]) == 1
+
+
+def test_invalid_later_image_cleans_already_uploaded_objects(
+    client, auth_headers, monkeypatch,
+):
+    uploaded = AsyncMock()
+    deleted = AsyncMock()
+    monkeypatch.setattr("routes.feedbacks.upload_bytes_async", uploaded)
+    monkeypatch.setattr("routes.feedbacks.delete_async", deleted)
+    response = client.post(
+        "/api/feedbacks/with-images",
+        data={"payload": json.dumps({"type": "general", "comment": "有问题"})},
+        files=[
+            ("images", ("valid.png", b"\x89PNG\r\n\x1a\nraw", "image/png")),
+            ("images", ("fake.svg", b"<svg></svg>", "image/svg+xml")),
+        ],
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400
+    assert uploaded.await_count == 1
+    assert deleted.await_count == 1
