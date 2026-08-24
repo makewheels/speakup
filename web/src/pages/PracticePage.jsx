@@ -50,7 +50,6 @@ export default function PracticePage() {
   const {
     savedMap, setSavedMap, resetReviewCollection, toggleGap,
   } = useReviewCollection(session);
-  const [autoSaved, setAutoSaved] = useState(0);
   const [round, setRound] = useState(1);
   const { resetShare, shareBusy, shareResult, shareStatus } = useResultShare({
     result, round, session, setSession, t, userId: user.userId,
@@ -90,7 +89,6 @@ export default function PracticePage() {
     resetPronunciation();
     setTranscript("");
     setTranscriptionError(false);
-    setAutoSaved(0);
     resetShare();
     setRound(1);
     setHintGaps([]);
@@ -243,7 +241,6 @@ export default function PracticePage() {
     resetPronunciation();
     setTranscript("");
     setTranscriptionError(false);
-    setAutoSaved(0);
     resetShare();
     setRound((r) => r + 1);
     resetReviewCollection();
@@ -278,7 +275,7 @@ export default function PracticePage() {
       },
       {
         onChunk: (chunk) => setStreamingLen((n) => n + chunk.length),
-        onDone: ({ result: res, autoSaved: n, round: r }) => {
+        onDone: ({ result: res, round: r }) => {
           clearInterval(evalTimerRef.current);
           if (!hasUsableFeedback(res)) {
             alert(t("practice.feedbackFailed", { msg: res?.summary || t("practice.emptyFeedback") }));
@@ -299,7 +296,6 @@ export default function PracticePage() {
           });
           // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
           setSavedMap(reviewMapFromGaps(res.gaps));
-          setAutoSaved(n);
           if (r) setRound(r);
           resetChat();
           // 结果页首帧在绘制前回到顶部；后续流式完成和媒体加载不再重复滚动。
@@ -378,7 +374,6 @@ export default function PracticePage() {
     setTranscript("");
     setTranscriptionError(false);
     setResult(null);
-    setAutoSaved(0);
     setPhase("recording");
 
     const started = await startCapture({
@@ -433,7 +428,6 @@ export default function PracticePage() {
   if (phase === "feedback" && result) {
     return (
       <PracticeFeedbackView
-        autoSaved={autoSaved}
         chat={chat}
         chatBusy={chatBusy}
         chatInput={chatInput}

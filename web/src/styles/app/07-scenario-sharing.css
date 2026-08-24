@@ -236,14 +236,6 @@
 .fb-progress-list.fixed .chip { background: var(--ok-soft); color: var(--ok); }
 .fb-progress-list.remaining .chip { background: var(--warn-soft); color: var(--warn); }
 
-.fb-autosaved {
-  font-family: var(--ff-cn);
-  font-size: 14px;
-  color: var(--ink-3);
-  text-align: center;
-  margin: 10px 0 0;
-}
-
 /* ===== 分享功能 ===== */
 
 /* hero 右侧操作区 */
