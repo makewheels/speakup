@@ -34,6 +34,11 @@ def referenced_keys(db) -> set[str]:
     return referenced
 
 
+def _legacy_object_id(value: str) -> bool:
+    # ID 规范化（u_/ps_ 前缀）之前的历史用户和会话使用裸 ObjectId 作为路径段。
+    return len(value) == 24 and all(c in "0123456789abcdef" for c in value)
+
+
 def managed_category(key: str) -> str:
     if key.startswith("recordings/"):
         return "legacy-recording-root"
@@ -43,10 +48,10 @@ def managed_category(key: str) -> str:
         parts = key.split("/")
         valid = (
             len(parts) >= 8
-            and parts[1].startswith("u_")
+            and (parts[1].startswith("u_") or _legacy_object_id(parts[1]))
             and len(parts[2]) == 6
             and parts[2].isdigit()
-            and parts[3].startswith("ps_")
+            and (parts[3].startswith("ps_") or _legacy_object_id(parts[3]))
             and parts[4] == "attempts"
             and parts[5].startswith("pa_")
             and parts[6] in {"recordings", "speech"}
