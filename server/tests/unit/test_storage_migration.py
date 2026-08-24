@@ -147,3 +147,12 @@ def test_managed_category_marks_numeric_attempt_and_old_roots_as_legacy():
     assert managed_category(
         "practiceSessions/u_1/202608/ps_1/attempts/pa_1/recordings/rec_1/original.webm"
     ) == "attempt-v3"
+    # ID 规范化前的历史数据：用户/会话段是裸 ObjectId，结构符合 v3 仍应识别。
+    assert managed_category(
+        "practiceSessions/6a12df8e0c659476d1c1146c/202606/6a35f65a5b1ffa86df028169"
+        "/attempts/pa_17819214021401abdf79c5c/recordings/rec_1781921402225e4590c77e1/original.ogg"
+    ) == "attempt-v3"
+    assert managed_category(
+        "practiceSessions/6a12df8e0c659476d1c1146c/202606/6a35f65a5b1ffa86df028169"
+        "/recordings/rec_1/original.ogg"
+    ) == "legacy-practice-path"
