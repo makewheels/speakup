@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api/client.js";
 import { useT } from "../i18n/useI18n.js";
+import FeedbackImagePicker from "../components/FeedbackImagePicker.jsx";
 
 // 与后端 routes/feedbacks.py GENERAL_TAGS 对应
 const GENERAL_TAGS = ["product", "scenario", "asr", "bug", "other"];
@@ -11,6 +12,7 @@ export default function FeedbackPage() {
   const [comment, setComment] = useState("");
   const [status, setStatus] = useState("idle"); // idle | submitted | error
   const [busy, setBusy] = useState(false);
+  const [images, setImages] = useState([]);
 
   const toggleTag = (key) =>
     setTags((ts) => (ts.includes(key) ? ts.filter((x) => x !== key) : [...ts, key]));
@@ -22,7 +24,7 @@ export default function FeedbackPage() {
         type: "general",
         tags,
         comment: comment.trim(),
-      });
+      }, images);
       setStatus("submitted");
     } catch {
       setStatus("error");
@@ -64,12 +66,14 @@ export default function FeedbackPage() {
         onChange={(e) => setComment(e.target.value)}
       />
 
+      <FeedbackImagePicker disabled={busy} files={images} onChange={setImages} />
+
       {status === "error" && <p className="fb-bar-err">{t("feedback.failed")}</p>}
 
       <button
         className="su-btn su-btn-primary"
         onClick={submit}
-        disabled={busy || (!tags.length && !comment.trim())}
+        disabled={busy || (!tags.length && !comment.trim() && !images.length)}
       >
         {t("feedback.submitGeneral")}
       </button>

@@ -20,6 +20,7 @@ from pymongo import MongoClient
 from config import MONGO_URI
 from services import oss_storage
 from services.avatar_images import build_avatar_variants
+from services.practice_attempts import legacy_attempt_id
 from services.storage_paths import PracticeAssetContext, avatar_key, recording_original_key, speech_key
 from services.tts import speech_asset
 
@@ -96,7 +97,8 @@ def _recording_asset(practice: dict, attempt: dict, attempt_index: int) -> tuple
         user_id=practice["userId"],
         created_at=created,
         practice_id=str(practice["_id"]),
-        attempt_index=attempt_index,
+        attempt_id=attempt.get("attemptId")
+        or legacy_attempt_id(practice, attempt, int(attempt.get("round") or attempt_index + 1)),
     )
     target = recording_original_key(context, recording_id, extension)
     content_type = metadata.get("contentType") or mimetypes.guess_type(f"x.{extension}")[0] or "audio/webm"
@@ -176,7 +178,8 @@ def _plan_speech(practice: dict, attempt: dict, index: int, execute: bool, stats
             user_id=practice["userId"],
             created_at=created,
             practice_id=practice_id,
-            attempt_index=index,
+            attempt_id=attempt.get("attemptId")
+            or legacy_attempt_id(practice, attempt, int(attempt.get("round") or index + 1)),
         )
         target = speech_key(context, purpose, audio_id, extension)
         if not _copy(source, target, execute, stats):

@@ -23,3 +23,21 @@ export function selectionFrom(root, selection) {
 
   return { text, contextSentence };
 }
+
+export function selectionAnchorFrom(selection) {
+  if (!selection || selection.rangeCount < 1 || typeof selection.getRangeAt !== "function") {
+    return null;
+  }
+  const range = selection.getRangeAt(0);
+  const rects = typeof range.getClientRects === "function"
+    ? Array.from(range.getClientRects()).filter((rect) => rect.width || rect.height)
+    : [];
+  const rect = rects.at(-1)
+    || (typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null);
+  if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return null;
+  return {
+    left: rect.left + (rect.width / 2),
+    top: rect.top,
+    bottom: rect.bottom,
+  };
+}

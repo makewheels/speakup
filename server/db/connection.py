@@ -10,6 +10,12 @@ async def connect_db():
     client = AsyncIOMotorClient(MONGO_URI, tz_aware=True)
     db = client.get_default_database()
     await client.admin.command("ping")
+    await db.practiceAttempts.create_index(
+        [("practiceId", 1), ("round", 1)], unique=True, name="practice_round_unique"
+    )
+    await db.practiceAttempts.create_index(
+        [("userId", 1), ("createdAt", -1)], name="user_attempt_history"
+    )
     print("MongoDB connected")
 
 

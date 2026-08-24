@@ -20,7 +20,7 @@ on:
         required: false
         type: string
       image_path:
-        description: "可选仓库截图路径，仅限 docs/assets/feature-notifications 下的 PNG/JPG"
+        description: "可选仓库说明图，仅限 docs/assets/feature-notifications 下的 SVG"
         required: false
         type: string
       image_alt:

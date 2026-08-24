@@ -47,7 +47,7 @@ git checkout master && git pull
 - **测试要是代码**：不靠 curl 一次性脚本。
 - **源码不超过 500 物理行**：前端 `pnpm run lint:lines` 递归检查 `web/src/**` 与 `web/scripts/**` 的 CSS/JS/JSX/TS/TSX；后端 `uv run python scripts/check_code_quality.py` 对业务源码查行数+参数个数、对 `tests/` 与 `scripts/` 只查行数。两者均已接入 CI。`App.css` 只负责按顺序导入 `styles/app/*.css`，后面的文件允许有意覆盖前面的选择器，拆分或重排时必须保持级联顺序并运行生产构建。超限时按主题拆文件，不允许删空行、压缩代码或豁免存量文件绕过。
 - **批量调 LLM / 文生图很贵**：默认一次 ≤5 个；先 `--dry-run` 验证文案，再花生图钱。详见 `docs/design/场景练习/scenario-taxonomy.md`。
-- **文档随代码一起改**：`docs/业务/*.md` 记录**当前已实现**行为（一个模块一篇），任何对外行为变更必须在同一次 PR 里同步更新对应业务文档（没有就新建一篇）+ 在 `docs/changelog/` 追加本次修改的 markdown 文件（每次修改一个文件）；数据模型变更同步 `docs/design/schema.md`。设计稿（`docs/design/`）落地后回写进展。changelog 内容按大小拿捏：小改动几行写清楚，大功能自然补背景/权衡/验证，不套固定模板（见 `docs/changelog/README.md`）。文档地图见 `docs/README.md`。
+- **文档随代码一起改**：需求先写入 `docs/requirements/`，记录问题、权衡、验收和进度；`docs/design/` 只保存已确定的当前设计；`docs/业务/*.md` 记录线上当前行为。完成改动时同步业务/设计事实，并在 `docs/changelog/` 追加一份已完成记录。数据模型变更同步 `docs/design/schema.md`。文档地图见 `docs/README.md`。
 
 ## 新增服务 / 路由时的 checklist
 
@@ -56,17 +56,18 @@ git checkout master && git pull
 - [ ] `docs/业务/*.md` 同步更新（行为变更必选；新模块新建一篇）
 - [ ] `docs/design/schema.md` 同步更新（如有新集合或字段变更）
 - [ ] `docs/design/storage.md` 同步更新（如有新 OSS 路径）
-- [ ] `docs/changelog/<YYYYMMDD-HHMMSS>-<名字>.md` 追加本次修改记录（只增不改）
+- [ ] 有新需求时更新 `docs/requirements/<YYYYMMDD>-<主题>.md` 的 checklist/进度
+- [ ] `docs/changelog/<YYYYMMDD-HHMMSS>-<feat|fix|chore>-<名字>.md` 追加本次完成记录（只增不改）
 - [ ] 对应 `.test.jsx` 覆盖新增页面 / 组件的 happy path 及关键交互（前端改动必选）
 - [ ] `pnpm test` 全绿，`pnpm test:coverage` 门槛通过（前端改动必选）
 - [ ] `pnpm run build` 通过（如有前端改动）
 
 ## CHANGELOG 格式
 
-**每次修改一个 markdown 文件**，平铺在 `docs/changelog/`，命名 `<YYYYMMDD-HHMMSS>-<名字>.md`——时间为**北京时间 UTC+8**，秒从 git 提交时间取（`TZ='Asia/Shanghai' git show -s --format=%cd --date=format-local:'%Y%m%d-%H%M%S'`）。内容按大小拿捏：小改动几行写清楚；大功能自然补背景/权衡/验证，不套固定模板。只增不改。索引见 `docs/changelog/README.md`。
+**每次完成修改一个 markdown 文件**，平铺在 `docs/changelog/`。新文件命名 `<YYYYMMDD-HHMMSS>-<type>-<名字>.md`，`type` 只用 `feat`（新增用户能力）、`fix`（修正错误行为）、`chore`（工程/文档/运维整理）。时间为**北京时间 UTC+8**，秒从 git 提交时间取（`TZ='Asia/Shanghai' git show -s --format=%cd --date=format-local:'%Y%m%d-%H%M%S'`）。旧文件不批量改名；新约定向后生效。内容只记录已经完成的事实，问题/权衡/进度留在 `requirements/`。只增不改，索引见 `docs/changelog/README.md`。
 
 ```markdown
-<!-- 文件名：20260619-160312-cost-guard-加严.md -->
+<!-- 文件名：20260619-160312-chore-cost-guard-加严.md -->
 # test：测试 cost-guard 加严
 
 - 时间：2026-06-19 16:03:12（北京）

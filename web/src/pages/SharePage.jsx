@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useT } from "../i18n/useI18n.js";
 import SessionView from "../components/SessionView.jsx";
 
 export default function SharePage() {
   const { token } = useParams();
+  const [searchParams] = useSearchParams();
+  const initialAttemptId = searchParams.get("attempt") || "";
   const t = useT();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,9 +38,9 @@ export default function SharePage() {
     <div className="share-page fade-in">
       <div className="share-brand">{t("share.brand")}</div>
       <SessionView
+        initialAttemptId={initialAttemptId}
         session={session}
         readOnly
-        shareToken={token}
         subtitle={owner ? t("share.sharedBy", { owner }) : null}
       />
     </div>

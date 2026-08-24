@@ -104,6 +104,23 @@ describe("FeedbackBar", () => {
     expect(screen.getByText("很有帮助，但希望多给例句")).toBeInTheDocument();
   });
 
+  it("submits multiple selected images with the linked practice attempt", async () => {
+    const { api } = await import("../../api/client.js");
+    const { container } = setup();
+    await openFeedback();
+    const files = [
+      new File(["layout"], "layout.png", { type: "image/png" }),
+      new File(["player"], "player.jpg", { type: "image/jpeg" }),
+    ];
+    await userEvent.upload(container.querySelector('input[type="file"]'), files);
+    await userEvent.click(screen.getByLabelText("Helpful"));
+
+    await waitFor(() => expect(api.submitFeedback).toHaveBeenCalledWith(
+      expect.objectContaining({ practiceId: "sess_abc", attemptIndex: 0 }),
+      files,
+    ));
+  });
+
   it("expands reason tags on thumbs-down and submits bad with selected tags", async () => {
     const { api } = await import("../../api/client.js");
     setup();

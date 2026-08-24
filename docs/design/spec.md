@@ -350,24 +350,25 @@ users:
     id, originalKey, thumbnailKey, contentType,
     originalSize, thumbnailSize, createdAt
 
-practiceSessions:       // 一次场景练习或自由练习
-  _id, userId, topic, imageUrl, attempts[], createdAt
+practiceSessions:       // 一次场景练习或自由练习；不再嵌入 Attempts
+  _id, userId, topic, imageKey?, attemptSeq, createdAt
 
-  attempts:
-    transcript, score, gaps[], standardAnswer,
-    recording?, speechAssets[], pronunciation?, createdAt
+practiceAttempts:       // 一次独立尝试，稳定 pa_ ID
+  _id, practiceId, userId, round, status,
+  transcript, score, summary, gaps[], standardAnswer, standardAnswerNotes[],
+  recording?, speechAssets[], chat[], createdAt
 
   recording:
     id, key, format, contentType, sizeBytes, createdAt
 
-mistakes:               // V1.1 新增，从 attempts 自动提取
-  _id, userId, sessionId, attemptIndex,
+reviewItems:            // 从 Attempt 的 gaps 自动提取，也支持手动选中笔记
+  _id, userId, practiceId, attemptId,
   original, corrected, reason, grammarPoint,
   imageUrl,             // 用于"原图重练"
   reviewCount, easiness, interval, nextReviewAt,
   mastered, createdAt
 
-vocabulary:             // 生词（独立于 mistakes）
+vocabulary:             // 生词（独立于 reviewItems）
   _id, userId, word, chinese, contextSentence,
   reviewCount, easiness, interval, nextReviewAt
 ```

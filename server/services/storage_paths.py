@@ -8,6 +8,7 @@ from datetime import datetime
 
 
 _AUDIO_EXTENSIONS = {"m4a", "mp3", "ogg", "wav", "webm"}
+_FEEDBACK_IMAGE_EXTENSIONS = {"gif", "heic", "heif", "jpg", "png", "webp"}
 _SPEECH_PURPOSES = {
     "correction",
     "example",
@@ -23,7 +24,7 @@ class PracticeAssetContext:
     user_id: str
     created_at: datetime | str
     practice_id: str
-    attempt_index: int
+    attempt_id: str
 
 
 def _month(created_at: datetime | str) -> str:
@@ -52,12 +53,11 @@ def recording_original_key(
     recording_id: str,
     extension: str,
 ) -> str:
-    if context.attempt_index < 0:
-        raise ValueError("attempt_index must be non-negative")
+    if not context.attempt_id.startswith("pa_"):
+        raise ValueError("attempt_id must be a practice Attempt id")
     prefix = practice_prefix(context.user_id, context.created_at, context.practice_id)
     ext = _audio_extension(extension)
-    attempt_number = context.attempt_index + 1
-    return f"{prefix}/attempts/{attempt_number}/recordings/{recording_id}/original.{ext}"
+    return f"{prefix}/attempts/{context.attempt_id}/recordings/{recording_id}/original.{ext}"
 
 
 def speech_key(
@@ -66,17 +66,29 @@ def speech_key(
     audio_id: str,
     extension: str,
 ) -> str:
-    if context.attempt_index < 0:
-        raise ValueError("attempt_index must be non-negative")
+    if not context.attempt_id.startswith("pa_"):
+        raise ValueError("attempt_id must be a practice Attempt id")
     if purpose not in _SPEECH_PURPOSES:
         raise ValueError(f"unsupported speech purpose: {purpose}")
     prefix = practice_prefix(context.user_id, context.created_at, context.practice_id)
     ext = _audio_extension(extension)
-    attempt_number = context.attempt_index + 1
-    return f"{prefix}/attempts/{attempt_number}/speech/{purpose}/{audio_id}.{ext}"
+    return f"{prefix}/attempts/{context.attempt_id}/speech/{purpose}/{audio_id}.{ext}"
 
 
 def avatar_key(user_id: str, avatar_id: str, variant: str) -> str:
     if variant not in {"original", "thumbnail"}:
         raise ValueError(f"unsupported avatar variant: {variant}")
     return f"users/{user_id}/profile/avatar/{avatar_id}/{variant}.jpg"
+
+
+def feedback_image_key(
+    user_id: str,
+    created_at: datetime | str,
+    feedback_id: str,
+    image_id: str,
+    extension: str,
+) -> str:
+    ext = extension.lower().lstrip(".")
+    if ext not in _FEEDBACK_IMAGE_EXTENSIONS:
+        raise ValueError(f"unsupported feedback image extension: {extension}")
+    return f"feedbacks/{user_id}/{_month(created_at)}/{feedback_id}/images/{image_id}/original.{ext}"

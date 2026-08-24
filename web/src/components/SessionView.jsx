@@ -6,7 +6,6 @@ import PracticeScenarioCard from "./practice/PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./practice/PracticeFreeCard.jsx";
 import FeedbackGapList from "./practice/FeedbackGapList.jsx";
 import SelectableNoteText from "./practice/SelectableNoteText.jsx";
-import PronunciationFeedback from "./practice/PronunciationFeedback.jsx";
 import ResultFooterActions from "./practice/ResultFooterActions.jsx";
 import StandardAnswerCard from "./practice/StandardAnswerCard.jsx";
 import { formatDateTime } from "../lib/formatDateTime.js";
@@ -37,6 +36,7 @@ export default function SessionView({
   readOnly = false,
   subtitle = null,
   headerAction = null,
+  initialAttemptId = "",
   chat = [],
   chatInput = "",
   setChatInput = () => {},
@@ -44,10 +44,12 @@ export default function SessionView({
   chatBusy = false,
   noteUserId = "",
   onShare = null,
+  onCloseShareLink = null,
+  onCopyShareLink = null,
   onUnshare = null,
   shareBusy = false,
+  shareLink = "",
   shareStatus = "",
-  shareToken = "",
 }) {
   const t = useT();
   const practiceId = session?._id;
@@ -58,8 +60,15 @@ export default function SessionView({
   const showHeaderImage = Boolean(session?.imageUrl && !showAttemptVideo && rawAttempts.length > 0);
   const scenario = session?.scenario || session;
 
-  // 默认选中最新一轮
-  const [sel, setSel] = useState(Math.max(0, rawAttempts.length - 1));
+  // 带 attempt 参数的分享链接精确打开对应轮次；旧链接仍默认最新一轮。
+  const [sel, setSel] = useState(() => {
+    const requested = initialAttemptId
+      ? rawAttempts.findIndex(
+        (item) => (item?.attemptId || item?._id || "") === initialAttemptId,
+      )
+      : -1;
+    return requested >= 0 ? requested : Math.max(0, rawAttempts.length - 1);
+  });
   const idx = Math.min(sel, rawAttempts.length - 1);
   const attempt = rawAttempts[idx];
   const legacyRecording = recordings.find((item) => item.attemptIndex === idx) || recordings[idx];
@@ -146,6 +155,7 @@ export default function SessionView({
             {attempt.summary && <p className="fb-summary-line">{attempt.summary}</p>}
 
             <SelectableNoteText
+              attemptId={attempt?.attemptId || attempt?._id || ""}
               attemptIndex={idx}
               practiceId={practiceId}
               userId={readOnly ? "" : noteUserId}
@@ -157,6 +167,7 @@ export default function SessionView({
                     <span className="result-section-meta">{t("practice.suggestionCount", { n: attempt.gaps.length })}</span>
                   </div>
                   <FeedbackGapList
+                    attemptId={attempt?.attemptId || attempt?._id || ""}
                     attemptIndex={idx}
                     canSpeak={canSpeak}
                     gaps={attempt.gaps}
@@ -166,19 +177,12 @@ export default function SessionView({
                 </section>
               )}
 
-              <PronunciationFeedback
-                attemptIndex={idx}
-                canSpeak={canSpeak}
-                practiceId={practiceId}
-                pronunciation={attempt.pronunciation}
-                shareToken={shareToken}
-                t={t}
-              />
-
               <StandardAnswerCard
                 answer={attempt.standardAnswer}
+                attemptId={attempt?.attemptId || attempt?._id || ""}
                 attemptIndex={idx}
                 canSpeak={canSpeak}
+                notes={attempt.standardAnswerNotes}
                 practiceId={practiceId}
                 t={t}
               />
@@ -220,14 +224,18 @@ export default function SessionView({
             {!readOnly && (
               <ResultFooterActions
                 key={idx}
+                attemptId={attempt?.attemptId || attempt?._id || ""}
                 attemptIndex={idx}
                 onShare={onShare}
+                onCloseShareLink={onCloseShareLink}
+                onCopyShareLink={onCopyShareLink}
                 onUnshare={onUnshare}
                 practiceId={practiceId}
                 shareAriaLabel={t("practice.shareResult")}
                 shareBusy={shareBusy}
                 shareBusyLabel={t("practice.sharingResult")}
                 shareLabel={t("session.share")}
+                shareLink={shareLink}
                 shareStatus={shareStatus}
                 snapshot={{
                   score: attempt.score,

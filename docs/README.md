@@ -7,8 +7,9 @@
 ```
 docs/
 ├── README.md            # 本文件：导航 + 代码架构
-├── changelog/           # 每次修改一个 markdown 文件（<YYYYMMDD-HHMMSS>-<名字>.md，只增不改，见 changelog/README.md）
-├── 业务/                # 当前已实现行为的分模块文档（含结果页与发音评测）
+├── requirements/        # 需求问题、权衡、验收、进度与交接记录
+├── changelog/           # 已完成变更（<时间>-<feat|fix|chore>-<名字>.md，只增不改）
+├── 业务/                # 当前已实现行为的分模块文档（含结果页；发音评测当前已撤下）
 ├── design/              # 数据模型 + 设计稿
 │   ├── schema.md / ids.md / storage.md / spec.md   # 跨模块基础
 │   ├── 场景练习/        # 场景模式/分类/混合练习/题目评测
@@ -26,12 +27,13 @@ docs/
 
 | 位置 | 内容 | 维护约定 |
 |------|------|---------|
+| `docs/requirements/*.md` | **待办/实施中需求**的问题、目标、方案权衡、checklist、验收与进度 | 接到需求先记录；完成后同步 design/业务/changelog 并更新状态 |
 | `docs/业务/*.md` | **当前已实现**行为的分模块文档（错题本与复习、用户反馈、自由录入、历史与分享、主题设置、账户资料） | 每次行为变更必须同步更新 |
 | `docs/design/schema.md` | MongoDB 集合字段（数据模型事实源） | 字段变更必须同步 |
-| `docs/design/*.md` | 跨模块基础（schema/ids/storage/spec） | 落地后回写进展 |
+| `docs/design/*.md` | 已确定的当前数据结构、架构与交互设计（schema/ids/storage/spec） | 设计变化时同步，不记录实施进度 |
 | `docs/design/场景练习/*.md` | 场景模式总览 / 公共题分类 / 混合练习 / 题目评测 | 场景链路变化时同步 |
 | `docs/评测/*.md` | 评测方法、模型横评基线、发音纠正选型调研 | 跑完横评/调研后回写 |
-| `docs/changelog/*.md` | 每次修改一个文件（北京时间秒级命名；小改动几行、大功能补背景/权衡/验证，只增不改） | 每次改动必须追加 |
+| `docs/changelog/*.md` | 已完成变更的时间线；新文件按 feat/fix/chore 分类命名，只增不改 | 每次完成改动必须追加 |
 | `docs/原型设计/` | UI 设计稿画布原型（SpeakUp.html） | — |
 | `docs/脚本说明.md` | scripts/ 与 server/scripts/ 各脚本用途 | 脚本增删时同步 |
 | `docs/deploy.md` | 部署指南（架构 / 首次部署 / 回滚 / 运维命令） | 部署形态变化时同步 |
@@ -82,8 +84,8 @@ graph TB
 | `/api/scenarios/next` | GET | 派题：定制题 > 未练公共题 > 轮换 | MongoDB + OSS 签名 |
 | `/api/scenarios/practice-word` | POST | 「用这个词练一题」即时出定制场景题 | 文本模型 + 文生图 |
 | `/api/practice-sessions` | GET/POST | 创建会话（存场景快照）/ 历史列表；`/{pid}` 读单条 | MongoDB |
-| `/api/practice-sessions/{pid}/recording` | POST | 上传录音，关联本轮 attempt，并告知发音评测是否启用 | OSS |
-| `/api/practice-sessions/{pid}/attempts/{n}/pronunciation` | POST | 对已关联录音做口语发音评测；已有完成结果幂等返回 | 腾讯智聆 + OSS + MongoDB |
+| `/api/practice-sessions/{pid}/recording` | POST | 上传完整原声，按 `attemptId` 关联本轮 Attempt | OSS |
+| `/api/practice-sessions/{pid}/attempts/{attemptId}/pronunciation...` | GET/POST | 已撤下，统一返回 `410 Gone`，不会调用供应商 | — |
 | `/api/practice-sessions/{pid}/share` | POST/DELETE | 开启/取消分享（token 幂等复用） | MongoDB |
 | `/api/share/{token}` | GET | 公开读取已分享的练习结果（无鉴权） | MongoDB + OSS 签名 |
 | `/api/correct` `/api/correct/stream` | POST | AI 评估（流式 SSE），错点自动进错题本 | 文本模型 + MongoDB |
@@ -116,13 +118,10 @@ sequenceDiagram
         S->>Q: 只含题目白名单快照
         Q-->>S: standardAnswer
     end
-    S-->>W: SSE 流式返回，错点入 reviewItems（错题本）
+    S-->>W: SSE 先返回 attemptId，页面立即进入结果态
+    S-->>W: 流式返回文字，完成后错点入 reviewItems（错题本）
     U->>W: 可选中结果文字手动加入笔记
     W->>S: 录音传 OSS（结果页内异步）
-    opt 发音评测已配置
-        W->>S: POST /attempts/{n}/pronunciation
-        S-->>W: 最多 3 个低分词的音素/重音/时间戳
-    end
     S->>S: 后台：弱点表达反向生成定制题
     U->>W: 再说一遍（不封顶）或下一个场景
 ```

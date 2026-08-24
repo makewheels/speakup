@@ -8,12 +8,12 @@ const BROWSER_TTS = Symbol("browser-tts");
 let current = null; // 当前播放的 Audio，切歌/停止时停掉
 let backendUnavailable = false;
 
-const _key = (text, practiceId, attemptIndex, purpose) => (
-  `${practiceId || ""}:${attemptIndex}:${purpose}:${(text || "").trim()}`
+const _key = (text, practiceId, attemptRef, purpose) => (
+  `${practiceId || ""}:${attemptRef}:${purpose}:${(text || "").trim()}`
 );
 
-export function isCached(text, practiceId, attemptIndex = -1, purpose = "other") {
-  return backendUnavailable || urlCache.has(_key(text, practiceId, attemptIndex, purpose));
+export function isCached(text, practiceId, attemptRef = -1, purpose = "other") {
+  return backendUnavailable || urlCache.has(_key(text, practiceId, attemptRef, purpose));
 }
 
 function browserSpeak(text) {
@@ -59,11 +59,11 @@ export function stop() {
 // 播放并返回 Audio 实例：调用方可监听 ended / pause 来同步「正在播放」状态。
 // 关键：合成（api.tts）阶段是「generating」，拿到 URL 即返回；不 await audio.play()，
 // 否则浏览器缓冲卡住会让调用方的 loading 态一直转圈（曾经的「一直在生成」bug）。
-export async function speak(text, practiceId, attemptIndex = -1, purpose = "other") {
+export async function speak(text, practiceId, attemptRef = -1, purpose = "other") {
   text = (text || "").trim();
   if (!text) return null;
   stop();
-  const k = _key(text, practiceId, attemptIndex, purpose);
+  const k = _key(text, practiceId, attemptRef, purpose);
   let url = urlCache.get(k);
   if (url === BROWSER_TTS || (!url && backendUnavailable)) {
     const playback = browserSpeak(text);
@@ -74,7 +74,7 @@ export async function speak(text, practiceId, attemptIndex = -1, purpose = "othe
     // 合成加 30s 超时兜底，网络挂死也不会让按钮永远 loading
     try {
       url = await Promise.race([
-        api.tts(text, practiceId, attemptIndex, purpose),
+        api.tts(text, practiceId, attemptRef, purpose),
         new Promise((_, rej) => setTimeout(() => rej(new Error("TTS timeout")), 30000)),
       ]);
       urlCache.set(k, url);

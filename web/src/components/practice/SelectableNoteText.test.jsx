@@ -42,6 +42,7 @@ describe("SelectableNoteText", () => {
     const { api } = await import("../../api/client.js");
     await waitFor(() => expect(api.addReviewItems).toHaveBeenCalledWith("user_1", [{
       kind: "note",
+      attemptId: "",
       attemptIndex: -1,
       expression: "would like",
       original: "",
@@ -63,5 +64,42 @@ describe("SelectableNoteText", () => {
 
     fireEvent.mouseUp(screen.getByText("Public answer"));
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
+  });
+
+  it("anchors the toolbar to a touch selection and preserves it while the button is pressed", async () => {
+    render(
+      <SelectableNoteText practiceId="practice_1" userId="user_1">
+        <p data-note-context="A sharp pain after eating.">A sharp pain after eating.</p>
+      </SelectableNoteText>,
+    );
+    const paragraph = screen.getByText("A sharp pain after eating.");
+    let liveSelection = {
+      anchorNode: paragraph.firstChild,
+      focusNode: paragraph.firstChild,
+      isCollapsed: false,
+      rangeCount: 1,
+      getRangeAt: () => ({
+        getClientRects: () => [{ left: 42, top: 120, bottom: 142, width: 80, height: 22 }],
+      }),
+      removeAllRanges: vi.fn(),
+      toString: () => "sharp pain",
+    };
+    vi.spyOn(window, "getSelection").mockImplementation(() => liveSelection);
+
+    fireEvent.touchEnd(paragraph);
+    const toolbar = await screen.findByRole("toolbar");
+    expect(toolbar).toHaveClass("is-anchored");
+    expect(toolbar.style.getPropertyValue("--note-selection-left")).toBe("82px");
+
+    const button = screen.getByRole("button", { name: /Add to Notes/i });
+    fireEvent.pointerDown(button);
+    liveSelection = null;
+    document.dispatchEvent(new Event("selectionchange"));
+    await userEvent.click(button);
+
+    const { api } = await import("../../api/client.js");
+    await waitFor(() => expect(api.addReviewItems).toHaveBeenCalledWith("user_1", [
+      expect.objectContaining({ expression: "sharp pain", contextSentence: "A sharp pain after eating." }),
+    ]));
   });
 });

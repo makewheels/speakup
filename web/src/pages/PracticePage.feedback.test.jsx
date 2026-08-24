@@ -69,6 +69,8 @@ describe("PracticePage feedback", () => {
       ...SESSION,
       attempts: [
         {
+          _id: "pa_test_1",
+          attemptId: "pa_test_1",
           round: 1,
           transcript: "Can you redo my latte",
           summary: "整体不错，请求可以更自然",
@@ -85,12 +87,14 @@ describe("PracticePage feedback", () => {
     expect(screen.getByText("I'm in a bit of a rush.")).toBeInTheDocument();
   });
 
-  it("结果页只在首帧滚到顶部，并把固定高度的雅思分数放在最前面", async () => {
+  it("结果页只在首帧滚到顶部，并按题目在前、分数在后的稳定顺序展示", async () => {
     const { api } = await import("../api/client.js");
     api.getPractice.mockResolvedValue({
       ...SESSION,
       attempts: [
         {
+          _id: "pa_test_1",
+          attemptId: "pa_test_1",
           round: 1,
           transcript: "Can you redo my latte",
           summary: "整体不错",
@@ -113,8 +117,8 @@ describe("PracticePage feedback", () => {
       expect(anchor).toBeTruthy();
       expect(scenarioCard).toBeTruthy();
       expect(anchor.querySelector(".fb-score")).toBeTruthy();
-      expect(resultPage.firstElementChild).toBe(anchor);
-      expect(anchor.compareDocumentPosition(scenarioCard) & Node.DOCUMENT_POSITION_FOLLOWING)
+      expect(resultPage.firstElementChild).not.toBe(anchor);
+      expect(scenarioCard.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING)
         .toBeTruthy();
       expect(scrollSpy).toHaveBeenCalledTimes(1);
     } finally {
@@ -163,9 +167,11 @@ describe("PracticePage feedback", () => {
 
   it("evaluates and renders score, broader gap pairs, and the independent answer", async () => {
     const { api, correctStream } = await import("../api/client.js");
-    correctStream.mockImplementation((data, { onChunk, onDone }) => {
+    correctStream.mockImplementation((data, { onStarted, onChunk, onDone }) => {
+      onStarted({ attemptId: "pa_test_1", round: 1 });
       onChunk("partial ");
       onDone({
+        attemptId: "pa_test_1",
         result: {
           summary: "good",
           standardAnswer: "Hi, my latte came out wrong — could you remake it? I'm in a bit of a rush.",

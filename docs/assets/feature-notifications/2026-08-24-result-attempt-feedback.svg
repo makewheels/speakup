@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">SpeakUp 结果页与独立 Attempt 更新</title>
+  <desc id="desc">题目、分数、表达建议、标准答案以及反馈分享按钮的结果页结构示意</desc>
+  <rect width="1200" height="760" rx="36" fill="#f4f7fb"/>
+  <text x="72" y="78" fill="#17233c" font-family="Arial, sans-serif" font-size="34" font-weight="700">SpeakUp · 本次结果页更新</text>
+  <text x="72" y="116" fill="#60708c" font-family="Arial, sans-serif" font-size="19">每次作答都有独立 Attempt；页面先展示题目，再展示分数与反馈。</text>
+
+  <rect x="72" y="154" width="680" height="532" rx="28" fill="#ffffff" stroke="#dce4f0" stroke-width="2"/>
+  <rect x="104" y="184" width="616" height="86" rx="18" fill="#eef5ff"/>
+  <text x="130" y="219" fill="#41658f" font-family="Arial, sans-serif" font-size="16" font-weight="700">题目 · 咖啡店沟通</text>
+  <text x="130" y="248" fill="#17233c" font-family="Arial, sans-serif" font-size="19">礼貌说明饮品做错了，并请店员重做。</text>
+
+  <rect x="104" y="290" width="616" height="76" rx="18" fill="#17233c"/>
+  <text x="132" y="338" fill="#ffffff" font-family="Arial, sans-serif" font-size="33" font-weight="700">7.0</text>
+  <text x="198" y="338" fill="#b9c6d9" font-family="Arial, sans-serif" font-size="17">/ 9.0 · IELTS band · Attempt 2</text>
+
+  <text x="104" y="414" fill="#17233c" font-family="Arial, sans-serif" font-size="23" font-weight="700">表达建议</text>
+  <rect x="104" y="434" width="616" height="104" rx="16" fill="#fff8ef" stroke="#f1d6af"/>
+  <text x="128" y="469" fill="#9a6232" font-family="Arial, sans-serif" font-size="14" font-weight="700">你说的</text>
+  <text x="214" y="469" fill="#17233c" font-family="Arial, sans-serif" font-size="17">Can you remake it?</text>
+  <text x="128" y="508" fill="#16705c" font-family="Arial, sans-serif" font-size="14" font-weight="700">这样说</text>
+  <text x="214" y="508" fill="#17233c" font-family="Arial, sans-serif" font-size="17">Could you remake it for me? I’m in a bit of a rush.</text>
+
+  <text x="104" y="584" fill="#17233c" font-family="Arial, sans-serif" font-size="23" font-weight="700">标准答案</text>
+  <text x="104" y="618" fill="#52627c" font-family="Arial, sans-serif" font-size="17">默认展开 · 重点表达讲解 · 播放不会折叠</text>
+  <rect x="104" y="642" width="174" height="32" rx="16" fill="#e9f7f2"/>
+  <text x="123" y="664" fill="#16705c" font-family="Arial, sans-serif" font-size="14">in a bit of a rush</text>
+
+  <rect x="792" y="154" width="336" height="532" rx="28" fill="#ffffff" stroke="#dce4f0" stroke-width="2"/>
+  <text x="830" y="207" fill="#17233c" font-family="Arial, sans-serif" font-size="24" font-weight="700">这次一起完成</text>
+  <circle cx="842" cy="257" r="8" fill="#3d78d8"/>
+  <text x="866" y="264" fill="#34445f" font-family="Arial, sans-serif" font-size="17">稳定的 pa_ Attempt ID</text>
+  <circle cx="842" cy="306" r="8" fill="#3d78d8"/>
+  <text x="866" y="313" fill="#34445f" font-family="Arial, sans-serif" font-size="17">结果渐进生成不跳页</text>
+  <circle cx="842" cy="355" r="8" fill="#3d78d8"/>
+  <text x="866" y="362" fill="#34445f" font-family="Arial, sans-serif" font-size="17">移动端选中文字加笔记</text>
+  <circle cx="842" cy="404" r="8" fill="#3d78d8"/>
+  <text x="866" y="411" fill="#34445f" font-family="Arial, sans-serif" font-size="17">反馈支持多张原图</text>
+  <circle cx="842" cy="453" r="8" fill="#3d78d8"/>
+  <text x="866" y="460" fill="#34445f" font-family="Arial, sans-serif" font-size="17">分享精确打开本次结果</text>
+  <circle cx="842" cy="502" r="8" fill="#3d78d8"/>
+  <text x="866" y="509" fill="#34445f" font-family="Arial, sans-serif" font-size="17">错误发音模块已撤下</text>
+
+  <rect x="824" y="574" width="128" height="52" rx="16" fill="#6b4ce6"/>
+  <text x="854" y="607" fill="#ffffff" font-family="Arial, sans-serif" font-size="17" font-weight="700">反馈</text>
+  <rect x="968" y="574" width="128" height="52" rx="16" fill="#16705c"/>
+  <text x="998" y="607" fill="#ffffff" font-family="Arial, sans-serif" font-size="17" font-weight="700">分享</text>
+</svg>

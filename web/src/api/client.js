@@ -58,22 +58,12 @@ async function request(path, options = {}) {
   }
 }
 
-async function requestBlob(path) {
-  const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    clearStoredUserOnUnauthorized(res.status);
-    throw new Error(err.detail || err.error || "Request failed");
-  }
-  return res.blob();
-}
-
 /**
  * 流式 AI 评估。使用 SSE（fetch + ReadableStream）。
- * handlers: { onChunk(text), onDone({result, autoSaved}), onError(err) }
+ * handlers: { onStarted({attemptId, round}), onChunk(text), onDone({result, attemptId, autoSaved}), onError(err) }
  * 返回 AbortController，调用方可 .abort() 取消。
  */
-export function correctStream(data, { onChunk, onDone, onError } = {}) {
+export function correctStream(data, { onStarted, onChunk, onDone, onError } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 120_000);
 
@@ -105,8 +95,14 @@ export function correctStream(data, { onChunk, onDone, onError } = {}) {
           if (!part.startsWith("data: ")) continue;
           try {
             const event = JSON.parse(part.slice(6));
-            if (event.type === "chunk") onChunk?.(event.text);
-            else if (event.type === "done") onDone?.({ result: event.result, autoSaved: event.autoSaved, round: event.round });
+            if (event.type === "started") onStarted?.({ attemptId: event.attemptId, round: event.round });
+            else if (event.type === "chunk") onChunk?.(event.text);
+            else if (event.type === "done") onDone?.({
+              result: event.result,
+              attemptId: event.attemptId,
+              autoSaved: event.autoSaved,
+              round: event.round,
+            });
             else if (event.type === "error") onError?.(new Error(event.message));
           } catch {
             // 忽略不完整或非 JSON 的 SSE 片段，等待下一帧继续解析。
@@ -227,15 +223,21 @@ export const api = {
 
   correct: (data) => request("/correct", { method: "POST", body: data }),
 
-  tts: (text, practiceId, attemptIndex = -1, purpose = "other") => request("/tts", {
+  tts: (text, practiceId, attemptRef = -1, purpose = "other") => request("/tts", {
     method: "POST",
-    body: { text, practiceId, attemptIndex, purpose },
+    body: {
+      text,
+      practiceId,
+      ...(typeof attemptRef === "string" ? { attemptId: attemptRef } : { attemptIndex: attemptRef }),
+      purpose,
+    },
   }).then((r) => r.url),
 
-  uploadRecording: (practiceId, userId, blob, attemptIndex = -1) => {
+  uploadRecording: (practiceId, userId, blob, attemptRef = -1) => {
     const form = new FormData();
     form.append("userId", userId);
-    form.append("attemptIndex", attemptIndex);
+    if (typeof attemptRef === "string") form.append("attemptId", attemptRef);
+    else form.append("attemptIndex", attemptRef);
     const extension = {
       "audio/mp4": "m4a",
       "audio/mpeg": "mp3",
@@ -254,24 +256,6 @@ export const api = {
       return r.ok ? r.json() : Promise.reject(new Error("录音上传失败"));
     });
   },
-
-  evaluatePronunciation: (practiceId, attemptIndex) =>
-    request(`/practice-sessions/${practiceId}/attempts/${attemptIndex}/pronunciation`, {
-      method: "POST",
-      timeout: 90_000,
-    }),
-  getPronunciationClip: (practiceId, attemptIndex, issueIndex) =>
-    requestBlob(
-      `/practice-sessions/${practiceId}/attempts/${attemptIndex}/pronunciation/issues/${issueIndex}/audio`,
-    ),
-  getSharedPronunciationClip: (shareToken, attemptIndex, issueIndex) =>
-    fetch(
-      `${BASE}/share/${shareToken}/attempts/${attemptIndex}/pronunciation/issues/${issueIndex}/audio`,
-    ).then(async (res) => {
-      if (res.ok) return res.blob();
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || err.error || "Request failed");
-    }),
 
   // 全平台统一：录音上传 → 后端火山 openspeech ASR 返文本
   transcribeAudio: (userId, blob, practiceId) => {
@@ -328,10 +312,26 @@ export const api = {
     request(`/review-items/${id}?userId=${userId}`, { method: "DELETE" }),
 
   // 用户反馈（结果页对 AI 反馈评价 / 全局建议）
-  submitFeedback: (data) => request("/feedbacks", { method: "POST", body: data }),
+  submitFeedback: (data, images = []) => {
+    if (!images.length) return request("/feedbacks", { method: "POST", body: data });
+    const form = new FormData();
+    form.append("payload", JSON.stringify(data));
+    images.forEach((image) => form.append("images", image, image.name));
+    return fetch(`${BASE}/feedbacks/with-images`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: form,
+    }).then(async (response) => {
+      clearStoredUserOnUnauthorized(response.status);
+      if (response.ok) return response.json();
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || error.error || "反馈提交失败");
+    });
+  },
   listMyFeedbacks: (userId, filter = {}) => {
     let qs = `userId=${userId}`;
     if (filter.practiceId != null) qs += `&practiceId=${filter.practiceId}`;
+    if (filter.attemptId != null) qs += `&attemptId=${filter.attemptId}`;
     if (filter.attemptIndex != null) qs += `&attemptIndex=${filter.attemptIndex}`;
     return request(`/feedbacks?${qs}`);
   },

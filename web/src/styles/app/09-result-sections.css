@@ -1,4 +1,4 @@
-/* 结果页统一层级与发音评测。 */
+/* 结果页统一层级、渐进加载、标准答案与重点讲解。 */
 .fb-generating-dot {
   display: inline-block;
   width: 14px;
@@ -9,15 +9,9 @@
   border-radius: 50%;
   animation: spin .7s linear infinite;
 }
-.pron-audio-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-}
 
 .result-section { margin: 18px 0; }
-.result-section-head, .pron-heading {
+.result-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -106,65 +100,38 @@
   font-size: 17px;
   line-height: 1.6;
 }
-
-.pron-section {
-  padding: 0;
-  border: 0;
-  background: transparent;
+.standard-answer-notes {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
 }
-.pron-section.is-loading { color: var(--ink-3); }
-.pron-section.is-loading p, .pron-good { margin: 4px 0 0; font-size: 14px; }
-.pron-heading, .pron-word-row { display: flex; align-items: center; gap: 8px; }
-.pron-overall { color: var(--accent); font-family: var(--ff-en); font-weight: 750; }
-.pron-issues { display: grid; gap: 8px; margin-top: 8px; }
-.pron-issue {
-  padding: 12px 14px;
-  border: 1px solid var(--rule);
-  border-radius: 12px;
-  background: var(--bg-elev);
-}
-.pron-word-row strong { font-family: var(--ff-en); font-size: 18px; }
-.pron-score { color: var(--warn); font-family: var(--ff-en); font-size: 13px; }
-.pron-issue audio { display: none; }
-.pron-ipa {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: end;
-  gap: 10px;
-  margin-top: 10px;
-  font-family: var(--ff-en);
-}
-.pron-ipa > div { display: grid; gap: 2px; }
-.pron-ipa > div:last-child strong { color: var(--accent); }
-.pron-ipa-label {
-  color: var(--ink-3);
-  font-family: var(--ff-cn);
-  font-size: 12px;
-}
-.pron-ipa strong {
-  overflow-wrap: anywhere;
+.standard-answer-notes h3 {
+  margin: 0 0 9px;
   color: var(--ink-2);
+  font-family: var(--ff-cn);
+  font-size: 14px;
+  font-weight: 700;
+}
+.standard-answer-note {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.standard-answer-note:last-child { padding-bottom: 0; border-bottom: 0; }
+.standard-answer-note > div { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.standard-answer-note strong {
+  color: var(--accent);
+  font-family: var(--ff-en);
   font-size: 16px;
 }
-.pron-ipa-arrow {
-  padding-bottom: 1px;
-  color: var(--ink-3);
-  font-size: 13px;
-}
-.pron-listen-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--rule);
-  border-radius: 9px;
-  background: var(--bg);
+.standard-answer-note span {
   color: var(--ink-2);
-  font: 600 13px/1 var(--ff-cn);
-  cursor: pointer;
+  font-family: var(--ff-cn);
+  font-size: 14px;
 }
-.pron-listen-btn:hover,
-.pron-listen-btn.playing { border-color: var(--accent); color: var(--accent); }
-.pron-listen-btn:disabled { cursor: wait; opacity: .65; }
-.pron-issue > p { margin: 7px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.5; }
+.standard-answer-note p {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-family: var(--ff-cn);
+  font-size: 13px;
+  line-height: 1.55;
+}

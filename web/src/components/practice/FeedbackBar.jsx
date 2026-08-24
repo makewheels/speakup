@@ -3,6 +3,7 @@ import Icon from "../Icon.jsx";
 import { api } from "../../api/client.js";
 import { useT } from "../../i18n/useI18n.js";
 import { useUser } from "../../context/useUser.js";
+import FeedbackImagePicker from "../FeedbackImagePicker.jsx";
 
 const PRACTICE_TAGS = [
   "score_too_strict",
@@ -13,7 +14,7 @@ const PRACTICE_TAGS = [
   "summary_bad",
 ];
 
-export default function FeedbackBar({ practiceId, attemptIndex, snapshot, compact = false }) {
+export default function FeedbackBar({ practiceId, attemptId, attemptIndex, snapshot, compact = false }) {
   const t = useT();
   const { user } = useUser();
   const [open, setOpen] = useState(false);
@@ -22,13 +23,14 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot, compac
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [existing, setExisting] = useState(null);
+  const [images, setImages] = useState([]);
 
   useEffect(() => {
     if (!practiceId || !user?.userId) return;
     let cancelled = false;
     (async () => {
       try {
-        const list = await api.listMyFeedbacks(user.userId, { practiceId, attemptIndex });
+        const list = await api.listMyFeedbacks(user.userId, { practiceId, attemptId, attemptIndex });
         if (cancelled) return;
         if (list.length > 0) {
           const feedback = list[0];
@@ -44,7 +46,7 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot, compac
       }
     })();
     return () => { cancelled = true; };
-  }, [practiceId, attemptIndex, user?.userId]);
+  }, [practiceId, attemptId, attemptIndex, user?.userId]);
 
   if (!practiceId) return null;
 
@@ -62,12 +64,14 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot, compac
         tags: rating === "bad" ? tags : [],
         comment: comment.trim(),
         practiceId,
+        attemptId,
         attemptIndex,
         snapshot,
-      });
+      }, images);
       setExisting(response);
       setTags(response.tags || []);
       setComment(response.comment || "");
+      setImages([]);
       setStatus("submitted");
       setOpen(false);
     } catch {
@@ -113,6 +117,7 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot, compac
                 )}
                 {existing.comment && <p className="fb-existing-comment">{existing.comment}</p>}
               </div>
+              <FeedbackImagePicker disabled existingImages={existing.images || []} files={[]} />
               <button className="fb-edit-btn" onClick={() => setStatus("thumbs")} disabled={busy}>
                 {t("feedback.edit")}
               </button>
@@ -127,6 +132,12 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot, compac
                 placeholder={t("feedback.commentPh")}
                 onChange={(event) => setComment(event.target.value)}
                 disabled={busy}
+              />
+              <FeedbackImagePicker
+                disabled={busy}
+                existingImages={existing?.images || []}
+                files={images}
+                onChange={setImages}
               />
               <div className="fb-bar-thumbs">
                 <button className="fb-thumb" onClick={() => submit("good")} disabled={busy} aria-label={t("feedback.good")}>

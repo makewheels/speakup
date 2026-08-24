@@ -17,6 +17,7 @@ class ObjectInfo:
     size: int
     etag: str
     crc64: int | None
+    last_modified: int | None = None
 
 
 def _get_bucket() -> oss2.Bucket:
@@ -71,12 +72,19 @@ def object_info(key: str) -> ObjectInfo:
         size=int(result.content_length or 0),
         etag=result.etag or "",
         crc64=getattr(result, "server_crc", None),
+        last_modified=getattr(result, "last_modified", None),
     )
 
 
 def iter_objects(prefix: str) -> Iterator[ObjectInfo]:
     for item in oss2.ObjectIteratorV2(_get_bucket(), prefix=prefix):
-        yield ObjectInfo(key=item.key, size=int(item.size or 0), etag=item.etag or "", crc64=None)
+        yield ObjectInfo(
+            key=item.key,
+            size=int(item.size or 0),
+            etag=item.etag or "",
+            crc64=None,
+            last_modified=getattr(item, "last_modified", None),
+        )
 
 
 def copy_verified(source_key: str, target_key: str) -> ObjectInfo:

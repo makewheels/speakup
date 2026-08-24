@@ -70,7 +70,7 @@ jobs:
           ssh -i "$SSH_TMP_DIR/key" -o IdentitiesOnly=yes \
             -o UserKnownHostsFile="$SSH_TMP_DIR/known_hosts" -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=30 "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "docker exec speakup python scripts/migrate_storage_layout.py $migration_args"
+            "docker exec speakup python scripts/migrate_attempt_entities.py $migration_args"
 
       - name: 清理临时 SSH 文件
         if: always()
