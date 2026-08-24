@@ -13,7 +13,7 @@ const PRACTICE_TAGS = [
   "summary_bad",
 ];
 
-export default function FeedbackBar({ practiceId, attemptIndex, snapshot }) {
+export default function FeedbackBar({ practiceId, attemptIndex, snapshot, compact = false }) {
   const t = useT();
   const { user } = useUser();
   const [open, setOpen] = useState(false);
@@ -77,12 +77,14 @@ export default function FeedbackBar({ practiceId, attemptIndex, snapshot }) {
     }
   };
 
-  const triggerLabel = status === "submitted"
-    ? t("feedback.reviewPractice")
-    : open ? t("feedback.closePractice") : t("feedback.openPractice");
+  const triggerLabel = compact
+    ? t(status === "submitted" ? "feedback.reviewPracticeShort" : "feedback.openPracticeShort")
+    : status === "submitted"
+      ? t("feedback.reviewPractice")
+      : open ? t("feedback.closePractice") : t("feedback.openPractice");
 
   return (
-    <section className="fb-feedback">
+    <section className={`fb-feedback${compact ? " is-footer-action" : ""}`}>
       <button
         className="fb-feedback-trigger"
         type="button"

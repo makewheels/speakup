@@ -8,7 +8,10 @@ vi.mock("../SpeakBtn.jsx", () => ({
   default: ({ text }) => <button type="button" aria-label="play standard">play {text}</button>,
 }));
 
-const t = (key) => ({ "practice.standardAnswer": "标准答案" })[key] || key;
+const t = (key) => ({
+  "practice.standardAnswer": "标准答案",
+  "practice.viewStandardAnswer": "查看答案",
+})[key] || key;
 
 describe("StandardAnswerCard", () => {
   it("keeps playback outside summary so playing never collapses the answer", async () => {
@@ -17,9 +20,11 @@ describe("StandardAnswerCard", () => {
     );
     const details = container.querySelector("details");
     const play = screen.getByRole("button", { name: "play standard" });
+    const title = screen.getByRole("heading", { level: 2, name: "标准答案" });
+    expect(title.closest("summary")).toBeNull();
     expect(play.closest("summary")).toBeNull();
 
-    await userEvent.click(screen.getByText("标准答案"));
+    await userEvent.click(screen.getByText("查看答案"));
     expect(details).toHaveAttribute("open");
     await userEvent.click(play);
     expect(details).toHaveAttribute("open");

@@ -101,10 +101,12 @@ describe("PracticePage result actions", () => {
     });
 
     setup("/practice/sess_abc?result=1");
-    await waitFor(() => expect(screen.getByText("Share this result")).toBeInTheDocument());
+    const share = await screen.findByRole("button", { name: "Share this result" });
+    const feedback = screen.getByRole("button", { name: "Feedback" });
     expect(screen.queryByText("Auto-noted")).not.toBeInTheDocument();
     expect(document.querySelector(".fb-page").lastElementChild)
-      .toBe(screen.getByText("Share this result").closest(".fb-result-share-row"));
+      .toBe(share.closest(".fb-result-footer"));
+    expect(feedback.closest(".fb-result-footer")).toBe(share.closest(".fb-result-footer"));
   });
 
   it("shares directly from the result page", async () => {
@@ -125,8 +127,8 @@ describe("PracticePage result actions", () => {
     });
 
     setup("/practice/sess_abc?result=1");
-    await waitFor(() => screen.getByText("Share this result"));
-    await userEvent.click(screen.getByText("Share this result"));
+    const share = await screen.findByRole("button", { name: "Share this result" });
+    await userEvent.click(share);
 
     await waitFor(() => {
       expect(api.sharePractice).toHaveBeenCalledWith("sess_abc", USER.userId);

@@ -74,6 +74,8 @@
   border-radius: 12px;
   background: var(--bg-elev);
 }
+.result-standard > .result-section-title { margin-bottom: 10px; }
+.result-standard > .result-disclosure { margin: 0; }
 .result-disclosure-details > summary {
   display: flex;
   align-items: center;

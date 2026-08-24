@@ -54,6 +54,13 @@ describe("FeedbackBar", () => {
     expect(screen.queryByText("Was this AI feedback helpful?")).not.toBeInTheDocument();
   });
 
+  it("uses a short action label in the result footer and still expands", async () => {
+    setup({ compact: true });
+    const trigger = await screen.findByRole("button", { name: "Feedback" });
+    await userEvent.click(trigger);
+    expect(await screen.findByText("Was this AI feedback helpful?")).toBeInTheDocument();
+  });
+
   it("submits good and enters submitted state (locks thumbs)", async () => {
     const { api } = await import("../../api/client.js");
     setup();
