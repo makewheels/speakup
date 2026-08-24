@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpeakUp · 发音卡集成演示</title>
+<style>
+:root {
+  --ff-en: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --ff-cn: "PingFang SC", "Noto Sans SC", "Hiragino Sans GB", system-ui, sans-serif;
+  --ff-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bg: oklch(0.985 0.005 75); --bg-elev: #ffffff; --bg-mute: oklch(0.955 0.006 75);
+  --ink: oklch(0.20 0.012 60); --ink-2: oklch(0.42 0.010 60); --ink-3: oklch(0.62 0.008 60);
+  --rule: oklch(0.90 0.008 60);
+  --accent: oklch(0.45 0.085 245); --accent-soft: oklch(0.94 0.025 245);
+  --warn: oklch(0.52 0.135 25); --warn-soft: oklch(0.95 0.025 25);
+  --ok: oklch(0.50 0.085 155); --ok-soft: oklch(0.95 0.025 155);
+  --gap-num-bg: oklch(0.20 0.012 60); --gap-num-ink: #fff;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(0.20 0.008 60); --bg-elev: oklch(0.25 0.010 60); --bg-mute: oklch(0.28 0.011 60);
+  --ink: oklch(0.93 0.006 75); --ink-2: oklch(0.76 0.008 75); --ink-3: oklch(0.58 0.008 75);
+  --rule: oklch(0.34 0.008 60);
+  --accent: oklch(0.70 0.10 245); --accent-soft: oklch(0.30 0.05 245);
+  --warn: oklch(0.72 0.15 25); --warn-soft: oklch(0.32 0.06 25);
+  --ok: oklch(0.72 0.10 155); --ok-soft: oklch(0.30 0.05 155);
+  --gap-num-bg: oklch(0.93 0.006 75); --gap-num-ink: oklch(0.20 0.012 60);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--ff-cn); transition: background .2s; }
+.wrap { max-width: 430px; margin: 0 auto; padding: 14px 14px 48px; }
+.top { font-family: var(--ff-mono); color: var(--ink-3); font-size: 12px; text-align: center; padding: 6px 0 16px; position: relative; }
+#themeBtn { position: absolute; right: 0; top: 4px; border: 1px solid var(--rule); background: var(--bg-elev); color: var(--ink-2); border-radius: 999px; font-size: 11px; padding: 3px 10px; cursor: pointer; font-family: var(--ff-cn); }
+.topic h2 { font-size: 17px; font-weight: 700; }
+.topic .meta { color: var(--ink-3); font-size: 12px; margin: 4px 0 14px; font-family: var(--ff-mono); }
+.scorebox { text-align: center; margin: 6px 0 4px; }
+.scorebox .n { font-size: 40px; font-weight: 800; color: var(--accent); font-family: var(--ff-en); }
+.scorebox .of { font-size: 14px; color: var(--ink-3); font-family: var(--ff-en); }
+.scorebox .band { font-size: 12px; color: var(--ink-3); margin-left: 6px; }
+.fb-summary-line { font-family: var(--ff-cn); font-size: 17px; font-weight: 600; color: var(--ink); margin: 2px 0 16px; line-height: 1.6; text-align: center; }
+.fb-card-label { font-family: var(--ff-cn); font-size: 13px; color: var(--ink-2); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.fb-card-label.native { color: var(--accent); }
+.fb-card-label.standard { color: var(--ok); }
+.fb-card-label.pron { color: var(--warn); }
+.fb-transcript-card { background: transparent; border: 1.5px solid var(--rule); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.fb-native-card { background: var(--bg-elev); border: 1.5px solid var(--accent); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.fb-standard-card { background: var(--bg-elev); border: 1.5px solid var(--ok); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.fb-pron-card { background: var(--bg-elev); border: 1.5px solid var(--warn); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.fb-transcript-text, .fb-native-text { font-family: var(--ff-en); font-size: 19px; font-weight: 700; line-height: 1.6; margin: 0; text-align: justify; }
+.fb-transcript-text { color: var(--ink); }
+.fb-native-text { color: var(--accent); }
+.fb-standard-text { font-family: var(--ff-en); font-size: 19px; font-weight: 700; line-height: 1.6; color: var(--ok); margin: 0; }
+.pron-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.pron-head .s { font-size: 24px; font-weight: 800; color: var(--warn); font-family: var(--ff-en); }
+.pron-head .s small { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.pron-head .dims { font-size: 11.5px; color: var(--ink-3); }
+.pword { border-top: 1px solid var(--rule); padding: 12px 0 4px; }
+.pword:first-of-type { border-top: 0; padding-top: 0; }
+.pword .wrow { display: flex; justify-content: space-between; align-items: center; }
+.pword .w { font-family: var(--ff-en); font-size: 17px; font-weight: 800; }
+.pword .ws { font-size: 11.5px; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 2px 9px; font-weight: 700; }
+.phones { display: flex; gap: 8px; margin: 9px 0 6px; }
+.pcol { flex: 1; border-radius: 10px; padding: 7px 10px; }
+.pcol.you { background: var(--warn-soft); }
+.pcol.ref { background: var(--ok-soft); }
+.pcol .lab { font-size: 10.5px; color: var(--ink-2); margin-bottom: 2px; }
+.pcol .ipa { font-size: 15.5px; font-weight: 800; font-family: var(--ff-mono); }
+.pcol.you .ipa { color: var(--warn); }
+.pcol.ref .ipa { color: var(--ok); }
+.syl { display: inline-flex; gap: 5px; align-items: center; padding: 4px 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rule); }
+.dot.on { width: 13px; height: 13px; background: var(--ok); }
+.dot.on.bad { background: var(--warn); }
+.explain { font-size: 13px; line-height: 1.7; color: var(--ink-2); margin: 4px 0 10px; }
+.explain b { color: var(--ink); }
+.btns { display: flex; gap: 7px; padding-bottom: 8px; }
+.btn { flex: 1; border: 1.5px solid var(--rule); background: transparent; color: var(--ink-2); border-radius: 10px; padding: 8px 4px; font-size: 12px; font-family: var(--ff-cn); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.btn .t { font-family: var(--ff-mono); font-size: 10.5px; color: var(--ink-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:active { opacity: .75; }
+.playing { border-color: var(--accent); color: var(--accent); }
+.bars { display: inline-flex; gap: 2px; align-items: flex-end; height: 11px; }
+.bars i { width: 2.5px; height: 4px; background: currentColor; border-radius: 1px; }
+.playing .bars i { animation: b .7s infinite ease-in-out; }
+.playing .bars i:nth-child(2){animation-delay:.15s}.playing .bars i:nth-child(3){animation-delay:.3s}
+@keyframes b { 0%,100%{height:4px} 50%{height:11px} }
+.gap-card { background: var(--bg-elev); border: 1.5px solid var(--rule); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; display: flex; gap: 10px; }
+.gap-num { min-width: 22px; height: 22px; border-radius: 7px; background: var(--gap-num-bg); color: var(--gap-num-ink); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; font-family: var(--ff-en); }
+.gap-body .cat { font-size: 11px; color: var(--ink-3); }
+.gap-body .t { font-size: 14px; font-weight: 700; margin: 2px 0; }
+.gap-body .d { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+.foot { font-size: 11px; color: var(--ink-3); line-height: 1.7; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">SpeakUp · Speaking practice<button id="themeBtn">深色</button></div>
+
+  <div class="topic">
+    <h2>咖啡馆相亲破冰</h2>
+    <div class="meta">Attempt 1 · 2026-08-23 16:50:32</div>
+  </div>
+
+  <div class="scorebox"><span class="n">6.0</span><span class="of"> / 9.0</span><span class="band">IELTS band</span></div>
+  <p class="fb-summary-line">任务完成， 表达有中式痕迹</p>
+
+  <div class="fb-transcript-card">
+    <div class="fb-card-label">你说的</div>
+    <p class="fb-transcript-text">So how do you spend your spare time in the weekend? And I start to learn how to make meals, or may I mean cook. I know a place that have many beautiful and delicious food. And I heard that their dessert is very good. Do you want to try?</p>
+  </div>
+
+  <div class="fb-native-card">
+    <div class="fb-card-label native">纠正版</div>
+    <p class="fb-native-text">How do you spend your spare time on the weekend? I've started learning how to cook. I know a place that has beautiful and delicious food, and I heard their desserts are very good. Do you want to try?</p>
+  </div>
+
+  <div class="fb-standard-card">
+    <div class="fb-card-label standard">标准答案</div>
+    <p class="fb-standard-text">What do you usually get up to at the weekend? I've just taken up cooking, actually. There's this little café I know with amazing food, and their desserts are supposed to be incredible. Would you be up for giving it a try?</p>
+  </div>
+
+  <div class="fb-pron-card">
+    <div class="fb-card-label pron">🔊 发音 · 异步生成</div>
+    <div class="pron-head">
+      <span class="s">71.5 <small>/ 100</small></span>
+      <span class="dims">准确 69.0 · 流利 78.5 · 完整 100</span>
+    </div>
+
+    <div class="pword">
+      <div class="wrow"><span class="w">three</span><span class="ws">42 分</span></div>
+      <div class="phones">
+        <div class="pcol you"><div class="lab">你的发音</div><div class="ipa">/sriː/</div></div>
+        <div class="pcol ref"><div class="lab">正确</div><div class="ipa">/θriː/</div></div>
+      </div>
+      <div class="explain">把 <b>th</b> 发成了「s」的嘶音。舌尖轻抵上齿、气流从舌齿缝出，别用「思」开头。</div>
+      <div class="btns">
+        <button class="btn" data-clip><span class="bars"><i></i><i></i><i></i></span>你的原音 <span class="t">0:09.2</span></button>
+        <button class="btn" data-say="three">🔊 标准音</button>
+        <button class="btn primary">再练一次</button>
+      </div>
+    </div>
+
+    <div class="pword">
+      <div class="wrow"><span class="w">sailor</span><span class="ws">47 分</span></div>
+      <div class="phones">
+        <div class="pcol you"><div class="lab">你的发音</div><div class="ipa">/sɛlər/</div></div>
+        <div class="pcol ref"><div class="lab">正确</div><div class="ipa">/ˈseɪlər/</div></div>
+      </div>
+      <div class="explain">重音位置对，但第一个元音像 <b>/ɛ/</b>，听着是 <b>seller</b>；正确 /eɪ/ 嘴要咧开滑动收尾。</div>
+      <div class="btns">
+        <button class="btn" data-clip><span class="bars"><i></i><i></i><i></i></span>你的原音 <span class="t">0:15.6</span></button>
+        <button class="btn" data-say="sailor">🔊 标准音</button>
+        <button class="btn primary">再练一次</button>
+      </div>
+    </div>
+
+    <div class="pword">
+      <div class="wrow"><span class="w">comfortable</span><span class="ws">55 分</span></div>
+      <div class="phones">
+        <div class="pcol you"><div class="lab">你的重音</div><div class="syl"><span class="dot"></span><span class="dot on bad"></span><span class="dot"></span></div></div>
+        <div class="pcol ref"><div class="lab">正确重音</div><div class="syl"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div></div>
+      </div>
+      <div class="explain">重音应在<b>首音节</b>「COMF-」，你重读在了第二音节；先重后轻。</div>
+      <div class="btns">
+        <button class="btn" data-clip><span class="bars"><i></i><i></i><i></i></span>你的原音 <span class="t">0:24.3</span></button>
+        <button class="btn" data-say="comfortable">🔊 标准音</button>
+        <button class="btn primary">再练一次</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="gap-card">
+    <div class="gap-num">1</div>
+    <div class="gap-body">
+      <div class="cat">grammar · 主谓一致</div>
+      <div class="t">a place that have → has</div>
+      <div class="d">单数先行词 a place，定语从句动词用 has。</div>
+    </div>
+  </div>
+
+  <div class="foot">演示页：发音卡为 mock 数据（按腾讯云 SOE-N 文档字段），其余区块复刻 speakup 结果页真实样式与文案。真实产品里「你的原音」按引擎时间戳裁切录音回放，「标准音」走自建 TTS，解释由 LLM 拿结构化事实生成；右上角可切深色主题。</div>
+</div>
+<script>
+  const root = document.documentElement;
+  const btn = document.getElementById("themeBtn");
+  btn.addEventListener("click", () => {
+    const dark = root.getAttribute("data-theme") === "dark";
+    root.setAttribute("data-theme", dark ? "light" : "dark");
+    btn.textContent = dark ? "深色" : "浅色";
+  });
+  document.querySelectorAll("[data-say]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const u = new SpeechSynthesisUtterance(b.dataset.say);
+      u.lang = "en-US"; u.rate = 0.85;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    });
+  });
+  document.querySelectorAll("[data-clip]").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll("[data-clip]").forEach((x) => x.classList.remove("playing"));
+      b.classList.add("playing");
+      setTimeout(() => b.classList.remove("playing"), 1200);
+    });
+  });
+</script>
+</body>
+</html>
