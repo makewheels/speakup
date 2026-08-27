@@ -9,6 +9,8 @@ on:
 env:
   ACR: registry.cn-beijing.aliyuncs.com
   ACR_IMAGE: registry.cn-beijing.aliyuncs.com/b4/speakup
+  # 开源分发镜像：与 ACR 双推。生产部署只拉 ACR（北京机房快），GHCR 供外部拉取
+  GHCR_IMAGE: ghcr.io/makewheels/speakup
   SERVER_DIR: /opt/speakup
 
 jobs:
@@ -102,6 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
       id-token: write
     steps:
       - uses: actions/checkout@v5
@@ -134,6 +137,13 @@ jobs:
           printf '%s' "$ACR_AK_SECRET" | docker login \
             --username "$ACR_AK_ID" --password-stdin "$ACR" >/dev/null
 
+      - name: Login to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io \
+            --username "$GITHUB_ACTOR" --password-stdin >/dev/null
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -154,13 +164,17 @@ jobs:
           tags: |
             ${{ env.ACR_IMAGE }}:latest
             ${{ env.ACR_IMAGE }}:${{ steps.tag.outputs.value }}
+            ${{ env.GHCR_IMAGE }}:latest
+            ${{ env.GHCR_IMAGE }}:${{ steps.tag.outputs.value }}
           cache-from: type=gha,scope=speakup
           cache-to: type=gha,scope=speakup,mode=max
           provenance: false
 
       - name: 清理 Runner registry 登录
         if: always()
-        run: docker logout "$ACR" >/dev/null 2>&1 || true
+        run: |
+          docker logout "$ACR" >/dev/null 2>&1 || true
+          docker logout ghcr.io >/dev/null 2>&1 || true
 
       - name: 准备临时 SSH 文件
         run: |
