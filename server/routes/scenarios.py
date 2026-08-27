@@ -1,11 +1,14 @@
 import asyncio
 import logging
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
+from services.interaction_types import normalize_interaction_type, scenario_hints
+from services.oss_storage import get_url as oss_signed_url
 from services.scenario_service import (
     FRESH_THRESHOLD,
     fresh_scenario_count,
@@ -20,6 +23,36 @@ from utils.mongo_ids import id_filter
 router = APIRouter(prefix="/api/scenarios", tags=["scenarios"])
 
 logger = logging.getLogger(__name__)
+
+# 指定题目入口的 slug：小写 kebab-case，区分大小写，不做猜测性改写
+SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+SCENARIO_NOT_AVAILABLE = "场景不存在或不可用"
+
+
+def _scenario_payload(scenario: dict) -> dict:
+    """/next 与按 slug 精确读取共用的场景响应契约。
+
+    interactionType 在出口统一归一化（缺失/未知按 standard），
+    前端不在多处重复猜测；standard 缺失 hints 时返回空数组。
+    """
+    return {
+        "scenarioId": scenario["_id"],
+        "kind": scenario.get("kind", "task"),
+        "title": scenario.get("title", ""),
+        "where": scenario.get("where", ""),
+        "story": scenario.get("story", ""),
+        "mission": scenario.get("mission", ""),
+        "points": scenario.get("points", []),
+        "imageUrl": scenario.get("imageUrl", ""),
+        "videoUrl": scenario.get("videoUrl", ""),
+        "isCustom": scenario.get("isCustom", False),
+        "preferenceMatch": scenario.get("preferenceMatch", "exact"),
+        "targetWords": scenario.get("targetWords", []),
+        "difficulty": scenario.get("difficulty"),
+        "interactionType": normalize_interaction_type(scenario.get("interactionType")),
+        "hints": scenario_hints(scenario),
+    }
 
 
 def _maybe_topup(
@@ -73,20 +106,26 @@ async def get_next(
         purpose=purpose,
         source_type=normalize_source_type((user or {}).get("sourceType")),
     )
-    return {
-        "scenarioId": scenario["_id"],
-        "kind": scenario.get("kind", "task"),
-        "title": scenario.get("title", ""),
-        "where": scenario.get("where", ""),
-        "story": scenario.get("story", ""),
-        "mission": scenario.get("mission", ""),
-        "points": scenario.get("points", []),
-        "imageUrl": scenario.get("imageUrl", ""),
-        "videoUrl": scenario.get("videoUrl", ""),
-        "isCustom": scenario.get("isCustom", False),
-        "preferenceMatch": scenario.get("preferenceMatch", "exact"),
-        "targetWords": scenario.get("targetWords", []),
-    }
+    return _scenario_payload(scenario)
+
+
+@router.get("/by-slug/{slug}")
+async def get_scenario_by_slug(slug: str, token_user_id: str = Depends(current_user_id)):
+    """按 slug 精确取题：只返回 active 且当前用户可访问的题。
+
+    身份只取 Bearer token。不存在、已归档、slug 非法、无权访问统一 404，
+    不回退随机题，也不暴露其他用户定制题的存在。
+    """
+    if not SLUG_PATTERN.match(slug):
+        raise HTTPException(404, SCENARIO_NOT_AVAILABLE)
+    scenario = await get_db().scenarios.find_one({"slug": slug, "status": "active"})
+    if not scenario or scenario.get("ownerUserId") not in (None, token_user_id):
+        raise HTTPException(404, SCENARIO_NOT_AVAILABLE)
+    scenario["isCustom"] = scenario.get("ownerUserId") is not None
+    scenario["preferenceMatch"] = "exact"
+    scenario["imageUrl"] = oss_signed_url(scenario["imageKey"]) if scenario.get("imageKey") else ""
+    scenario["videoUrl"] = oss_signed_url(scenario["videoKey"]) if scenario.get("videoKey") else ""
+    return _scenario_payload(scenario)
 
 
 class PracticeWordRequest(BaseModel):

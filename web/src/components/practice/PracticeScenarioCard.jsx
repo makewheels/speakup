@@ -10,7 +10,10 @@ const stripEmoji = (s = "") =>
 
 export default function PracticeScenarioCard({ scenario, topic, t }) {
   const points = scenario?.points ?? [];
+  // 渐进式题首次作答前只给宽泛 mission，不展示可照读的 points；旧题行为不变
+  const progressive = scenario?.interactionType === "progressive_hints";
   const where = stripEmoji(scenario?.where || topic || t("practice.scene_default"));
+  const showPoints = !progressive && points.length > 0;
   return (
     <div className="sc-card">
       <div className="sc-grid">
@@ -24,7 +27,7 @@ export default function PracticeScenarioCard({ scenario, topic, t }) {
 
         <div className="sc-k say">{t("practice.goal")}</div>
         <div className="sc-v say">
-          {points.length > 0 ? (
+          {showPoints ? (
             <ul className="sc-points">
               {points.map((p, i) => <li key={i}>{stripEmoji(p)}</li>)}
             </ul>

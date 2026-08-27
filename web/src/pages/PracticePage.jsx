@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useUser } from "../context/useUser.js";
 import { useT } from "../i18n/useI18n.js";
-import { api, correctStream } from "../api/client.js";
+import { api } from "../api/client.js";
 import PracticeActiveView from "../components/practice/PracticeActiveView.jsx";
 import PracticeFeedbackView from "../components/practice/PracticeFeedbackView.jsx";
 import PracticeModeSwitch from "../components/practice/PracticeModeSwitch.jsx";
 import PracticePrefsWelcome from "../components/practice/PracticePrefsWelcome.jsx";
+import PracticeUnavailable from "../components/practice/PracticeUnavailable.jsx";
 import {
   getPracticePreferences,
   hasPracticePreferences,
@@ -17,12 +18,12 @@ import useFreeTopic from "./useFreeTopic.js";
 import useFollowupChat from "./useFollowupChat.js";
 import usePressGuard from "./usePressGuard.js";
 import usePracticeRecorder from "./usePracticeRecorder.js";
+import useProgressiveScenario from "./useProgressiveScenario.js";
 import { resolveRequestedAttempt } from "./practiceAttemptRouting.js";
 import { readSkippedScenarios, writeSkippedScenarios } from "./practiceSkippedScenarios.js";
-import { trackPracticeRecordingStarted, trackPracticeResult } from "./practiceTelemetry.js";
-import {
-  EMPTY_FEEDBACK, hasUsableFeedback, resultFromAttempt, reviewMapFromGaps,
-} from "./practiceFeedbackState.js";
+import { startEvaluation } from "./practiceEvaluation.js";
+import { trackPracticeRecordingStarted } from "./practiceTelemetry.js";
+import { resultFromAttempt, reviewMapFromGaps } from "./practiceFeedbackState.js";
 import useResultShare from "./useResultShare.js";
 
 export default function PracticePage() {
@@ -40,9 +41,13 @@ export default function PracticePage() {
 
   const [session, setSession] = useState(null);
   const [phase, setPhase] = useState("loading");
+  // 渐进式提示与指定题目待选题：计数/幂等以服务端为准（useProgressiveScenario）
+  const progressive = useProgressiveScenario(t);
+  const { pendingScenario, hintCount, hintBusy, hintError } = progressive;
   const [practicePrefs, setPracticePrefs] = useState(() => getPracticePreferences(user.userId));
   const [needsPrefs, setNeedsPrefs] = useState(
-    () => !practiceId && mode !== "free" && !hasPracticePreferences(user.userId),
+    () => !practiceId && mode !== "free" && !searchParams.get("scenario")
+      && !hasPracticePreferences(user.userId),
   );
   const [transcript, setTranscript] = useState("");
   const [transcriptionError, setTranscriptionError] = useState(false);
@@ -91,6 +96,7 @@ export default function PracticePage() {
     resetReviewCollection();
     resetCapture();
     setSession(null);
+    progressive.reset();
   };
 
   const startNewRound = async (extraSkip = null, overridePrefs = null) => {
@@ -108,6 +114,7 @@ export default function PracticePage() {
       const sess = await api.createPractice({
         userId: user.userId,
         scenarioId: scenario.scenarioId,
+        requestId: crypto.randomUUID(),
       });
       setSession({
         ...sess,
@@ -169,6 +176,7 @@ export default function PracticePage() {
     if (practiceId) {
       api.getPractice(practiceId).then((s) => {
         setSession(s);
+        progressive.restoreHintCount(s);
         // 会话模式决定顶部切换器高亮与「下一个」行为（旧数据无 mode 按场景题）
         setMode(s?.mode === "free" ? "free" : "scenario");
         const attempts = s.attempts ?? [];
@@ -191,6 +199,11 @@ export default function PracticePage() {
           setPhase("ready");
         }
       }).catch(console.error);
+      return;
+    }
+    const slug = searchParams.get("scenario");
+    if (slug) {
+      progressive.loadBySlug(slug, setPhase);
       return;
     }
     if (mode === "free") {
@@ -255,76 +268,12 @@ export default function PracticePage() {
     const active = sessOverride || session;
     const text = (textOverride ?? transcript).trim();
     if (!text || !active) return;
-    setResult(EMPTY_FEEDBACK);
-    setFeedbackLoading(true);
-    setPhase("feedback");
-    setEvalElapsed(0);
-    setStreamingLen(0);
-    evalTimerRef.current = setInterval(() => setEvalElapsed((s) => s + 1), 1000);
-
-    sseControllerRef.current = correctStream(
-      {
-        userId: user.userId,
-        practiceId: active._id,
-        text,
-        // 自由说：不判任务完成度，后端据此走 FREE prompt；话题一并落 attempt
-        mode: active.mode === "free" ? "free" : "scenario",
-        freeTopic: active.freeTopic || "",
-      },
-      {
-        onStarted: ({ attemptId, round: startedRound }) => {
-          setActiveAttemptId(attemptId);
-          if (startedRound) setRound(startedRound);
-          navigate(`/practice/${active._id}?attempt=${attemptId}`, { replace: true });
-        },
-        onChunk: (chunk) => setStreamingLen((n) => n + chunk.length),
-        onDone: ({ result: res, attemptId, round: r }) => {
-          clearInterval(evalTimerRef.current);
-          if (!hasUsableFeedback(res)) {
-            alert(t("practice.feedbackFailed", { msg: res?.summary || t("practice.emptyFeedback") }));
-            setFeedbackLoading(false);
-            setResult(null);
-            setPhase("review");
-            navigate(`/practice/${active._id}`, { replace: true });
-            return;
-          }
-          setResult(res);
-          setFeedbackLoading(false);
-          trackPracticeResult(active, res, r ?? round, user.userId);
-          // AI 自动收录的 gap 回传了 reviewItemId，用它初始化收录态（这样「已在错题本」可直接取消）
-          setSavedMap(reviewMapFromGaps(res.gaps));
-          if (r) {
-            setRound(r);
-          }
-          if (attemptId) {
-            setActiveAttemptId(attemptId);
-            navigate(`/practice/${active._id}?attempt=${attemptId}`, { replace: true });
-          }
-          resetChat();
-          // 结果页首帧在绘制前回到顶部；后续流式完成和媒体加载不再重复滚动。
-          setFeedbackActionsDisabled(true);
-          setTimeout(() => setFeedbackActionsDisabled(false), 1500);
-          // URL 标记具体轮次，刷新能恢复到同一个 attempt。
-          // 必须用 navigate 显式带 pathname：setSearchParams 在当前 react-router 版本下会丢掉
-          // pathname 使 useParams 的 practiceId 变空，触发 useEffect 走"无 practiceId"分支自动跳下一题
-          // 评估完成后异步上传完整原声，供历史回听；当前不再触发发音评测。
-          const audioBlob = takeAudioBlob();
-          if (audioBlob && active?._id && attemptId) {
-            api.uploadRecording(active._id, user.userId, audioBlob, attemptId)
-              .catch((error) => console.warn("Recording upload unavailable:", error));
-          }
-        },
-        onError: (err) => {
-          clearInterval(evalTimerRef.current);
-          alert(t("practice.feedbackFailed", { msg: err.message }));
-          setFeedbackLoading(false);
-          setResult(null);
-          setActiveAttemptId("");
-          setPhase("review");
-          navigate(`/practice/${active._id}`, { replace: true });
-        },
-      }
-    );
+    startEvaluation({
+      text, active, userId: user.userId, hintCount, round, t, navigate,
+      evalTimerRef, sseControllerRef, takeAudioBlob, resetChat,
+      setResult, setFeedbackLoading, setPhase, setEvalElapsed, setStreamingLen,
+      setActiveAttemptId, setRound, setSavedMap, setFeedbackActionsDisabled,
+    });
   }
 
   // 录完一段的后续流转：转写 → 有文本就评估，否则回到可手动输入态
@@ -372,6 +321,17 @@ export default function PracticePage() {
         return;
       }
     }
+    if (mode === "scenario" && !sess && pendingScenario) {
+      // 指定题目：开始动作才建真实 Session；同 requestId 服务端幂等去重
+      try {
+        sess = await progressive.createPendingSession(user.userId);
+      } catch (err) {
+        alert(t("practice.loadScenarioFailed", { msg: err.message }));
+        return;
+      }
+      setSession(sess);
+      navigate(`/practice/${sess._id}`, { replace: true });
+    }
 
     setTranscript("");
     setTranscriptionError(false);
@@ -385,9 +345,9 @@ export default function PracticePage() {
         setPhase("ready");
       },
     });
-    if (started) trackPracticeRecordingStarted(mode, user.userId);
+    if (started) trackPracticeRecordingStarted(sess || session, user.userId, hintCount);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, t, session, mode, freeTopic, startCapture]);
+  }, [user, t, session, mode, freeTopic, startCapture, pendingScenario, hintCount]);
 
   // 重录：丢弃本次录音回到 ready，不转写不评估（onstop 里由钩子的 discardRef 短路）
   const discardRecording = () => {
@@ -412,7 +372,7 @@ export default function PracticePage() {
     else startNewRound(skipId);
   };
 
-  const scenario = session?.scenario;
+  const scenario = session?.scenario ?? pendingScenario;
   const modeSwitch = <PracticeModeSwitch mode={mode} onSwitch={switchMode} t={t} />;
 
   if (needsPrefs) {
@@ -425,6 +385,10 @@ export default function PracticePage() {
         t={t}
       />
     );
+  }
+
+  if (phase === "scenarioUnavailable") {
+    return <PracticeUnavailable modeSwitch={modeSwitch} onBack={() => navigate("/practice")} t={t} />;
   }
 
   if (phase === "feedback" && result) {
@@ -474,6 +438,9 @@ export default function PracticePage() {
       handleRecordPressStart={pressStart}
       hintGaps={hintGaps}
       hintAttemptId={hintAttemptId}
+      hintBusy={hintBusy}
+      hintCount={hintCount}
+      hintError={hintError}
       mode={mode}
       modeSwitch={modeSwitch}
       onChangeTopic={handleNextFreeRound}
@@ -481,7 +448,9 @@ export default function PracticePage() {
       pauseResumeRecording={pauseResumeCapture}
       pauseSupported={pauseSupported}
       paused={paused}
+      pendingScenario={pendingScenario}
       phase={phase}
+      revealNextHint={() => progressive.revealNextHint(session?._id)}
       round={round}
       scenario={scenario}
       session={session}

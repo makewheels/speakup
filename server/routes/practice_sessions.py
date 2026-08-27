@@ -4,7 +4,9 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from db.connection import get_db
 from services.auth_tokens import assert_same_user, current_user_id
@@ -12,6 +14,11 @@ from services.oss_storage import (
     delete_async,
     get_url as oss_signed_url,
     upload_bytes_async,
+)
+from services.interaction_types import (
+    PROGRESSIVE_HINTS,
+    normalize_interaction_type,
+    scenario_hints,
 )
 from services.practice_attempts import hydrate_practice, resolve_attempt, update_attempt
 from services.storage_paths import PracticeAssetContext, recording_original_key
@@ -46,6 +53,7 @@ class CreatePracticeRequest(BaseModel):
     mode: str = "scenario"        # scenario 场景题 / free 自由说（历史缺省按场景题）
     freeTopicId: str = ""         # 自由说话题 id（无话题自由说为空）
     freeTopic: str = ""           # 自由说话题文本快照（无话题自由说为空）
+    requestId: str = ""           # 开始动作幂等键；新版必填，旧客户端缺省不获得幂等保证
 
 
 class RecordingTarget:
@@ -60,21 +68,148 @@ class RecordingTarget:
         self.attempt_index = attemptIndex
 
 
+def _same_create_params(session: dict, req: CreatePracticeRequest) -> bool:
+    """重复 requestId 是否携带相同创建参数（幂等重放放行，参数冲突 409）。"""
+    return (
+        session.get("mode", "scenario") == req.mode
+        and session.get("scenarioId", "") == (req.scenarioId or "")
+        and session.get("freeTopicId", "") == (req.freeTopicId or "")
+        and session.get("freeTopic", "") == (req.freeTopic or "").strip()
+    )
+
+
 @router.post("")
 async def create_practice(req: CreatePracticeRequest, token_user_id: str = Depends(current_user_id)):
     assert_same_user(req.userId, token_user_id)
     user = await get_db().users.find_one(id_filter(token_user_id), {"sourceType": 1})
     source_type = normalize_source_type((user or {}).get("sourceType"))
+    request_id = (req.requestId or "").strip()
 
     if req.mode == "free":
         doc = _build_free_doc(req, source_type)
     else:
+        # 写入前服务端重新校验：题目必须 active 且当前用户可访问，不信任客户端此前的查询结果
         scenario = await get_db().scenarios.find_one({"_id": req.scenarioId})
-        if not scenario:
-            raise HTTPException(404, "场景不存在")
+        if (
+            not scenario
+            or scenario.get("status") != "active"
+            or scenario.get("ownerUserId") not in (None, token_user_id)
+        ):
+            raise HTTPException(404, "场景不存在或不可用")
+        if request_id:
+            # 幂等：同 requestId 重复提交返回首次创建的会话（仍 200），不再写一条历史
+            existing = await get_db().practiceSessions.find_one(
+                {"userId": req.userId, "creationRequestId": request_id}
+            )
+            if existing:
+                if not _same_create_params(existing, req):
+                    raise HTTPException(409, "相同 requestId 与已有会话的创建参数冲突")
+                return _sign(await hydrate_practice(existing))
         doc = _build_scenario_doc(req, scenario, source_type)
-    await get_db().practiceSessions.insert_one(doc)
+
+    if request_id:
+        doc["creationRequestId"] = request_id
+    try:
+        await get_db().practiceSessions.insert_one(doc)
+    except DuplicateKeyError:
+        # (userId, creationRequestId) 唯一部分索引拦住并发重复创建：回落到幂等重放
+        existing = await get_db().practiceSessions.find_one(
+            {"userId": req.userId, "creationRequestId": request_id}
+        )
+        if existing and _same_create_params(existing, req):
+            return _sign(await hydrate_practice(existing))
+        raise HTTPException(409, "相同 requestId 与已有会话的创建参数冲突")
     return _sign({**doc, "attempts": []})
+
+
+class RevealHintRequest(BaseModel):
+    requestId: str = Field(min_length=1)
+
+
+def _hint_response(request_id: str, hints: list[str], idx: int | None, count: int) -> dict:
+    return {
+        "requestId": request_id,
+        "revealedHintCount": count,
+        "hintIndex": idx,
+        "hint": hints[idx] if idx is not None else None,
+        "exhausted": count >= len(hints),
+    }
+
+
+def _hint_replayed(practice: dict, request_id: str, hints: list[str]) -> dict | None:
+    for reveal in practice.get("hintReveals", []):
+        if reveal.get("requestId") == request_id:
+            idx = int(reveal["hintIndex"])
+            return _hint_response(request_id, hints, idx, idx + 1)
+    return None
+
+
+async def _claim_next_hint(
+    pid: str, token_user_id: str, request_id: str, hints: list[str]
+) -> dict:
+    """原子领取：多标签页并发不重复不越界；同 requestId 已在库里则幂等重放。"""
+    current = 0
+    while True:
+        if current >= len(hints):
+            return _hint_response(request_id, hints, None, current)
+        updated = await get_db().practiceSessions.find_one_and_update(
+            {
+                **id_filter(pid),
+                "userId": token_user_id,
+                "revealedHintCount": current,
+                "hintReveals.requestId": {"$ne": request_id},
+            },
+            {
+                "$inc": {"revealedHintCount": 1},
+                "$push": {
+                    "hintReveals": {
+                        "requestId": request_id,
+                        "hintIndex": current,
+                        "at": datetime.now(timezone.utc),
+                    }
+                },
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        if updated:
+            return _hint_response(request_id, hints, current, current + 1)
+        # 并发冲突或状态变化：重读再判
+        practice = await get_db().practiceSessions.find_one(
+            {**id_filter(pid), "userId": token_user_id}
+        )
+        if not practice:
+            raise HTTPException(404, "练习不存在")
+        replay = _hint_replayed(practice, request_id, hints)
+        if replay:
+            return replay
+        current = int(practice.get("revealedHintCount") or 0)
+
+
+@router.post("/{pid}/hints/next")
+async def reveal_next_hint(
+    pid: str,
+    req: RevealHintRequest,
+    token_user_id: str = Depends(current_user_id),
+):
+    """原子领取下一条提示：服务端持久化，同 requestId 幂等，多标签页并发不重复不越界。
+
+    已耗尽时不增加计数，返回 200 + exhausted；standard/free 会话返回 409；
+    会话不存在或不属于当前用户返回 404。
+    """
+    request_id = req.requestId.strip()
+    if not request_id:
+        raise HTTPException(422, "requestId 必填")
+    practice = await get_db().practiceSessions.find_one(
+        {**id_filter(pid), "userId": token_user_id}
+    )
+    if not practice:
+        raise HTTPException(404, "练习不存在")
+    scenario = practice.get("scenario") or {}
+    if normalize_interaction_type(scenario.get("interactionType")) != PROGRESSIVE_HINTS:
+        raise HTTPException(409, "该练习不支持渐进提示")
+    hints = scenario_hints(scenario)
+    replay = _hint_replayed(practice, request_id, hints)
+    return replay or await _claim_next_hint(pid, token_user_id, request_id, hints)
 
 
 def _build_free_doc(req: CreatePracticeRequest, source_type: str) -> dict:
@@ -130,7 +265,11 @@ def _build_scenario_doc(req: CreatePracticeRequest, scenario: dict, source_type:
             "mission": scenario.get("mission", ""),
             "points": scenario.get("points", []),
             "targetWords": scenario.get("targetWords", []),
+            "interactionType": normalize_interaction_type(scenario.get("interactionType")),
+            "hints": scenario_hints(scenario),
+            "difficulty": scenario.get("difficulty"),
         },
+        "revealedHintCount": 0,       # 已显示的不同提示数；服务端维护，始终 0..len(hints)
         # 只存 OSS key，签名 URL 一律读取时现签
         "imageKey": scenario.get("imageKey", ""),
         "videoKey": scenario.get("videoKey", ""),

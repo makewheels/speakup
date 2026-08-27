@@ -48,6 +48,9 @@ export default function PracticeActiveView({
   handleRecordPressStart,
   hintGaps,
   hintAttemptId,
+  hintBusy,
+  hintCount,
+  hintError,
   mode,
   modeSwitch,
   onChangeTopic,
@@ -55,7 +58,9 @@ export default function PracticeActiveView({
   paused,
   pauseResumeRecording,
   pauseSupported,
+  pendingScenario,
   phase,
+  revealNextHint,
   round,
   scenario,
   session,
@@ -70,6 +75,16 @@ export default function PracticeActiveView({
 }) {
   const isFree = mode === "free";
   const prompts = buildPrompts(mode, t);
+  // 渐进式提示：按钮只在已创建的渐进式 Session 中出现；待开始预览不出现。
+  // 已显示前缀按服务端 revealedHintCount 恢复，累计保留，不替换。
+  const scenarioHints = session?.scenario?.hints ?? [];
+  const revealedHints = scenarioHints.slice(0, Math.max(0, hintCount ?? 0));
+  const hintsExhausted = scenarioHints.length > 0 && revealedHints.length >= scenarioHints.length;
+  const showProgressiveHints =
+    !isFree
+    && session
+    && session.scenario?.interactionType === "progressive_hints"
+    && ["ready", "recording", "transcribing", "review", "evaluating"].includes(phase);
   // 话题展示：优先当前抽到的话题；刷新后从会话快照还原（zh 不在快照里，可空）
   const freeInfo = freeTopic
     || (isFree && session?.freeTopic
@@ -86,8 +101,8 @@ export default function PracticeActiveView({
       )}
       <PracticeMedia
         className={"su-img" + (phase === "loading" ? " loading" : "")}
-        imageUrl={phase !== "loading" && !isFree ? session?.imageUrl : ""}
-        videoUrl={phase !== "loading" && !isFree ? session?.videoUrl : ""}
+        imageUrl={phase !== "loading" && !isFree ? (session?.imageUrl || pendingScenario?.imageUrl || "") : ""}
+        videoUrl={phase !== "loading" && !isFree ? (session?.videoUrl || pendingScenario?.videoUrl || "") : ""}
       />
 
       {phase !== "loading" && (isFree
@@ -114,6 +129,33 @@ export default function PracticeActiveView({
               />
             </span>
           ))}
+        </div>
+      )}
+
+      {showProgressiveHints && (
+        <div className="sc-hints">
+          {revealedHints.length > 0 && (
+            <ul className="sc-hints-list" aria-live="polite">
+              {revealedHints.map((h, i) => <li key={i}>{h}</li>)}
+            </ul>
+          )}
+          {hintsExhausted ? (
+            <div className="sc-hints-done" role="status">{t("practice.hintExhausted")}</div>
+          ) : (
+            <button
+              type="button"
+              className="su-btn su-btn-secondary sc-hints-btn"
+              onClick={revealNextHint}
+              disabled={hintBusy}
+            >
+              {hintBusy
+                ? t("practice.hintLoading")
+                : revealedHints.length === 0
+                ? t("practice.hintFirst")
+                : t("practice.hintMore")}
+            </button>
+          )}
+          {hintError && <div className="sc-hints-error" role="alert">{hintError}</div>}
         </div>
       )}
 
