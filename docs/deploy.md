@@ -6,7 +6,7 @@
 ## 架构
 
 ```
-GitHub Actions → OIDC 读取 Infisical → 构建 Docker 镜像 → 推 ACR (b4/speakup)
+GitHub Actions → OIDC 读取 Infisical → 构建 Docker 镜像 → 双推 ACR (b4/speakup) + GHCR (ghcr.io/makewheels/speakup)
                                           → SSH 到生产机 → 临时注入配置 → docker compose pull && up
 <生产域名> → /opt/caddy 网关 (Caddy, 80/443) → speakup:3001 (docker network: edge)
 speakup:3001  → MongoDB (内网, MONGO_URI)
@@ -45,7 +45,7 @@ AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`�
   2. `/opt/caddy/Caddyfile` 加一段 `<域名> { reverse_proxy <服务名>:<端口> }`
   3. `docker compose -f /opt/caddy/docker-compose.yml exec caddy caddy reload --config /etc/caddy/Caddyfile`
 
-- **镜像仓库**：阿里云 ACR 个人版 (cn-beijing)，`b4/speakup` 存应用镜像。caddy 等公共镜像走 docker.io，靠生产机 docker daemon 配置的 **registry-mirrors** 拉。
+- **镜像仓库（双推）**：阿里云 ACR 个人版 (cn-beijing) `b4/speakup` + GitHub GHCR `ghcr.io/makewheels/speakup`，每次部署同 tag 双推（`latest` + `YYYYMMDD-HHMMSS-NNNN`）。**生产只拉 ACR**（北京机房速度快）；GHCR 面向开源分发。GHCR 登录用内置 `GITHUB_TOKEN`（job 需 `packages: write`），无额外凭据。
 - **凭据**：阿里云 ACR 登录凭据存 `speakup/prod/deployment`；runner 和生产机均使用一次性 Docker 配置目录，任务结束即清理。
 - **回滚**：旧 `:latest` 转 `:previous`，`docker tag :previous :latest && docker compose up -d`。
 
