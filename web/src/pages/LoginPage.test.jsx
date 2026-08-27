@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import LoginPage from "./LoginPage.jsx";
 import { UserProvider } from "../context/UserContext.jsx";
@@ -13,14 +13,28 @@ vi.mock("../api/client.js", () => ({
   },
 }));
 
-function renderLogin() {
+// 登录成功后的落点探针：把当前路径+查询渲染出来供断言
+function LandedProbe() {
+  const location = useLocation();
+  return <div data-testid="landed">{location.pathname + location.search}</div>;
+}
+
+function renderLogin(initialEntry = "/login") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <UserProvider>
-        <LoginPage />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<LandedProbe />} />
+        </Routes>
       </UserProvider>
     </MemoryRouter>,
   );
+}
+
+async function loginWithValidPhone() {
+  await userEvent.type(screen.getByPlaceholderText("138 0000 0000"), "13800001234");
+  await userEvent.click(screen.getByRole("button", { name: /Enter/ }));
 }
 
 describe("LoginPage", () => {
@@ -59,8 +73,38 @@ describe("LoginPage", () => {
   it("calls the login API on submit", async () => {
     renderLogin();
     const { api } = await import("../api/client.js");
-    await userEvent.type(screen.getByPlaceholderText("138 0000 0000"), "13800001234");
-    await userEvent.click(screen.getByRole("button", { name: /Enter/ }));
+    await loginWithValidPhone();
     expect(api.login).toHaveBeenCalledWith("13800001234");
+  });
+
+  it("无 redirect 参数时登录后回首页", async () => {
+    renderLogin();
+    await loginWithValidPhone();
+    expect(await screen.findByTestId("landed")).toHaveTextContent(/^\/$/);
+  });
+
+  it("登录后回到 redirect 指定的原始页面（含查询参数）", async () => {
+    renderLogin("/login?redirect=%2Fpractice%3Fscenario%3Ddelivery-missing-dish-claim");
+    await loginWithValidPhone();
+    expect(await screen.findByTestId("landed")).toHaveTextContent(/^\/practice\?scenario=delivery-missing-dish-claim$/);
+  });
+
+  it("redirect 会话路径也完整保留", async () => {
+    renderLogin("/login?redirect=%2Fpractice%2Fsess_abc");
+    await loginWithValidPhone();
+    expect(await screen.findByTestId("landed")).toHaveTextContent(/^\/practice\/sess_abc$/);
+  });
+
+  it("拒绝外链、协议相对路径与登录页自身", async () => {
+    for (const bad of [
+      "https%3A%2F%2Fevil.example.com",
+      "%2F%2Fevil.example.com",
+      "%2Flogin%3Fredirect%3D%252F",
+    ]) {
+      const view = renderLogin(`/login?redirect=${bad}`);
+      await loginWithValidPhone();
+      expect(await screen.findByTestId("landed")).toHaveTextContent(/^\/$/);
+      view.unmount();
+    }
   });
 });

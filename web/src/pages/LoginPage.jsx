@@ -1,7 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useUser } from "../context/useUser.js";
 import { useT } from "../i18n/useI18n.js";
+
+// 登录成功后回跳：只接受站内路径，拒绝外链/协议相对路径/登录页自身
+function safeRedirect(value) {
+  if (!value || !/^\/(?!\/)/.test(value)) return "/";
+  if (value === "/login" || value.startsWith("/login?") || value.startsWith("/login/")) return "/";
+  return value;
+}
 
 export default function LoginPage() {
   const [phone, setPhone] = useState("");
@@ -9,6 +16,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useUser();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const t = useT();
 
   const valid = /^1\d{10}$/.test(phone);
@@ -23,7 +31,7 @@ export default function LoginPage() {
     setError("");
     try {
       await login(phone);
-      navigate("/");
+      navigate(safeRedirect(searchParams.get("redirect")));
     } catch {
       setError(t("login.errorLoginFailed"));
     } finally {
