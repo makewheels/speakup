@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { UserProvider } from "./context/UserContext.jsx";
 import { useUser } from "./context/useUser.js";
 import { LanguageProvider } from "./i18n/index.jsx";
@@ -19,7 +19,12 @@ import "./styles/practice-preferences.css";
 
 function ProtectedRoutes() {
   const { user } = useUser();
-  if (!user) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!user) {
+    // 带原始路径（含 ?scenario= 等查询参数）进登录页，登录成功后回原处
+    const from = location.pathname + location.search;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(from)}`} replace />;
+  }
   return <Layout />;
 }
 

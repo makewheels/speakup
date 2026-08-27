@@ -55,22 +55,25 @@ const SESSION = {
   attempts: [],
 };
 
-async function setup(page, { slugOk = true, revealed = 0 } = {}) {
+async function setup(page, { slugOk = true, revealed = 0, loggedIn = true } = {}) {
   const calls = { createSession: 0, reveals: [] };
   await page.route("https://fonts.googleapis.com/**", (route) => route.fulfill({ body: "", contentType: "text/css" }));
   await page.route("https://fonts.gstatic.com/**", (route) => route.abort());
-  await page.addInitScript((user) => {
-    localStorage.setItem("english-speak-user", JSON.stringify(user));
+  await page.addInitScript(({ user, loggedIn }) => {
+    if (loggedIn) localStorage.setItem("english-speak-user", JSON.stringify(user));
     localStorage.setItem("speakup_lang", "en");
     localStorage.setItem(
       `speakup-practice-preferences:${user.userId}`,
       JSON.stringify({ level: "daily", purpose: "travel" }),
     );
-  }, USER);
+  }, { user: USER, loggedIn });
   page.on("dialog", (dialog) => dialog.dismiss());
   await page.route("**/api/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     const method = route.request().method();
+    if (pathname === "/api/auth/login" && method === "POST") {
+      return route.fulfill({ json: USER });
+    }
     if (pathname === "/api/scenarios/by-slug/prog-e2e") {
       if (!slugOk) {
         return route.fulfill({ status: 404, json: { detail: "场景不存在或不可用" } });
@@ -147,4 +150,21 @@ test("刷新后按服务端计数恢复已显示提示", async ({ page }) => {
   await expect(page.getByText("我点的是热拿铁，但这杯是冰的。")).toBeVisible();
   await expect(page.getByText("能麻烦你重新做一杯热的吗？")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Give me another hint" })).toBeVisible();
+});
+
+test("未登录：指定题目 URL 经登录保留，登录后回到原题", async ({ page }) => {
+  await setup(page, { loggedIn: false });
+  await page.goto("/practice?scenario=prog-e2e", { waitUntil: "domcontentloaded" });
+
+  // 守卫跳登录页，原路径（含 ?scenario=）编码进 redirect 参数
+  await expect(page).toHaveURL(/\/login\?redirect=%2Fpractice%3Fscenario%3Dprog-e2e/);
+
+  await page.getByPlaceholder("138 0000 0000").fill("13800002222");
+  await page.getByRole("button", { name: "Enter" }).click();
+
+  // 登录后回到指定题目，内容精确
+  await expect(page).toHaveURL(/\/practice\?scenario=prog-e2e/);
+  await expect(page.getByText("店员把你的热拿铁做成了冰拿铁。").first()).toBeVisible();
+  await expect(page.getByText("礼貌说明问题，请店员重做。").first()).toBeVisible();
+  await expect(page.getByText("说明饮品做错了")).toHaveCount(0);
 });
