@@ -190,6 +190,12 @@ export const api = {
   },
   removeAvatar: () => request("/auth/profile/avatar", { method: "DELETE" }),
 
+  // 练习偏好：服务端是事实源（跨设备一致），本地 localStorage 只是缓存
+  getPracticePreferences: (userId) =>
+    request(`/auth/practice-preferences?userId=${encodeURIComponent(userId)}`),
+  savePracticePreferences: (data) =>
+    request("/auth/practice-preferences", { method: "PUT", body: data }),
+
   // 指定题目入口：按 slug 精确取题（/practice?scenario=<slug> 用），失败由调用方展示不可用态
   scenarioBySlug: (slug) => request(`/scenarios/by-slug/${encodeURIComponent(slug)}`),
 

@@ -73,6 +73,11 @@ async function setup(page, { loggedIn = true } = {}) {
     if (method === "POST" && pathname === "/api/auth/login") {
       return route.fulfill({ json: USER });
     }
+    if (pathname === "/api/auth/practice-preferences") {
+      // 服务端事实源：默认未设置（404）；PUT 回显。未登录/迁移/首测三条路径都走这里
+      if (method === "PUT") return route.fulfill({ json: route.request().postDataJSON() });
+      return route.fulfill({ status: 404, json: { detail: "尚未设置" } });
+    }
     if (pathname === "/api/scenarios/next") {
       return route.fulfill({ json: SCENARIO_NEXT });
     }

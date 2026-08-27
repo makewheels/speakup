@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "../api/client.js";
 import { UserContext } from "./user-context.js";
+import { savePracticePreferences } from "../lib/practicePreferences.js";
 
 export function UserProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -24,6 +25,10 @@ export function UserProvider({ children }) {
 
   const login = async (phone) => {
     const data = await api.login(phone);
+    // 登录响应带回服务端偏好：先落本地缓存，练习页再对账
+    if (data.practicePreferences) {
+      savePracticePreferences(data.userId, data.practicePreferences);
+    }
     setUser(data);
     return data;
   };

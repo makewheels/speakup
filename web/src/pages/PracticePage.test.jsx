@@ -15,6 +15,9 @@ import {
 
 vi.mock("../api/client.js", () => ({
   api: {
+    // 偏好对账默认走"服务端未设置/离线"：使用本地缓存路径（与生产降级一致）
+    getPracticePreferences: vi.fn().mockRejectedValue(new Error("offline")),
+    savePracticePreferences: vi.fn().mockResolvedValue({}),
     nextScenario: vi.fn(),
     nextFreeTopic: vi.fn(),
     createPractice: vi.fn(),
@@ -211,7 +214,10 @@ describe("PracticePage", () => {
     const { api } = await import("../api/client.js");
     setup("/practice", { prefs: false });
 
-    expect(screen.getByText("What do you want to practice?")).toBeInTheDocument();
+    // 偏好对账（服务端查询）完成后才判定首次选择题，等待异步落定
+    await waitFor(() =>
+      expect(screen.getByText("What do you want to practice?")).toBeInTheDocument(),
+    );
     expect(api.nextScenario).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByText("IELTS"));

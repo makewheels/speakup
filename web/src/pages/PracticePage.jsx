@@ -45,10 +45,9 @@ export default function PracticePage() {
   const progressive = useProgressiveScenario(t);
   const { pendingScenario, hintCount, hintBusy, hintError } = progressive;
   const [practicePrefs, setPracticePrefs] = useState(() => getPracticePreferences(user.userId));
-  const [needsPrefs, setNeedsPrefs] = useState(
-    () => !practiceId && mode !== "free" && !searchParams.get("scenario")
-      && !hasPracticePreferences(user.userId),
-  );
+  // 偏好对账：服务端是事实源；对账完成前不出选择题也不抽题
+  const [prefsResolved, setPrefsResolved] = useState(false);
+  const [needsPrefs, setNeedsPrefs] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [transcriptionError, setTranscriptionError] = useState(false);
   const [result, setResult] = useState(null);
@@ -170,6 +169,31 @@ export default function PracticePage() {
     navigate("/practice");
   };
 
+  // 偏好对账：服务端事实源。本地有值服务端没有（旧版浏览器设置）自动迁移，设置不丢。
+  useEffect(() => {
+    let cancelled = false;
+    api.getPracticePreferences(user.userId).then((serverPrefs) => {
+      if (cancelled) return;
+      const synced = savePracticePreferences(user.userId, serverPrefs);
+      setPracticePrefs(synced);
+      setNeedsPrefs(false);
+      setPrefsResolved(true);
+    }).catch(() => {
+      if (cancelled) return;
+      if (hasPracticePreferences(user.userId)) {
+        api.savePracticePreferences({
+          userId: user.userId,
+          ...getPracticePreferences(user.userId),
+        }).catch(console.error);
+      } else {
+        setNeedsPrefs(!practiceId && mode !== "free" && !searchParams.get("scenario"));
+      }
+      setPrefsResolved(true);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.userId]);
+
   useEffect(() => {
     // 已经在内存里加载好这道题（刚 startNewRound 后 navigate 改 URL 触发的回流）就别再拉
     if (practiceId && session?._id === practiceId) return;
@@ -212,7 +236,7 @@ export default function PracticePage() {
       if (!hasTopic()) Promise.resolve().then(startNewFreeRound);
       return;
     }
-    if (!hasPracticePreferences(user.userId)) {
+    if (!prefsResolved || !hasPracticePreferences(user.userId)) {
       return;
     }
     const prefs = getPracticePreferences(user.userId);
@@ -222,7 +246,7 @@ export default function PracticePage() {
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [practiceId]);
+  }, [practiceId, prefsResolved]);
 
   // 组件卸载时取消 SSE（录音机由 usePracticeRecorder 自行清理）
   useEffect(() => () => {
@@ -242,6 +266,7 @@ export default function PracticePage() {
     const saved = savePracticePreferences(user.userId, practicePrefs);
     setPracticePrefs(saved);
     setNeedsPrefs(false);
+    api.savePracticePreferences({ userId: user.userId, ...saved }).catch(console.error);
     startNewRound(null, saved);
   };
 

@@ -4,16 +4,17 @@ import logging
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
 from services import oss_storage
 from services.avatar_images import InvalidAvatarImage, build_avatar_variants
-from services.auth_tokens import create_session, current_user_id
+from services.auth_tokens import assert_same_user, create_session, current_user_id
 from services.storage_paths import avatar_key
 from utils.data_source import normalize_source_type
+from utils.mongo_ids import id_filter
 from utils.id_generator import avatar_id, user_id
 from utils.mongo_ids import id_filter
 
@@ -111,14 +112,70 @@ async def login(req: LoginRequest):
 
     uid = str(user["_id"])
     token = await create_session(uid)
+    stored_prefs = user.get("practicePreferences")
     return {
         "userId": uid,
         "phone": req.phone,
         "nickname": user["nickname"],
         "avatarUrl": _avatar_url(user),
         "sourceType": source_type,
+        "practicePreferences": stored_prefs if _valid_practice_preferences(stored_prefs) else None,
         "token": token,
     }
+
+
+# 练习偏好（难度/目的）：按用户存服务端，跨设备一致；前端 localStorage 只是缓存
+PRACTICE_LEVELS = {"beginner", "daily", "advanced", "challenge"}
+PRACTICE_PURPOSES = {"travel", "work", "ielts", "toefl", "dailyLife"}
+
+
+class PracticePreferencesRequest(BaseModel):
+    userId: str
+    level: str
+    purpose: str
+
+
+def _valid_practice_preferences(prefs: object) -> bool:
+    return (
+        isinstance(prefs, dict)
+        and prefs.get("level") in PRACTICE_LEVELS
+        and prefs.get("purpose") in PRACTICE_PURPOSES
+    )
+
+
+@router.get("/practice-preferences")
+async def get_practice_preferences(
+    userId: str = Query(...),
+    token_user_id: str = Depends(current_user_id),
+):
+    """读当前用户练习偏好；未设置返回 404，前端据此出首次选择。"""
+    assert_same_user(userId, token_user_id)
+    user = await get_db().users.find_one(
+        id_filter(token_user_id), {"practicePreferences": 1}
+    )
+    prefs = (user or {}).get("practicePreferences")
+    if not _valid_practice_preferences(prefs):
+        raise HTTPException(404, "尚未设置练习偏好")
+    return {"level": prefs["level"], "purpose": prefs["purpose"]}
+
+
+@router.put("/practice-preferences")
+async def save_practice_preferences(
+    req: PracticePreferencesRequest,
+    token_user_id: str = Depends(current_user_id),
+):
+    """保存练习偏好（服务端事实源）。非法取值 422。"""
+    assert_same_user(req.userId, token_user_id)
+    if req.level not in PRACTICE_LEVELS or req.purpose not in PRACTICE_PURPOSES:
+        raise HTTPException(422, "非法的练习偏好")
+    prefs = {"level": req.level, "purpose": req.purpose}
+    result = await get_db().users.update_one(
+        id_filter(token_user_id),
+        {"$set": {"practicePreferences": prefs}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(404, "用户不存在")
+    return prefs
 
 
 @router.patch("/profile")
