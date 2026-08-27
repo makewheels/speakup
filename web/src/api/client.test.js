@@ -449,3 +449,35 @@ describe("渐进式提示与指定题目接口", () => {
     expect(JSON.parse(opts.body)).toEqual({ requestId: "req-uuid" });
   });
 });
+
+describe("练习偏好接口", () => {
+  let fetchMock;
+
+  beforeEach(() => {
+    localStorage.clear();
+    storeToken();
+    fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("getPracticePreferences 带 userId 查询", async () => {
+    await api.getPracticePreferences("u_test");
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/auth/practice-preferences?userId=u_test");
+    expect(opts.headers.Authorization).toBe("Bearer tok_test");
+  });
+
+  it("savePracticePreferences 用 PUT 带完整偏好", async () => {
+    await api.savePracticePreferences({ userId: "u_test", level: "daily", purpose: "travel" });
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/auth/practice-preferences");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toEqual({ userId: "u_test", level: "daily", purpose: "travel" });
+  });
+});

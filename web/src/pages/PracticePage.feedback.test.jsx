@@ -15,6 +15,9 @@ import {
 
 vi.mock("../api/client.js", () => ({
   api: {
+    // 偏好对账默认走"服务端未设置/离线"：使用本地缓存路径（与生产降级一致）
+    getPracticePreferences: vi.fn().mockRejectedValue(new Error("offline")),
+    savePracticePreferences: vi.fn().mockResolvedValue({}),
     nextScenario: vi.fn(),
     nextFreeTopic: vi.fn(),
     createPractice: vi.fn(),

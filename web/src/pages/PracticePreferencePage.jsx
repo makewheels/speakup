@@ -8,6 +8,7 @@ import {
   getPracticePreferences,
   savePracticePreferences,
 } from "../lib/practicePreferences.js";
+import { api } from "../api/client.js";
 
 export default function PracticePreferencePage() {
   const { user } = useUser();
@@ -19,6 +20,17 @@ export default function PracticePreferencePage() {
 
   useEffect(() => () => clearTimeout(toastTimerRef.current), []);
 
+  // 服务端是事实源：进入页面先对账，跨设备看到的都是同一份设置
+  useEffect(() => {
+    if (!user?.userId) return undefined;
+    let cancelled = false;
+    api.getPracticePreferences(user.userId).then((serverPrefs) => {
+      if (cancelled) return;
+      setPrefs(savePracticePreferences(user.userId, serverPrefs));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.userId]);
+
   if (!user) return null;
 
   const summary = (value) => t("practicePrefs.summary", {
@@ -29,6 +41,7 @@ export default function PracticePreferencePage() {
   const updatePrefs = (next) => {
     const saved = savePracticePreferences(user.userId, next);
     setPrefs(saved);
+    api.savePracticePreferences({ userId: user.userId, ...saved }).catch(console.error);
     setToast(t("practicePrefs.saved", { summary: summary(saved) }));
     clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(""), 1800);

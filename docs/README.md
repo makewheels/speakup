@@ -28,7 +28,7 @@ docs/
 | 位置 | 内容 | 维护约定 |
 |------|------|---------|
 | `docs/requirements/*.md` | **待办/实施中需求**的问题、目标、方案权衡、checklist、验收与进度 | 接到需求先记录；完成后同步 design/业务/changelog 并更新状态 |
-| `docs/业务/*.md` | **当前已实现**行为的分模块文档（错题本与复习、用户反馈、自由录入、历史与分享、主题设置、结果页与发音评测、账户资料、渐进式场景练习） | 每次行为变更必须同步更新 |
+| `docs/业务/*.md` | **当前已实现**行为的分模块文档（错题本与复习、用户反馈、自由录入、历史与分享、主题设置、结果页与发音评测、账户资料、渐进式场景练习、练习偏好） | 每次行为变更必须同步更新 |
 | `docs/design/schema.md` | MongoDB 集合字段（数据模型事实源） | 字段变更必须同步 |
 | `docs/design/*.md` | 已确定的当前数据结构、架构与交互设计（schema/ids/storage/spec） | 设计变化时同步，不记录实施进度 |
 | `docs/design/场景练习/*.md` | 场景模式总览 / 公共题分类 / 混合练习 / 题目评测 | 场景链路变化时同步 |
@@ -81,6 +81,7 @@ graph TB
 | `/api/auth/profile` | PATCH | 鉴权后修改当前用户昵称 | MongoDB |
 | `/api/auth/profile/avatar` | POST/DELETE | 鉴权后上传头像或恢复默认头像 | MongoDB + OSS |
 | `/api/auth/avatar/{userId}` | GET | 版本化头像地址跳转到私有 OSS 短效签名 URL | MongoDB + OSS 签名 |
+| `/api/auth/practice-preferences` | GET/PUT | 练习偏好（难度/目的）按用户读写；未设置 GET 404，非法值 422 | MongoDB |
 | `/api/scenarios/next` | GET | 派题：定制题 > 未练公共题 > 轮换 | MongoDB + OSS 签名 |
 | `/api/scenarios/practice-word` | POST | 「用这个词练一题」即时出定制场景题 | 文本模型 + 文生图 |
 | `/api/practice-sessions` | GET/POST | 创建会话（存场景快照）/ 历史列表；`/{pid}` 读单条 | MongoDB |

@@ -186,3 +186,94 @@ def test_remove_avatar_restores_default_and_cleans_object(client, monkeypatch):
     assert deleted[1].endswith("/thumbnail.jpg")
     assert missing.status_code == 404
     assert relogin.json()["avatarUrl"] is None
+
+
+# ── 练习偏好：服务端事实源（跨设备一致） ─────────────────
+
+def test_practice_preferences_unset_returns_404(client):
+    from tests.conftest import login_headers
+    uid, headers = login_headers(client, "13800007001")
+    resp = client.get(f"/api/auth/practice-preferences?userId={uid}", headers=headers)
+    assert resp.status_code == 404
+
+
+def test_practice_preferences_put_then_get_roundtrip(client):
+    from tests.conftest import login_headers
+    uid, headers = login_headers(client, "13800007002")
+    put = client.put(
+        "/api/auth/practice-preferences",
+        json={"userId": uid, "level": "advanced", "purpose": "work"},
+        headers=headers,
+    )
+    assert put.status_code == 200
+    assert put.json() == {"level": "advanced", "purpose": "work"}
+    got = client.get(f"/api/auth/practice-preferences?userId={uid}", headers=headers)
+    assert got.status_code == 200
+    assert got.json() == {"level": "advanced", "purpose": "work"}
+
+
+def test_practice_preferences_overwrite(client):
+    from tests.conftest import login_headers
+    uid, headers = login_headers(client, "13800007008")
+    client.put(
+        "/api/auth/practice-preferences",
+        json={"userId": uid, "level": "daily", "purpose": "travel"},
+        headers=headers,
+    )
+    client.put(
+        "/api/auth/practice-preferences",
+        json={"userId": uid, "level": "challenge", "purpose": "ielts"},
+        headers=headers,
+    )
+    got = client.get(f"/api/auth/practice-preferences?userId={uid}", headers=headers)
+    assert got.json() == {"level": "challenge", "purpose": "ielts"}
+
+
+def test_login_response_carries_saved_preferences(client):
+    from tests.conftest import login_headers
+    uid, headers = login_headers(client, "13800007003")
+    client.put(
+        "/api/auth/practice-preferences",
+        json={"userId": uid, "level": "challenge", "purpose": "ielts"},
+        headers=headers,
+    )
+    again = client.post("/api/auth/login", json={"phone": "13800007003"})
+    assert again.json()["practicePreferences"] == {"level": "challenge", "purpose": "ielts"}
+
+
+def test_login_without_preferences_returns_null(client):
+    resp = client.post("/api/auth/login", json={"phone": "13800007004"})
+    assert resp.json()["practicePreferences"] is None
+
+
+def test_practice_preferences_rejects_invalid_values(client):
+    from tests.conftest import login_headers
+    uid, headers = login_headers(client, "13800007005")
+    bad_level = client.put(
+        "/api/auth/practice-preferences",
+        json={"userId": uid, "level": "hard", "purpose": "work"},
+        headers=headers,
+    )
+    assert bad_level.status_code == 422
+    bad_purpose = client.put(
+        "/api/auth/practice-preferences",
+        json={"userId": uid, "level": "daily", "purpose": "unknown"},
+        headers=headers,
+    )
+    assert bad_purpose.status_code == 422
+    # 非法写入不落库
+    assert client.get(f"/api/auth/practice-preferences?userId={uid}", headers=headers).status_code == 404
+
+
+def test_practice_preferences_cross_user_forbidden(client):
+    from tests.conftest import login_headers
+    _, headers_a = login_headers(client, "13800007006")
+    uid_b, _ = login_headers(client, "13800007007")
+    got = client.get(f"/api/auth/practice-preferences?userId={uid_b}", headers=headers_a)
+    assert got.status_code == 403
+    put = client.put(
+        "/api/auth/practice-preferences",
+        json={"userId": uid_b, "level": "daily", "purpose": "travel"},
+        headers=headers_a,
+    )
+    assert put.status_code == 403

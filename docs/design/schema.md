@@ -18,6 +18,7 @@
   },
   "avatarVersion": 1787555910000,         // 每次上传更新，用于版本化地址刷新缓存
   "sourceType": "human | ai_test",  // 数据来源；普通用户默认 human，自动体验专用账号为 ai_test
+  "practicePreferences": { "level": "daily", "purpose": "travel" },  // 练习偏好（难度/目的）：服务端事实源，跨设备一致；未设置时缺省
   "createdAt": datetime,
   "updatedAt": datetime                  // 修改资料后写入；历史用户可缺省
 }
@@ -26,6 +27,7 @@
 `sourceType` 在用户首次创建时确定，后续普通登录不改写。历史缺字段用户按 `human` 处理。
 生产分析排除自动体验数据时使用 `{sourceType: {$ne: "ai_test"}}`，以兼容历史记录。
 昵称通过鉴权接口更新，服务端去除首尾空白并合并连续空白；空昵称、超过 24 个字符或含控制字符时拒绝保存。
+练习偏好通过 `GET/PUT /api/auth/practice-preferences` 读写（非法取值 422、跨用户 403、未设置读取 404）；登录响应携带已设置的偏好。前端 localStorage 只是缓存：服务端有值以服务端为准，本地有值而服务端没有时自动迁移。
 头像源文件只允许 JPG、PNG、WebP，最大 25 MB。前端先方形裁剪，服务端再次解码、去 EXIF，生成 1024 主图（小图不放大）和 256 缩略图；默认头像时 `avatar` / `avatarVersion` 均缺省。手机号当前无更新接口。
 
 ## authSessions（登录会话）
