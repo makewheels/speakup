@@ -138,7 +138,14 @@
     "emptyFeedback": "AI 没有返回可用反馈，请重试。",
     "micFailed": "无法访问麦克风：{msg}",
     "removeFailed": "取消收录失败：{msg}",
-    "addFailed": "加入复习失败：{msg}"
+    "addFailed": "加入复习失败：{msg}",
+    "hintFirst": "给我一点提示",
+    "hintMore": "再给一点提示",
+    "hintExhausted": "已显示全部提示",
+    "hintLoading": "正在加载提示…",
+    "hintFailed": "提示获取失败：{msg}",
+    "scenarioUnavailable": "该场景不存在或不可用。",
+    "backToPractice": "返回练习"
   },
   "practicePrefs": {
     "settingsSub": "修改后立即生效，下一道场景会按新的偏好匹配。",

@@ -412,3 +412,40 @@ describe("api/client SSE 流（correctStream / chatStream）", () => {
     expect(onError.mock.calls[0][0].message).toBe("boom");
   });
 });
+
+describe("渐进式提示与指定题目接口", () => {
+  let fetchMock;
+
+  beforeEach(() => {
+    localStorage.clear();
+    storeToken();
+    fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("scenarioBySlug 按路径参数精确取题", async () => {
+    await api.scenarioBySlug("prog-coffee-remake");
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/scenarios/by-slug/prog-coffee-remake");
+    expect(opts.headers.Authorization).toBe("Bearer tok_test");
+  });
+
+  it("scenarioBySlug 对 slug 做 URL 编码", async () => {
+    await api.scenarioBySlug("a b");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/scenarios/by-slug/a%20b");
+  });
+
+  it("revealNextHint 带 requestId POST", async () => {
+    await api.revealNextHint("ps_1", "req-uuid");
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/practice-sessions/ps_1/hints/next");
+    expect(opts.method).toBe("POST");
+    expect(JSON.parse(opts.body)).toEqual({ requestId: "req-uuid" });
+  });
+});

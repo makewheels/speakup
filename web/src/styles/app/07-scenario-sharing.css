@@ -406,3 +406,65 @@
 .share-date { font-family: var(--ff-mono); font-size: 11px; color: var(--ink-3); }
 .share-ops { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: 0 0 auto; }
 .share-ops .su-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 12px; }
+
+/* 渐进式场景提示：按需逐条出现的中文提示区。
+   固定区域不挤出录音主操作，不触发整页滚动；长文本换行不横向溢出 */
+.sc-hints {
+  font-family: var(--ff-cn);
+  background: var(--hint-bg);
+  border: 1px solid var(--hint-rule);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sc-hints-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sc-hints-list li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.7;
+}
+.sc-hints-list li::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+  color: var(--accent);
+}
+.sc-hints-btn {
+  width: 100%;
+}
+.sc-hints-done {
+  font-size: 14px;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 6px 0 2px;
+}
+.sc-hints-error {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--warn);
+}
+
+/* 指定题目不可用（不存在/已归档/无权）：明确提示 + 返回，不静默换随机题 */
+.sc-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  padding: 48px 24px;
+  font-family: var(--ff-cn);
+  font-size: 16px;
+  color: var(--ink-2);
+}

@@ -183,10 +183,10 @@ describe("PracticePage", () => {
     await userEvent.click(screen.getByTitle("Try another scenario"));
 
     await waitFor(() =>
-      expect(api.createPractice).toHaveBeenCalledWith({
+      expect(api.createPractice).toHaveBeenCalledWith(expect.objectContaining({
         userId: USER.userId,
         scenarioId: SCENARIO_B.scenarioId,
-      }),
+      })),
     );
   });
 

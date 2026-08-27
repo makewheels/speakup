@@ -129,6 +129,9 @@ async def reserve_attempt(
         "userId": practice["userId"],
         "sourceType": normalize_source_type(practice.get("sourceType")),
         "round": round_no,
+        # 作答当时已显示的提示数：服务端从 Session 复制，客户端不能伪造；
+        # 只用于分层分析，不进 corrector / 评分 / 反馈文案
+        "hintCount": int(practice.get("revealedHintCount") or 0),
         "mode": mode,
         "freeTopic": free_topic if mode == "free" else "",
         "transcript": transcript,

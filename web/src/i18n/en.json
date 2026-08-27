@@ -138,7 +138,14 @@
     "emptyFeedback": "AI did not return usable feedback. Please try again.",
     "micFailed": "Can't access microphone: {msg}",
     "removeFailed": "Failed to remove: {msg}",
-    "addFailed": "Failed to add: {msg}"
+    "addFailed": "Failed to add: {msg}",
+    "hintFirst": "Give me a hint",
+    "hintMore": "Give me another hint",
+    "hintExhausted": "All hints shown",
+    "hintLoading": "Loading…",
+    "hintFailed": "Could not load the hint: {msg}",
+    "scenarioUnavailable": "This scenario is not available.",
+    "backToPractice": "Back to practice"
   },
   "practicePrefs": {
     "settingsSub": "Changes apply immediately. The next scenario will use this preference.",

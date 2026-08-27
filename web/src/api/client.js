@@ -190,6 +190,9 @@ export const api = {
   },
   removeAvatar: () => request("/auth/profile/avatar", { method: "DELETE" }),
 
+  // 指定题目入口：按 slug 精确取题（/practice?scenario=<slug> 用），失败由调用方展示不可用态
+  scenarioBySlug: (slug) => request(`/scenarios/by-slug/${encodeURIComponent(slug)}`),
+
   nextScenario: (userId, exclude = [], prefs = {}) => {
     const params = new URLSearchParams({ userId });
     for (const id of exclude) params.append("exclude", id);
@@ -210,6 +213,10 @@ export const api = {
   nextFreeTopic: (userId) => request(`/free-topics/next?userId=${userId}`),
 
   createPractice: (data) => request("/practice-sessions", { method: "POST", body: data }),
+
+  // 渐进式提示：原子领取下一条；同 requestId 网络重试服务端幂等
+  revealNextHint: (practiceId, requestId) =>
+    request(`/practice-sessions/${practiceId}/hints/next`, { method: "POST", body: { requestId } }),
   getPractice: (id) => request(`/practice-sessions/${id}`),
   listPractices: (userId, skip = 0) => request(`/practice-sessions?userId=${userId}&skip=${skip}`),
 

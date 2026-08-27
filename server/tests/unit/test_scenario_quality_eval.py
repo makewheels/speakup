@@ -39,3 +39,62 @@ def test_similarity_distinguishes_unrelated_real_life_tasks():
         "mission": "请前台立即维修或提供替代方案",
     }
     assert scenario_similarity(GOOD, unrelated) < 0.5
+
+
+# --- 渐进式试点题分流（interactionType=progressive_hints）---
+
+def _progressive(**overrides):
+    base = {
+        "interactionType": "progressive_hints",
+        "kind": "chat",
+        "title": "茶水间聊周末",
+        "where": "公司茶水间 · 周一上午",
+        "story": "周一早上你在茶水间碰到不太熟的外国同事，他随口问你周末过得怎么样。",
+        "mission": "自然地聊几句你的周末",
+        "points": [],
+        "hints": ["上周末我去了趟郊外，天气特别好。", "你呢，周末一般喜欢做点什么？"],
+    }
+    base.update(overrides)
+    return base
+
+
+def test_progressive_non_task_passes_with_empty_points_and_hints():
+    assert hard_pass(_progressive())
+
+
+def test_progressive_task_requires_aligned_points_and_hints():
+    task = _progressive(
+        kind="task",
+        points=["说明订单少送了一份", "要求补送或退款"],
+        hints=["我点的两份菜只送到了一份。", "请帮我补送缺的那份。"],
+    )
+    assert hard_pass(task)
+    failed = {c.name for c in grade_scenario({**task, "hints": ["只有一条提示"]}) if not c.passed}
+    assert "points_hints_aligned" in failed
+    assert "progressive_hints" in failed
+
+
+def test_progressive_non_task_rejects_points():
+    failed = {c.name for c in grade_scenario(_progressive(points=["不该出现的要点"])) if not c.passed}
+    assert "progressive_points" in failed
+
+
+def test_progressive_hints_must_be_chinese_and_speakable():
+    english = _progressive(hints=["I went out last weekend.", "你呢，周末喜欢做什么？"])
+    assert "hints_chinese_only" in {c.name for c in grade_scenario(english) if not c.passed}
+    vague = _progressive(hints=["语气坚定但礼貌地回应", "围绕这个话题展开讨论"])
+    assert "speakable_hints" in {c.name for c in grade_scenario(vague) if not c.passed}
+
+
+def test_progressive_unknown_kind_fails():
+    failed = {c.name for c in grade_scenario(_progressive(kind="debate")) if not c.passed}
+    assert "known_kind" in failed
+
+
+def test_standard_check_sequence_unchanged():
+    """旧题不迁移：没有 interactionType 时输出与改造前完全一致。"""
+    names = [c.name for c in grade_scenario(GOOD)]
+    assert names == [
+        "required_fields", "exactly_two_points", "story_length", "mission_length",
+        "no_exam_smell", "speakable_points", "no_emoji_in_label", "not_near_duplicate",
+    ]

@@ -16,6 +16,13 @@ async def connect_db():
     await db.practiceAttempts.create_index(
         [("userId", 1), ("createdAt", -1)], name="user_attempt_history"
     )
+    # 开始动作幂等键：只覆盖非空 creationRequestId，旧客户端缺省该字段不受影响
+    await db.practiceSessions.create_index(
+        [("userId", 1), ("creationRequestId", 1)],
+        unique=True,
+        name="session_creation_idempotent",
+        partialFilterExpression={"creationRequestId": {"$exists": True}},
+    )
     print("MongoDB connected")
 
 

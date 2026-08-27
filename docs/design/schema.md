@@ -46,7 +46,7 @@
 ```json
 {
   "_id":         "sc_1781276...",
-  "slug":        "coffee-wrong-order",     // 幂等键；定制题为 custom-{userId}-{ts}
+  "slug":        "coffee-wrong-order",     // 幂等键与指定题目入口的稳定标识（小写 kebab-case）；定制题为 custom-{userId}-{ts}；渐进式试点题为稳定语义名
   "kind":        "task",                   // task办事 / chat日常问答 / describe描述 / opinion观点 / explain讲解（对齐雅思P1/2/3+实用）
   "title":       "咖啡店给错咖啡",          // 中文短标题，历史列表用
   "where":       "☕️ 咖啡店 · 西雅图",
@@ -63,6 +63,8 @@
   "sourceType":  "human | ai_test",       // 仅定制题写入，从 owner 用户冗余；公共题可缺省
   "category":    { "domain": "travel", "subId": "travel.airport_checkin" },  // 公共题：从 server/data/scenario_taxonomy.yaml 落 (domainShort, subId)；定制题不写
   "targetWords": ["could you take a look"], // 定制题：必须逼用户用上的弱点表达
+  "interactionType": "standard | progressive_hints",  // 可缺省；读取侧缺失/未知归一为 standard，写入侧校验
+  "hints":       ["我点的是热拿铁，但这杯是冰的。"], // 渐进式题 2-3 条有序中文提示；永不进纠错/标准答案请求；standard 缺省
   "status":      "active | archived",
   "createdAt":   datetime
 }
@@ -81,7 +83,10 @@
   "kind":        "task",
   "title":       "咖啡店给错咖啡",          // 历史列表标题
   "topic":       "☕️ 咖啡店 · 西雅图",     // = scenario.where
-  "scenario":    { "kind": "...", "title": "...", "where": "...", "story": "...", "mission": "...", "targetWords": [] },  // 快照，题目改动不影响历史
+  "scenario":    { "kind": "...", "title": "...", "where": "...", "story": "...", "mission": "...", "targetWords": [], "interactionType": "standard", "hints": [], "difficulty": 1 },  // 快照，题目改动不影响历史；渐进题 hints 只展示不进模型请求
+  "revealedHintCount": 0,           // 已显示的不同提示数；服务端持久化，始终 0..len(hints)；渐进式会话必有，standard/free 缺省按 0
+  "hintReveals": [{ "requestId": "uuid", "hintIndex": 0, "at": datetime }],  // 已处理的提示领取，同 requestId 幂等重放
+  "creationRequestId": "uuid",     // 开始动作幂等键；仅非空写入；按 (userId, creationRequestId) 唯一
   "imageKey":    "scenarios/sc_.../cover.jpg",  // 从题目复制的场景图 key，读取时现签
   "videoKey":    "scenarios/sc_.../cover.mp4",  // 从题目复制的场景视频 key，读取时现签；前端视频优先、图片兜底
   "attemptSeq":  3,                         // 原子分配下一轮 round；身份不用这个序号
@@ -101,6 +106,7 @@
   "userId":          "u_1781276...",
   "sourceType":      "human | ai_test",
   "round":           1,                    // 只用于排序和显示，不是关联主键
+  "hintCount":       0,                    // 作答当时已显示的提示数；服务端从 Session 复制，客户端不能伪造；仅用于分层分析
   "status":          "evaluating | completed",
   "mode":            "scenario | free",
   "freeTopic":       "",
@@ -183,6 +189,7 @@
 - `reviewItems`: `{userId, expression, kind}` 唯一索引（同一类型内去重；迁移前应先把历史缺失 `kind` 的记录补为 `mistake`）
 - `scenarios`: `{slug}` 唯一索引（脚本幂等）
 - `practiceSessions`: `{userId, createdAt}` 复合索引（历史列表）
+- `practiceSessions`: `{userId, creationRequestId}` 唯一部分索引（仅字段存在的文档；开始动作创建幂等）
 - `practiceAttempts`: `{practiceId, round}` 唯一复合索引
 - `practiceAttempts`: `{userId, createdAt}` 复合索引（历史查询）
 

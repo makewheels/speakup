@@ -1,0 +1,255 @@
+# 渐进式场景提示试点题 manifest
+#
+# 10 道试点题的最终审核文案（规格见 docs/requirements/20260826-渐进式场景提示.md）。
+# scripts/generate_progressive_hint_pilot.py 只读取本文件，不会在执行时随机改写已审核文案：
+#   - slug 是稳定主键，重复执行幂等 upsert，不会造出第二道同 slug 题
+#   - 坐标（subId/kind/difficulty）必须与 data/scenario_taxonomy.yaml 一致
+#   - dry-run 校验并打印，不调图片/视频服务、不写库；execute 只处理显式指定题，
+#     每次最多 5 道（10 道分两批，每批先 dry-run 人工审核再花钱）
+#
+# 字段：slug / kind / category(domain+subId) / difficulty / title / where / story /
+#       mission / points（task 必要信息；其他 kind 为空）/ hints / imagePrompt / videoPrompt
+
+scenarios:
+
+  - slug: delivery-missing-dish-claim
+    kind: task
+    category:
+      domain: food
+      subId: food.delivery_complaint
+    difficulty: 2
+    title: 外卖少送了一份菜
+    where: 家里 · 晚餐时间
+    story: 你点了两份主菜的外卖，骑手刚走你就发现少送了一份，而商家电话一直没人接。
+    mission: 找平台客服解决少送的菜
+    points:
+      - 说明订单里有一份菜没有送到
+      - 要求补送这份菜或者退掉它的钱
+    hints:
+      - 我点的两份菜只送到了一份。
+      - 请帮我把缺的那份补送来，不行的话就退那一份的钱。
+    imagePrompt: >-
+      Evening apartment dinner table with two takeout bags opened,
+      one empty spot where a missing dish should be, a smartphone lying
+      face down beside the bags, warm indoor light, overhead angle,
+      no readable text or captions
+    videoPrompt: >-
+      5-second silent video: hands opening a food delivery bag on a home
+      dinner table, pausing as one container is missing, side angle
+      close-up of the table, warm evening light, gentle pan, no text
+
+  - slug: airport-checkin-overweight-bag
+    kind: task
+    category:
+      domain: travel
+      subId: travel.airport_checkin
+    difficulty: 2
+    title: 值机柜台行李超重
+    where: 机场值机柜台 · 早上
+    story: 你在值机柜台托运时被告知行李超了两公斤，要么付超重费，要么当场拿出点东西。
+    mission: 不花超重费把行李托运了
+    points:
+      - 说明自己只超了两公斤而且赶时间
+      - 提出把一件厚外套穿在身上来减重
+    hints:
+      - 我的行李只超了两公斤，而且我快赶不上安检了。
+      - 我把这件厚外套直接穿上，这样应该就不超重了吧？
+    imagePrompt: >-
+      Airport check-in counter in the morning, a suitcase standing on the
+      luggage scale with the traveler gesturing at it, airline staff behind
+      the desk, wide shot from the side, no close-up faces, no text
+    videoPrompt: >-
+      5-second silent video: a suitcase resting on a check-in scale, the
+      traveler opening it slightly and holding up a jacket, wide side angle
+      at the counter, gentle camera push-in, no text
+
+  - slug: pantry-weekend-smalltalk
+    kind: chat
+    category:
+      domain: work
+      subId: work.tea_room_chat
+    difficulty: 1
+    title: 茶水间聊周末
+    where: 公司茶水间 · 周一上午
+    story: 周一早上你在茶水间碰到不太熟的外国同事，他一边接咖啡一边随口问你周末过得怎么样。
+    mission: 自然地聊几句你的周末
+    points: []
+    hints:
+      - 上个周末我终于有空去了趟郊外，天气特别好。
+      - 不过周日晚上在家收拾屋子，累得够呛。
+      - 你呢，周末一般喜欢做点什么？
+    imagePrompt: >-
+      Office pantry on a Monday morning, two colleagues standing at the
+      coffee machine, one holding a mug mid-conversation, bright window
+      light, medium shot from behind at an angle, no close-up faces, no text
+    videoPrompt: >-
+      5-second silent video: an office pantry scene, steam rising from a
+      coffee machine as a person leans against the counter chatting, soft
+      morning light, slow lateral camera move, no text
+
+  - slug: reunion-old-classmate-catchup
+    kind: chat
+    category:
+      domain: social
+      subId: social.reunion_reconnect
+    difficulty: 2
+    title: 同学会重逢叙旧
+    where: 餐馆包厢 · 晚上
+    story: 同学会上你碰到了十年没见的老同桌，他端着杯子坐到你旁边，问起你这些年过得怎么样。
+    mission: 跟他聊聊这些年的近况
+    points: []
+    hints:
+      - 我毕业之后去了南方工作，现在在一家互联网公司做产品。
+      - 前几年忙得很少回家，今年开始尽量多回去陪陪父母。
+      - 你还是老样子，一点都没变。
+    imagePrompt: >-
+      Private room of a Chinese restaurant at night, round dinner table
+      with a lazy susan, an old classmate raising a glass while pulling up
+      a chair, warm ambient light, wide shot, no close-up faces, no text
+    videoPrompt: >-
+      5-second silent video: a banquet table in a restaurant private room,
+      someone lifting a glass and sitting down beside an old friend, warm
+      low light, slow dolly around the table edge, no text
+
+  - slug: hometown-riverside-city
+    kind: describe
+    category:
+      domain: social
+      subId: social.hometown
+    difficulty: 1
+    title: 聊聊我的家乡
+    where: 朋友家客厅 · 闲聊
+    story: 外国朋友看着你手机里的照片，好奇地问你家乡是个什么样的地方，离江边是不是很近。
+    mission: 给他介绍你的家乡
+    points: []
+    hints:
+      - 我家乡在南方的一条江边，夏天特别热，冬天也不怎么下雪。
+      - 那边最出名的是早餐粉，一条街上能有十几家粉店。
+      - 现在变化很大，江边修了漂亮的步道，晚上全是散步的人。
+    imagePrompt: >-
+      A riverside southern Chinese city at dusk, illuminated walking
+      promenade along the river with strolling people, distant bridges and
+      buildings, wide landscape shot, no text or captions
+    videoPrompt: >-
+      5-second silent video: an aerial view slowly gliding over a riverside
+      city promenade at dusk, lights turning on, people walking far below,
+      no text
+
+  - slug: memorable-trip-mountain-village
+    kind: describe
+    category:
+      domain: travel
+      subId: travel.memorable_trip
+    difficulty: 2
+    title: 一次难忘的山村旅行
+    where: 朋友聚会 · 闲聊
+    story: 朋友问起你印象最深的一次旅行，你想起前年去西南一个山村，差点没赶上回程的班车。
+    mission: 讲讲这次难忘的旅行
+    points: []
+    hints:
+      - 那个村子在山里，客车一天只有两班，我们进去的时候就没想好怎么出来。
+      - 临走那天我们一路小跑到村口，司机居然专门等了我们几分钟。
+      - 现在想起来还后怕，但也多亏了那趟车，不然就得在山里多住一晚。
+    imagePrompt: >-
+      A small mountain village in southwest China with terraced fields and
+      low houses, a lone bus on a winding road below, late afternoon light,
+      wide scenic shot, no text
+    videoPrompt: >-
+      5-second silent video: a bus rounding a mountain bend toward a small
+      village, mist over terraced hills, slow drone-like camera glide, no text
+
+  - slug: short-video-addiction-debate
+    kind: opinion
+    category:
+      domain: hobby
+      subId: hobby.short_video_addiction
+    difficulty: 2
+    title: 刷短视频算不算上瘾
+    where: 咖啡馆 · 下午
+    story: 外国朋友注意到你等咖啡时一直在刷短视频，笑着问你是不是有点上瘾了，你们顺势聊了起来。
+    mission: 说说你对刷短视频的看法
+    points: []
+    hints:
+      - 我觉得自己算不上上瘾，只是等车排队的空当顺手看看。
+      - 不过确实有一次刷到凌晨，第二天特别后悔。
+      - 它推荐得太准了，越看越停不下来，这点挺吓人的。
+    imagePrompt: >-
+      Afternoon cafe table with a latte and a phone propped up, two friends
+      seated across the table mid-conversation, window light, over-the-shoulder
+      shot without visible faces, no readable text
+    videoPrompt: >-
+      5-second silent video: close-up of a phone propped on a cafe table
+      next to a coffee cup, two blurred people talking in the background,
+      slow push-in, no text
+
+  - slug: young-people-fading-festivals
+    kind: opinion
+    category:
+      domain: festival
+      subId: festival.tradition_decline
+    difficulty: 3
+    title: 年轻人不爱过传统节日了？
+    where: 朋友聚餐 · 晚上
+    story: 聚餐时外国朋友说感觉中国年轻人过节越来越敷衍，只有放假没有仪式感，问你是不是也这样。
+    mission: 谈谈你怎么看这个现象
+    points: []
+    hints:
+      - 我承认我自己也是，春节基本只剩吃年夜饭和抢红包。
+      - 但我觉得不是不在乎，是很多仪式在城里没条件做了。
+      - 像中秋我们还是会买月饼，只是改成寄给朋友了。
+    imagePrompt: >-
+      Evening dinner gathering with hot pot on the table, red festival
+      lantern decorations hanging above, young people chatting and raising
+      glasses, warm restaurant light, wide shot, no close-up faces, no text
+    videoPrompt: >-
+      5-second silent video: friends around a dinner table laughing, one
+      gesturing while speaking, a festival lantern decoration hanging above,
+      warm light, gentle camera arc, no text
+
+  - slug: spring-festival-for-foreigner
+    kind: explain
+    category:
+      domain: festival
+      subId: festival.spring_festival
+    difficulty: 2
+    title: 给老外讲春节
+    where: 办公室休息区 · 年前
+    story: 春节前外国同事看你抢着回家的高铁票，好奇地问中国人过年到底都忙些什么。
+    mission: 给他讲讲春节怎么过
+    points: []
+    hints:
+      - 最重要的是除夕那顿团圆饭，再远也要赶回家吃。
+      - 长辈会给小孩发红包，现在大家都直接在手机上发了。
+      - 初一开始就走亲戚拜年，一直热闹到元宵。
+    imagePrompt: >-
+      Chinese New Year eve dinner table full of dishes with a family
+      gathered around, red lanterns and couplets decorating the room, warm
+      festive light, wide shot, no close-up faces, no readable text
+    videoPrompt: >-
+      5-second silent video: a family raising glasses around a round dinner
+      table decorated in red, steam rising from dishes, warm festive light,
+      slow zoom out, no text
+
+  - slug: explain-xiaohongshu-to-foreigner
+    kind: explain
+    category:
+      domain: tech
+      subId: tech.explain_cn_apps
+    difficulty: 3
+    title: 给老外解释小红书
+    where: 地铁车厢 · 通勤路上
+    story: 通勤路上外国同事看到你刷小红书，问这是什么软件，跟国外的图片社区有什么不一样。
+    mission: 给他解释小红书是干嘛的
+    points: []
+    hints:
+      - 它是一个生活方式社区，大家把探店、旅行攻略写成图文笔记。
+      - 它最厉害的是搜索，很多人把它当搜索引擎用。
+      - 跟图片社区不一样，它上面大部分内容是中文的实用经验帖。
+    imagePrompt: >-
+      Commute subway carriage, a commuter browsing a lifestyle community
+      app on a phone, another person leaning over curiously, handrails and
+      seats visible, medium shot from the side, no close-up faces, no readable text
+    videoPrompt: >-
+      5-second silent video: inside a moving subway carriage, one commuter
+      showing a phone screen to a curious colleague, both seen from the side,
+      gentle sway of the carriage, no text
