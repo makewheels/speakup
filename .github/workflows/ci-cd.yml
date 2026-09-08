@@ -132,6 +132,19 @@ jobs:
           env-slug: dev
           secret-path: /llm/speakup
 
+      # 镜像仓库凭据是跨仓库共享凭据，按 infra 规则收口在 common-shared 的 /deployment。
+      # 放在 speakup-secrets 读取之后，让 common 的值生效（迁移期两处同值，验证后删旧副本）。
+      - name: 从 common 读取镜像仓库凭据
+        uses: Infisical/secrets-action@v1.0.16
+        with:
+          method: oidc
+          identity-id: e0d98dc2-4295-4092-9cb9-6bf891cc3c2d
+          oidc-audience: ${{ vars.INFISICAL_OIDC_AUDIENCE }}
+          domain: ${{ vars.INFISICAL_DOMAIN }}
+          project-slug: common-shared
+          env-slug: dev
+          secret-path: /deployment
+
       - name: Login to ACR
         run: |
           printf '%s' "$ACR_AK_SECRET" | docker login \
