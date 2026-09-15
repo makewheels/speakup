@@ -12,6 +12,26 @@ end-to-end 评估 `server/services/corrector.py` 的 LLM 判题——给 prompt 
 
 ## 基线记录
 
+### 2026-09-15 生产切到火山方舟 Agent Plan `deepseek-v4.1-flash`
+
+按用户决定，文字评估从 DeepSeek 官方 `deepseek-v4-flash` 切到火山方舟 Agent Plan 的
+`deepseek-v4.1-flash`（与配图/视频共用同一 key）。切换前跑了一次 regression（12 条 × 3 trials）：
+
+| 指标 | 结果 |
+|---|---|
+| pass@3 | 11/12（92%） |
+| pass^3 | 9/12（75%） |
+
+未过的 3 条：
+
+- `chinglish-redundant-me`（0/3）：模型把 `help me to take me a photo` 判成 grammar，任务期望
+  naturalness；纠正内容本身正确（`take a photo of sb`）。属于 category 边界偏好，非能力缺失。
+- `vocab-borrow-vs-lend`（2/3）：一次 `schema:gap_original_grounded` 未过，偶发。
+- `scoring-anchor-low`（2/3）：一次给 4.5，期望 ≤4.0，偶发。
+
+对比参考（不同时期跑的，prompt 版本不完全相同）：`qwen3.8-max` pass^3 10/12、`qwen3.7-plus` 9/12、
+`glm-5.2` 6/12。DeepSeek 官方 `deepseek-v4-flash` 的基线此前未建立，无法直接对比。
+
 ### 2026-08-14 生产切到 deepseek-v4-flash（0731）
 
 DeepSeek 于 2026-07-31 对 V4-Flash 重新后训练（版本 DeepSeek-V4-Flash-0731，API 模型名仍为

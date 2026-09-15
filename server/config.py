@@ -6,10 +6,10 @@ env_file = f".env.{os.getenv('APP_ENV', 'development')}"
 load_dotenv(Path(__file__).parent / env_file)
 load_dotenv(Path(__file__).parent / ".env", override=False)
 
-# 文字/对话 LLM：与运营商解耦，只认 CHAT_*。默认走阿里云百炼 OpenAI 兼容接口。
+# 文字/对话 LLM：与运营商解耦，只认 CHAT_*。默认走火山方舟 Agent Plan OpenAI 兼容接口。
 CHAT_API_KEY = os.getenv("CHAT_API_KEY", "")
-CHAT_BASE_URL = os.getenv("CHAT_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
-CHAT_MODEL = os.getenv("CHAT_MODEL", "glm-5.2")
+CHAT_BASE_URL = os.getenv("CHAT_BASE_URL", "https://ark.cn-beijing.volces.com/api/plan/v3")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "deepseek-v4.1-flash")
 CHAT_THINKING = os.getenv("CHAT_THINKING", "false").lower() in ("1", "true", "yes")
 
 # 图片生成：火山方舟 Agent Plan Seedream。默认仍关闭，避免自动补题意外消耗额度。

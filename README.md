@@ -18,7 +18,7 @@
 | 后端 | FastAPI (Python 3.14) |
 | 数据库 | MongoDB |
 | 场景配图 | 火山方舟 Seedream 文生图（成本高，默认关闭），存阿里云 OSS |
-| AI 反馈/出题 | DeepSeek 官方 `deepseek-v4-flash`（当前生产） |
+| AI 反馈/出题 | 火山方舟 Agent Plan `deepseek-v4.1-flash`（当前生产） |
 | ASR / TTS | 百炼 `qwen3-asr-flash` / `qwen3-tts-flash` |
 | 部署 | Docker Compose + Caddy，GitHub Actions 自动部署 |
 
