@@ -11,15 +11,22 @@ GitHub Actions → OIDC 读取 Infisical → 构建 Docker 镜像 → 双推 ACR
 <生产域名> → /opt/caddy 网关 (Caddy, 80/443) → speakup:3001 (docker network: edge)
 speakup:3001  → MongoDB (内网, MONGO_URI)
                                  → 阿里云 OSS speakup-prod 桶
-                                 → DeepSeek deepseek-v4-flash（文字）/ 百炼 Qwen ASR / Qwen TTS
+                                 → 火山方舟 Agent Plan deepseek-v4.1-flash（文字）/ 百炼 Qwen ASR / Qwen TTS
                                  → 火山方舟 Seedream（配图，默认关闭）
 ```
 
-AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`，配图使用 `IMAGE_*`。当前生产文字模型是 DeepSeek 官方 `deepseek-v4-flash`（当前版本 DeepSeek-V4-Flash-0731），ASR/TTS 分别为百炼 `qwen3-asr-flash` / `qwen3-tts-flash`；配图因原套餐失效设置 `IMAGE_ENABLED=false`，已有题图不受影响。实际值以 Infisical 的 `speakup/prod` 为准，共享语音密钥以 `common/dev` 为准。
+AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`，配图使用 `IMAGE_*`。当前生产文字模型是火山方舟 Agent Plan 的 `deepseek-v4.1-flash`，与配图/视频共用同一个 Agent Plan key，ASR/TTS 分别为百炼 `qwen3-asr-flash` / `qwen3-tts-flash`；配图因原套餐失效设置 `IMAGE_ENABLED=false`，已有题图不受影响。实际值以 Infisical 的 `speakup/prod` 为准，共享语音密钥以 `common/dev` 为准。
 
 语音容错：云 ASR 失败时前端保留录音并进入可编辑转写框，用户手动输入后仍可完成评估；云 TTS 失败时自动改用浏览器 `speechSynthesis`。这保证主练习链路可降级完成，但不等于云语音服务健康。恢复完整云语音前需用北京地域、已开通对应语音模型的常规百炼 API Key 更新 `DASHSCOPE_API_KEY`，再分别实测 `/api/transcribe` 与 `/api/tts`，不能只看 `/api/health`。
 
-更新 Infisical 后，从 Actions 页手动运行 `CI / CD` 工作流。任务只在部署期间创建受限临时文件，`docker compose` 完成环境解析后立即删除；生产机不再保留应用 `.env`。不要重跑更新前的旧任务，旧任务可能仍使用当时的密钥快照。
+文字服务支持 `CHAT_FALLBACK_1_API_KEY/BASE_URL/MODEL` 与 `CHAT_FALLBACK_2_API_KEY/BASE_URL/MODEL`。
+在 `speakup/<env>/llm` 配置阿里云与 DeepSeek 两级备用，每一级三个字段必须完整。
+主服务仍优先使用 `CHAT_*` 的火山 Agent Plan。部署前分别验证各级实际接口与模型权限；
+空配置会跳过该级，不能把未配置或未实测的备用称为已可用。行为见 [文字切换设计](design/text-provider-fallback.md)。
+
+更新 Infisical 后，从默认分支手动运行 `CI / CD` 工作流。push 与默认分支的手动任务均可部署；
+其他分支的手动任务只做检查。必须查看 `Build & Deploy` 本身成功，不能仅凭工作流总状态。
+任务只在部署期间创建受限临时文件，`docker compose` 完成环境解析后立即删除；生产机不再保留应用 `.env`。
 
 每次部署会把当前 GitHub commit SHA 作为非敏感的 `APP_VERSION` 注入容器；`GET /api/version` 必须返回该 SHA。部署烟测同时检查健康接口和版本一致性，避免镜像拉取或容器替换异常时把旧版本误报为上线成功。
 

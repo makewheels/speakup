@@ -36,6 +36,7 @@ export function startEvaluation(ctx) {
         navigate(`/practice/${active._id}?attempt=${attemptId}`, { replace: true });
       },
       onChunk: (chunk) => setStreamingLen((n) => n + chunk.length),
+      onReset: () => setStreamingLen(0),
       onDone: ({ result: res, attemptId, round: r }) => {
         clearInterval(evalTimerRef.current);
         if (!hasUsableFeedback(res)) {

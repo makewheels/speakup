@@ -63,7 +63,7 @@ async function request(path, options = {}) {
  * handlers: { onStarted({attemptId, round}), onChunk(text), onDone({result, attemptId, autoSaved}), onError(err) }
  * 返回 AbortController，调用方可 .abort() 取消。
  */
-export function correctStream(data, { onStarted, onChunk, onDone, onError } = {}) {
+export function correctStream(data, { onStarted, onChunk, onReset, onDone, onError } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 120_000);
 
@@ -97,6 +97,7 @@ export function correctStream(data, { onStarted, onChunk, onDone, onError } = {}
             const event = JSON.parse(part.slice(6));
             if (event.type === "started") onStarted?.({ attemptId: event.attemptId, round: event.round });
             else if (event.type === "chunk") onChunk?.(event.text);
+            else if (event.type === "reset") onReset?.();
             else if (event.type === "done") onDone?.({
               result: event.result,
               attemptId: event.attemptId,
@@ -126,7 +127,7 @@ export function correctStream(data, { onStarted, onChunk, onDone, onError } = {}
  * handlers: { onChunk(text), onDone({text}), onError(err) }
  * 返回 AbortController。
  */
-export function chatStream(data, { onChunk, onDone, onError } = {}) {
+export function chatStream(data, { onChunk, onReset, onDone, onError } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 120_000);
 
@@ -159,6 +160,7 @@ export function chatStream(data, { onChunk, onDone, onError } = {}) {
           try {
             const event = JSON.parse(part.slice(6));
             if (event.type === "chunk") onChunk?.(event.text);
+            else if (event.type === "reset") onReset?.();
             else if (event.type === "done") onDone?.({ text: event.text });
             else if (event.type === "error") onError?.(new Error(event.message));
           } catch {

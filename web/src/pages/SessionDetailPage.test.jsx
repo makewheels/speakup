@@ -14,7 +14,9 @@ vi.mock("../api/client.js", () => ({
     submitFeedback: vi.fn(),
     listMyFeedbacks: vi.fn(),
   },
-  chatStream: vi.fn((data, { onChunk, onDone }) => {
+  chatStream: vi.fn((data, { onChunk, onReset, onDone }) => {
+    onChunk?.("discarded partial");
+    onReset?.();
     onChunk?.("hi");
     onDone?.({ text: "hi" });
     return { abort() {} };

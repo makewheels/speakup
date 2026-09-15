@@ -9,6 +9,7 @@ from typing import AsyncGenerator
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from services.corrector import _get_client, _scenario_block
+from services.chat_fallback import ProvidersUnavailableError
 from services.llm_audit import (
     _safe_insert as audit_safe_insert,
     client_params,
@@ -98,6 +99,12 @@ async def followup_chat_stream(  # noqa: C901
         for stream_attempt in range(2):
             try:
                 async for chunk in _get_client().astream(messages):
+                    if chunk.response_metadata.get("fallback_reset") is True:
+                        full_text = ""
+                        final_metadata = None
+                        final_usage = None
+                        yield "reset", {}
+                        continue
                     delta = content_to_text(chunk.content)
                     if delta:
                         full_text += delta
@@ -107,8 +114,8 @@ async def followup_chat_stream(  # noqa: C901
                     if getattr(chunk, "usage_metadata", None):
                         final_usage = chunk.usage_metadata
                 break
-            except Exception:
-                if stream_attempt == 0 and not full_text:
+            except Exception as error:
+                if stream_attempt == 0 and not full_text and not isinstance(error, ProvidersUnavailableError):
                     logger.warning("followup_chat_stream transient pre-token failure; retrying once")
                     await asyncio.sleep(0.25)
                     continue
@@ -128,11 +135,12 @@ async def followup_chat_stream(  # noqa: C901
     await audit_safe_insert({
         "kind": "followup_chat",
         "model": model,
+        "routing": {key: (final_metadata or {}).get(key) for key in ("provider", "provider_attempts")},
         "request": {
             "systemPrompt": messages[0].content,
             "userPrompt": question,
             "messages": serialize_messages(messages),  # 完整消息列表（含多轮历史），一字不少
-            "params": client_params(_get_client()),
+            "params": (final_metadata or {}).get("generation_params") or client_params(_get_client()),
         },
         "response": {"raw": full_text},  # 完整响应，不截断
         "tokens": {"prompt": prompt_tok, "completion": completion_tok},

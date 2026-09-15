@@ -211,6 +211,8 @@ async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(curre
             ):
                 if event_type == "chunk":
                     yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
+                elif event_type == "reset":
+                    yield f"data: {json.dumps({'type': 'reset'})}\n\n"
                 elif event_type == "usage":
                     yield f"data: {json.dumps({'type': 'usage', **data})}\n\n"
                 elif event_type == "error":
@@ -297,6 +299,9 @@ async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(cur
             if event_type == "chunk":
                 full += data["text"]
                 yield f"data: {json.dumps({'type': 'chunk', 'text': data['text']})}\n\n"
+            elif event_type == "reset":
+                full = ""
+                yield f"data: {json.dumps({'type': 'reset'})}\n\n"
             elif event_type == "usage":
                 yield f"data: {json.dumps({'type': 'usage', **data})}\n\n"
             elif event_type == "error":

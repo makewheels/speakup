@@ -42,6 +42,8 @@ logger = logging.getLogger(__name__)
 # 单位：元/百万 tokens（调试用估算；Agent Plan 额度内边际成本按 0 记）
 TEXT_PRICING = {
     "ark-code-latest":  {"prompt": 0.0,  "completion": 0.0},
+    # 火山侧响应返回的是点转横线后的名字，按响应名匹配才不会落到 fallback
+    "deepseek-v4-1-flash": {"prompt": 0.0, "completion": 0.0},
     "glm-5.2":          {"prompt": 0.0,  "completion": 0.0},
     "deepseek-v4-pro":  {"prompt": 0.0,  "completion": 0.0},
     "deepseek-v4-pro-260425": {"prompt": 0.0, "completion": 0.0},
@@ -196,6 +198,7 @@ async def audited_invoke(
         resp = await client.ainvoke(messages)
         raw = content_to_text(resp.content)
         metadata = resp.response_metadata or {}
+        params = metadata.get("generation_params") or params
     except Exception as e:
         error = f"llm_invoke_failed: {e}"
 
@@ -217,6 +220,7 @@ async def audited_invoke(
         "kind": kind,
         "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
+        "routing": {key: (metadata or {}).get(key) for key in ("provider", "provider_attempts")},
         "request": {
             "systemPrompt": messages[0].content if messages else "",
             "userPrompt": messages[1].content if len(messages) > 1 else "",

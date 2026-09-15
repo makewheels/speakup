@@ -146,7 +146,9 @@ describe("PracticePage feedback", () => {
         },
       ],
     });
-    chatStream.mockImplementation((_data, { onChunk, onDone }) => {
+    chatStream.mockImplementation((_data, { onChunk, onReset, onDone }) => {
+      onChunk("discarded partial");
+      onReset();
       onChunk("native ");
       onChunk("更自然。");
       onDone?.({ text: "native 更自然。" });

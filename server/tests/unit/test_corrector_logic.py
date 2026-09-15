@@ -8,6 +8,7 @@ from services.corrector import (
     GapItem,
     ProgressInfo,
     _build_messages,
+    _fallback_settings,
     _get_client,
     _is_too_short,
     _parse_result,
@@ -31,7 +32,7 @@ def test_get_client_disables_thinking_for_dashscope(monkeypatch):
     )
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
-    assert _get_client() == "client"
+    assert _get_client().providers[0].client == "client"
 
     assert fake_chat.call_args.kwargs["extra_body"] == {"enable_thinking": False}
 
@@ -43,7 +44,7 @@ def test_get_client_uses_volcengine_thinking_shape(monkeypatch):
     monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
-    assert _get_client() == "client"
+    assert _get_client().providers[0].client == "client"
     assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
@@ -56,9 +57,23 @@ def test_get_client_uses_deepseek_thinking_shape(monkeypatch):
     monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://api.deepseek.com/v1")
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
-    assert _get_client() == "client"
+    assert _get_client().providers[0].client == "client"
     assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
     assert fake_chat.call_args.kwargs["stream_usage"] is True
+
+
+def test_fallback_settings_discovers_any_numbered_slots(monkeypatch):
+    for slot, model in ((1, "aliyun-model"), (3, "third-model"), (4, "fourth-model")):
+        monkeypatch.setenv(f"CHAT_FALLBACK_{slot}_API_KEY", f"key-{slot}")
+        monkeypatch.setenv(f"CHAT_FALLBACK_{slot}_BASE_URL", f"https://provider-{slot}.test/v1")
+        monkeypatch.setenv(f"CHAT_FALLBACK_{slot}_MODEL", model)
+    monkeypatch.setenv("CHAT_FALLBACK_2_API_KEY", "incomplete")
+
+    assert _fallback_settings() == [
+        ("fallback_1", "key-1", "https://provider-1.test/v1", "aliyun-model"),
+        ("fallback_3", "key-3", "https://provider-3.test/v1", "third-model"),
+        ("fallback_4", "key-4", "https://provider-4.test/v1", "fourth-model"),
+    ]
 
 
 def test_short_input_skips_llm_entirely():
