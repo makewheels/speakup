@@ -1,7 +1,9 @@
 # 文字模型服务切换
 
 所有文字业务共用 `services.corrector._get_client()`，返回 `FallbackChat`。
-配置按主服务、备用 1、备用 2 排列，目标部署顺序为火山 Agent Plan、阿里云、DeepSeek。
+配置按主服务、备用 1、备用 2……排列，目标部署顺序为火山 Agent Plan、阿里云、DeepSeek。
+备用槽位按环境变量编号自动发现；增加第三、第四家只需添加 `CHAT_FALLBACK_3_*`、
+`CHAT_FALLBACK_4_*` 的三个字段。缺字段的槽位会被记录并跳过，其他编号仍按顺序工作。
 没有完整配置的服务不加入候选列表，语音和媒体服务仍使用各自配置。
 
 `ainvoke` 在接口错误、超时或空文本时切换；`astream` 同时处理首段失败和中途断流。

@@ -1,4 +1,4 @@
-import asyncio, json, logging, re, time
+import asyncio, json, logging, os, re, time
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Literal
 
@@ -6,7 +6,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-import config
 from config import CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL, CHAT_THINKING
 from services.chat_fallback import ChatProvider, FallbackChat, ProvidersUnavailableError
 from services.llm_audit import (
@@ -80,14 +79,7 @@ def thinking_extra_body(base_url: str) -> dict:
 def _get_client() -> FallbackChat:
     global _client
     if _client is None:
-        settings = [("primary", CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL)]
-        for slot in (1, 2):
-            settings.append((
-                f"fallback_{slot}",
-                getattr(config, f"CHAT_FALLBACK_{slot}_API_KEY"),
-                getattr(config, f"CHAT_FALLBACK_{slot}_BASE_URL"),
-                getattr(config, f"CHAT_FALLBACK_{slot}_MODEL"),
-            ))
+        settings = [("primary", CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL), *_fallback_settings()]
         providers = []
         for name, api_key, base_url, model in settings:
             if not all((api_key, base_url, model)):
@@ -101,6 +93,23 @@ def _get_client() -> FallbackChat:
             providers.append(ChatProvider(name, client))
         _client = FallbackChat(providers)
     return _client
+
+
+def _fallback_settings() -> list[tuple[str, str, str, str]]:
+    """Discover numbered fallback slots from the environment in ascending order."""
+    slot_numbers = {
+        int(match.group(1))
+        for key in os.environ
+        if (match := re.fullmatch(r"CHAT_FALLBACK_(\d+)_(?:API_KEY|BASE_URL|MODEL)", key))
+    }
+    settings = []
+    for slot in sorted(slot_numbers):
+        values = tuple(os.getenv(f"CHAT_FALLBACK_{slot}_{field}", "") for field in ("API_KEY", "BASE_URL", "MODEL"))
+        if all(values):
+            settings.append((f"fallback_{slot}", *values))
+        elif any(values):
+            logger.warning("incomplete text provider slot=%s; skipping", slot)
+    return settings
 
 
 
