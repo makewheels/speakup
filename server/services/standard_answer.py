@@ -116,7 +116,7 @@ async def generate_standard_answer(
     *,
     link_to: dict | None = None,
 ) -> dict:
-    """标准答案严格只调用一次；不可用时安全降级为空。"""
+    """标准答案只提交一次独立业务请求，服务切换由客户端处理。"""
     if not _question_snapshot(scenario):
         return StandardAnswerResult().model_dump()
 

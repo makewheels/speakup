@@ -315,6 +315,21 @@ describe("api/client SSE 流（correctStream / chatStream）", () => {
 
   const flush = () => new Promise((r) => setTimeout(r, 0));
 
+  it.each([correctStream, chatStream])("切换服务时先清空半截回答再接收新内容", async (stream) => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      body: sseStream([
+        'data: {"type":"chunk","text":"旧回答"}\n\n',
+        'data: {"type":"reset"}\n\ndata: {"type":"chunk","text":"新回答"}\n\n',
+      ]),
+    });
+    let answer = "";
+    stream({}, { onChunk: (text) => { answer += text; }, onReset: () => { answer = ""; } });
+    await flush();
+    await flush();
+    expect(answer).toBe("新回答");
+  });
+
   it("correctStream 解析 chunk + done 事件，回调依次触发", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

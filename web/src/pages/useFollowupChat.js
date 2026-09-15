@@ -27,6 +27,9 @@ export default function useFollowupChat(userId, practiceId, attemptId = "") {
     controllerRef.current = chatStream(
       { userId, practiceId, attemptId, question: q },
       {
+        onReset: () => setChat((previous) => [
+          ...previous.slice(0, -1), { role: "assistant", content: "" },
+        ]),
         onChunk: (text) =>
           setChat((c) => {
             const next = [...c];

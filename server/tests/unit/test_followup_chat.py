@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain_core.messages import AIMessageChunk
 
 from services.followup_chat import (
     _build_followup_messages,
@@ -72,6 +73,19 @@ async def test_followup_streams_chunks_then_done():
     assert "".join(chunk_texts) == "remake"
     assert len(done) == 1
     assert done[0]["text"] == "remake"
+
+
+@pytest.mark.asyncio
+async def test_provider_reset_discards_partial_reply():
+    fake = _fake_stream_client([
+        AIMessageChunk(content="old partial"),
+        AIMessageChunk(content="", response_metadata={"fallback_reset": True}),
+        AIMessageChunk(content="new answer"),
+    ])
+    with patch("services.followup_chat._get_client", return_value=fake):
+        events = await _collect_followup("why?")
+    assert ("reset", {}) in events
+    assert events[-1] == ("done", {"text": "new answer"})
 
 
 @pytest.mark.asyncio

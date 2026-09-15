@@ -6,7 +6,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
+import config
 from config import CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL, CHAT_THINKING
+from services.chat_fallback import ChatProvider, FallbackChat, ProvidersUnavailableError
 from services.llm_audit import (
     _safe_insert as audit_safe_insert,
     audited_invoke,
@@ -26,8 +28,8 @@ from services.corrector_prompts import (
 )
 from services.gap_examples import normalized_example
 
-_API_TIMEOUT = 60.0
-_client: ChatOpenAI | None = None
+_API_TIMEOUT = 10.0
+_client: FallbackChat | None = None
 logger = logging.getLogger(__name__)
 
 
@@ -75,20 +77,29 @@ def thinking_extra_body(base_url: str) -> dict:
     return {"enable_thinking": CHAT_THINKING}
 
 
-def _get_client() -> ChatOpenAI:
+def _get_client() -> FallbackChat:
     global _client
     if _client is None:
-        _client = ChatOpenAI(
-            openai_api_base=CHAT_BASE_URL,
-            openai_api_key=CHAT_API_KEY,
-            model=CHAT_MODEL,
-            temperature=0.3,
-            max_tokens=2000,
-            extra_body=thinking_extra_body(CHAT_BASE_URL),
-            # 流式也回传 token 用量（SSE 末尾 chunk 带 usage），否则审计里 token 恒为 0
-            stream_usage=True,
-            timeout=_API_TIMEOUT,
-        )
+        settings = [("primary", CHAT_API_KEY, CHAT_BASE_URL, CHAT_MODEL)]
+        for slot in (1, 2):
+            settings.append((
+                f"fallback_{slot}",
+                getattr(config, f"CHAT_FALLBACK_{slot}_API_KEY"),
+                getattr(config, f"CHAT_FALLBACK_{slot}_BASE_URL"),
+                getattr(config, f"CHAT_FALLBACK_{slot}_MODEL"),
+            ))
+        providers = []
+        for name, api_key, base_url, model in settings:
+            if not all((api_key, base_url, model)):
+                continue
+            client = ChatOpenAI(
+                openai_api_base=base_url, openai_api_key=api_key, model=model,
+                temperature=0.3, max_tokens=2000,
+                extra_body=thinking_extra_body(base_url), stream_usage=True,
+                timeout=_API_TIMEOUT, max_retries=0,
+            )
+            providers.append(ChatProvider(name, client))
+        _client = FallbackChat(providers)
     return _client
 
 
@@ -326,7 +337,7 @@ async def _correct_text_only(
 
 
 async def _standard_answer_or_empty(scenario: dict | None, link_to: dict | None) -> dict:
-    """标准答案失败不拖垮纠正主路径；该分支严格只发一次模型请求。"""
+    """标准答案失败不拖垮纠正主路径，服务切换保持题目消息独立。"""
     try:
         return await generate_standard_answer(scenario, _get_client(), link_to=link_to)
     except Exception as e:
@@ -390,6 +401,12 @@ async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
     final_usage: dict | None = None
     try:
         async for chunk in _get_client().astream(messages):
+            if chunk.response_metadata.get("fallback_reset") is True:
+                full_text = ""
+                final_metadata = None
+                final_usage = None
+                yield "reset", {}
+                continue
             delta = content_to_text(chunk.content)
             if delta:
                 full_text += delta
@@ -421,6 +438,8 @@ async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
         logger.error("correct_text_stream error: %s: %s", type(e).__name__, e)
         err = f"{type(e).__name__}: {e}"
         try:
+            if isinstance(e, ProvidersUnavailableError):
+                raise e
             parsed = await _correct_text_only(text, scenario, prev_attempt, round, link_to=link_to)
         except Exception as fallback_error:
             logger.warning("correct_text_stream exception fallback failed: %s", fallback_error)
@@ -442,11 +461,12 @@ async def correct_text_stream(  # noqa: C901, PLR0912, PLR0915
     audit_doc = {
         "kind": "correct_stream" if round == 1 else "correct_retry_stream",
         "model": model,
+        "routing": {key: (final_metadata or {}).get(key) for key in ("provider", "provider_attempts")},
         "request": {
             "systemPrompt": messages[0].content,
             "userPrompt": messages[1].content if len(messages) > 1 else "",
             "messages": serialize_messages(messages),  # 完整消息列表，一字不少
-            "params": client_params(_get_client()),
+            "params": (final_metadata or {}).get("generation_params") or client_params(_get_client()),
         },
         "response": {"raw": full_text, "parsed": parsed},  # 完整响应，不截断
         "tokens": {"prompt": prompt_tok, "completion": completion_tok},

@@ -198,6 +198,7 @@ async def audited_invoke(
         resp = await client.ainvoke(messages)
         raw = content_to_text(resp.content)
         metadata = resp.response_metadata or {}
+        params = metadata.get("generation_params") or params
     except Exception as e:
         error = f"llm_invoke_failed: {e}"
 
@@ -219,6 +220,7 @@ async def audited_invoke(
         "kind": kind,
         "sourceType": normalize_source_type((link_to or {}).get("sourceType")),
         "model": model,
+        "routing": {key: (metadata or {}).get(key) for key in ("provider", "provider_attempts")},
         "request": {
             "systemPrompt": messages[0].content if messages else "",
             "userPrompt": messages[1].content if len(messages) > 1 else "",

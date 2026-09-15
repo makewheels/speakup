@@ -100,7 +100,7 @@ jobs:
   deploy:
     name: Build & Deploy
     needs: [test-server, test-web, e2e-smoke]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -217,6 +217,8 @@ jobs:
               ACR_AK_ID ACR_AK_SECRET \
               APP_VERSION \
               CHAT_API_KEY CHAT_BASE_URL CHAT_MODEL CHAT_THINKING \
+              CHAT_FALLBACK_1_API_KEY CHAT_FALLBACK_1_BASE_URL CHAT_FALLBACK_1_MODEL \
+              CHAT_FALLBACK_2_API_KEY CHAT_FALLBACK_2_BASE_URL CHAT_FALLBACK_2_MODEL \
               IMAGE_API_KEY IMAGE_BASE_URL IMAGE_MODEL IMAGE_SIZE IMAGE_ENABLED \
               VOICE_API_KEY VOICE_PROVIDER VOICE_BASE_URL VOICE_TTS_URL VOICE_ASR_URL \
               TTS_MODEL TTS_VOICE TTS_LANGUAGE ASR_MODEL \

@@ -31,7 +31,7 @@ def test_get_client_disables_thinking_for_dashscope(monkeypatch):
     )
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
-    assert _get_client() == "client"
+    assert _get_client().providers[0].client == "client"
 
     assert fake_chat.call_args.kwargs["extra_body"] == {"enable_thinking": False}
 
@@ -43,7 +43,7 @@ def test_get_client_uses_volcengine_thinking_shape(monkeypatch):
     monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
-    assert _get_client() == "client"
+    assert _get_client().providers[0].client == "client"
     assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
 
 
@@ -56,7 +56,7 @@ def test_get_client_uses_deepseek_thinking_shape(monkeypatch):
     monkeypatch.setattr("services.corrector.CHAT_BASE_URL", "https://api.deepseek.com/v1")
     monkeypatch.setattr("services.corrector.ChatOpenAI", fake_chat)
 
-    assert _get_client() == "client"
+    assert _get_client().providers[0].client == "client"
     assert fake_chat.call_args.kwargs["extra_body"] == {"thinking": {"type": "disabled"}}
     assert fake_chat.call_args.kwargs["stream_usage"] is True
 

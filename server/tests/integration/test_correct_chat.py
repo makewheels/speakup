@@ -12,6 +12,13 @@ async def _fake_chat_stream(scenario, attempt, history, question, link_to=None):
     yield "done", {"text": "oat milk latte 更自然。"}
 
 
+async def _reset_chat_stream(scenario, attempt, history, question, link_to=None):
+    yield "chunk", {"text": "discarded partial"}
+    yield "reset", {}
+    yield "chunk", {"text": "complete answer"}
+    yield "done", {"text": "complete answer"}
+
+
 def _make_attempt(client, user_id, auth_headers, practice_id):
     with _mock_correct():
         client.post(
@@ -51,6 +58,20 @@ def test_chat_streams_and_persists(client, user_id, auth_headers, practice_id):
     assert [m["role"] for m in chat] == ["user", "assistant"]
     assert chat[0]["content"] == "为什么这么说？"
     assert chat[1]["content"] == "oat milk latte 更自然。"
+
+
+def test_chat_reset_reaches_browser_and_persists_only_final_answer(client, user_id, auth_headers, practice_id):
+    _make_attempt(client, user_id, auth_headers, practice_id)
+    with patch("routes.correct.followup_chat_stream", new=_reset_chat_stream):
+        response = client.post(
+            "/api/correct/chat/stream",
+            json={"userId": user_id, "practiceId": practice_id, "question": "why?"},
+            headers=auth_headers,
+        )
+    events = _read_sse(response)
+    assert [event["type"] for event in events] == ["chunk", "reset", "chunk", "done"]
+    practice = client.get(f"/api/practice-sessions/{practice_id}", headers=auth_headers).json()
+    assert practice["attempts"][0]["chat"][-1]["content"] == "complete answer"
 
 
 def test_chat_requires_existing_attempt(client, user_id, auth_headers, practice_id):
