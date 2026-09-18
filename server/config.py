@@ -54,6 +54,12 @@ PRONUNCIATION_SCORE_COEFF = float(os.getenv("PRONUNCIATION_SCORE_COEFF", "2.0"))
 PRONUNCIATION_ISSUE_THRESHOLD = float(os.getenv("PRONUNCIATION_ISSUE_THRESHOLD", "80"))
 PRONUNCIATION_MAX_ISSUES = int(os.getenv("PRONUNCIATION_MAX_ISSUES", "3"))
 
+# 运营通知（飞书自定义机器人 webhook）：默认关闭；没配 webhook 时全链路 no-op。
+NOTIFY_ENABLED = os.getenv("NOTIFY_ENABLED", "false").lower() in ("1", "true", "yes")
+NOTIFY_FEISHU_WEBHOOK_URL = os.getenv("NOTIFY_FEISHU_WEBHOOK_URL", "")
+NOTIFY_WINDOW_SECONDS = int(os.getenv("NOTIFY_WINDOW_SECONDS", "600"))
+NOTIFY_FLUSH_INTERVAL_SECONDS = int(os.getenv("NOTIFY_FLUSH_INTERVAL_SECONDS", "30"))
+
 # 视频生成：当前产品没入口，保留 service/脚本可用配置。Medium 套餐暂不默认 Seedance 2.0。
 VIDEO_API_KEY = os.getenv("VIDEO_API_KEY") or CHAT_API_KEY
 VIDEO_BASE_URL = os.getenv("VIDEO_BASE_URL", "https://ark.cn-beijing.volces.com/api/plan/v3")

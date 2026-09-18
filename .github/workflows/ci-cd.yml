@@ -227,6 +227,8 @@ jobs:
               PRONUNCIATION_SCORE_COEFF PRONUNCIATION_ISSUE_THRESHOLD PRONUNCIATION_MAX_ISSUES \
               VIDEO_API_KEY VIDEO_BASE_URL VIDEO_MODEL VIDEO_ENABLED \
               VIDEO_POLL_INTERVAL_SECONDS VIDEO_POLL_TIMEOUT_SECONDS \
+              NOTIFY_ENABLED NOTIFY_FEISHU_WEBHOOK_URL \
+              NOTIFY_WINDOW_SECONDS NOTIFY_FLUSH_INTERVAL_SECONDS \
               APP_LOG_DIR APP_LOG_ROTATE_WHEN APP_LOG_ROTATE_INTERVAL \
               APP_LOG_BACKUP_COUNT APP_LOG_UTC LOG_LEVEL \
               MONGO_URI OSS_BUCKET_PROD OSS_ACCESS_KEY_ID OSS_ACCESS_KEY_SECRET OSS_ENDPOINT \
@@ -257,7 +259,7 @@ jobs:
                 case "$key" in
                   ACR_AK_ID) ACR_USER=$value ;;
                   ACR_AK_SECRET) ACR_PASSWORD=$value ;;
-                  APP_VERSION|CHAT_*|IMAGE_*|VOICE_*|TTS_*|ASR_MODEL|PRONUNCIATION_*|VIDEO_*|APP_LOG_*|LOG_LEVEL|MONGO_URI|OSS_*|LANGFUSE_*)
+                  APP_VERSION|CHAT_*|IMAGE_*|VOICE_*|TTS_*|ASR_MODEL|PRONUNCIATION_*|VIDEO_*|NOTIFY_*|APP_LOG_*|LOG_LEVEL|MONGO_URI|OSS_*|LANGFUSE_*)
                     if printf "%s" "$value" | LC_ALL=C grep -q "[[:cntrl:]]"; then
                       echo "control character in runtime value: $key" >&2
                       exit 1

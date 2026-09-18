@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from db.connection import connect_db
 from logging_config import configure_logging
+from services import notifier
 from routes import (
     auth,
     correct,
@@ -28,7 +29,11 @@ configure_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
-    yield
+    flusher = notifier.start_flusher()
+    try:
+        yield
+    finally:
+        await notifier.stop_flusher(flusher)
 
 
 app = FastAPI(title="SpeakUp API", lifespan=lifespan)

@@ -10,6 +10,7 @@ from routes.review_items import reactivate_review_item, review_kind_filter
 from services.auth_tokens import assert_same_user, current_user_id
 from services.corrector import correct_text, correct_text_stream
 from services.followup_chat import followup_chat_stream
+from services import notifier
 from services.practice_attempts import (
     complete_attempt,
     discard_attempt,
@@ -137,6 +138,7 @@ async def _save_attempt_and_review(
         auto_saved += 1
 
     await complete_attempt(attempt_id, result)
+    await notifier.record_attempt_submitted(practice, round_no)
     return auto_saved
 
 
