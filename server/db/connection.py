@@ -23,6 +23,10 @@ async def connect_db():
         name="session_creation_idempotent",
         partialFilterExpression={"creationRequestId": {"$exists": True}},
     )
+    # 通知 flusher 按状态 + 时间取待发事件
+    await db.notificationEvents.create_index(
+        [("status", 1), ("createdAt", 1)], name="notification_pending"
+    )
     print("MongoDB connected")
 
 

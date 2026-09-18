@@ -120,6 +120,7 @@ git push master  # GitHub Actions → 构建镜像 → 推 ACR → SSH compose u
 | 文字 / 图片 / 语音 / 视频 LLM Key | Infisical `speakup/<env>/llm`；跨项目共用值从 `common` 后加载覆盖 |
 | MongoDB 连接串 | Infisical `speakup/<env>/db` |
 | OSS / Langfuse | Infisical `speakup/<env>/oss`、`speakup/<env>/langfuse` |
+| 运营通知飞书 webhook / 功能邮件 | Infisical `speakup/prod/notifications` |
 | SSH 与 ACR 凭据 | Infisical `speakup/prod/deployment`；仅在流水线临时目录中落盘 |
 
 GitHub 仓库只保留非敏感的 Infisical endpoint/audience Actions Variables；`gh secret list` 应为空。

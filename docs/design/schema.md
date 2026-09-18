@@ -261,3 +261,32 @@
 - `llmCalls`: `{linkedTo.scenarioId}` 单字段索引（按题反查所有调用）
 - `llmCalls`: `{linkedTo.sessionId, linkedTo.round}` 复合索引（按 attempt 反查）
 - `llmCalls`: `{createdAt: -1}` 单字段索引（最近 N 条排查）
+
+## notificationEvents（运营通知待发/已发事件）
+
+注册与练习提交事件先入队，后台 flusher 按窗口合并后发飞书，行为见 [../业务/10-运营通知.md](../业务/10-运营通知.md)。
+
+```json
+{
+  "_id":        "nt_1781276...",
+  "type":       "user_registered | attempt_submitted",
+  "payload":    { "userId": "u_...", "nickname": "User1234", "phone": "13800001234" },
+  "status":     "pending | sent | failed",   // failed = 重试用尽（超过 5 次）
+  "attempts":   0,                            // 已尝试发送次数
+  "lastError":  "RuntimeError: webhook HTTP 500",  // 脱敏（抹掉 webhook URL），成功时无此字段
+  "createdAt":  datetime,
+  "sentAt":     datetime,                     // 已发时写入
+  "batchId":    "nt_..."                      // 同一条合并消息里的事件共用一个批次号
+}
+```
+
+`attempt_submitted` 的 payload 为 `{userId, nickname, mode, title, round}`（无 phone）。测试号（`sourceType=ai_test`）不入队，集合里只有真实用户事件。
+
+## notificationState（通知发送状态）
+
+```json
+{
+  "_id":        "feishu",
+  "lastSentAt": datetime    // 上次成功发送时间；flusher 据此判断窗口是否已过
+}
+```

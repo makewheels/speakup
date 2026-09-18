@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 from pymongo import MongoClient
 
+from services import notifier
 from tests.conftest import TEST_DB_NAME
 from tests.conftest import login_headers
 
@@ -210,6 +211,27 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     assert "attempts" not in stored_session
     assert stored_attempt["status"] == "completed"
     assert stored_attempt["practiceId"] == practice_id
+
+
+def test_correct_enqueues_notification(client, user_id, auth_headers, practice_id, monkeypatch):
+    monkeypatch.setattr(notifier, "NOTIFY_ENABLED", True)
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_WEBHOOK_URL", "https://open.feishu.cn/open-apis/bot/v2/hook/test")
+    with _mock_correct():
+        client.post(
+            "/api/correct",
+            json={"userId": user_id, "practiceId": practice_id, "text": "test text here ok"},
+            headers=auth_headers,
+        )
+
+    events = list(MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME].notificationEvents.find({}))
+    assert [event["type"] for event in events] == ["attempt_submitted"]
+    assert events[0]["payload"] == {
+        "userId": user_id,
+        "nickname": "User1234",
+        "mode": "scenario",
+        "title": "测试咖啡店",
+        "round": 1,
+    }
 
 
 def test_correct_ignores_legacy_llm_note_and_does_not_auto_save(client, user_id, auth_headers, practice_id):

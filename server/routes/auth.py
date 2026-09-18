@@ -9,7 +9,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
-from services import oss_storage
+from services import notifier, oss_storage
 from services.avatar_images import InvalidAvatarImage, build_avatar_variants
 from services.auth_tokens import assert_same_user, create_session, current_user_id
 from services.storage_paths import avatar_key
@@ -103,6 +103,7 @@ async def login(req: LoginRequest):
             "nickname": nickname,
             "sourceType": source_type,
         }
+        await notifier.record_user_registered(uid, nickname, req.phone, source_type)
     else:
         source_type = normalize_source_type(user.get("sourceType"))
         await get_db().users.update_one(
