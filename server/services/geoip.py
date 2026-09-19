@@ -4,6 +4,7 @@
 - region_of：库文件缺失或查询失败都返回空串，绝不阻塞业务；结果按 IP 缓存
 """
 
+import ipaddress
 import logging
 import os
 from pathlib import Path
@@ -54,6 +55,11 @@ def _trim(name: str) -> str:
 
 
 def _lookup(ip: str) -> str:
+    try:  # 只有合法 IPv4 才进库；IPv6 与 TestClient 之类的伪地址直接跳过
+        if ipaddress.ip_address(ip).version != 4:
+            return ""
+    except ValueError:
+        return ""
     searcher = _get_searcher()
     if searcher is None:
         return ""

@@ -223,9 +223,7 @@ def test_correct_enqueues_notification(client, user_id, auth_headers, practice_i
         "userId": user_id,
         "nickname": "User1234",
         "phone": "13800001234",
-        "mode": "scenario",
-        "title": "测试咖啡店",
-        "round": 1,
+        "detail": "场景「测试咖啡店」 · 第 1 轮",
         "ip": "114.242.248.1",
         "region": "北京",
     }

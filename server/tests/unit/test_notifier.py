@@ -103,6 +103,8 @@ def notify_on(monkeypatch):
     monkeypatch.setattr(notifier, "NOTIFY_FEISHU_CHAT_ID", "oc_test")
     monkeypatch.setattr(notifier, "NOTIFY_FEISHU_BASE_URL", "https://open.feishu.cn")
     monkeypatch.setattr(notifier, "NOTIFY_WINDOW_SECONDS", 600)
+    # 归属地固定：单元测试不依赖未入库的离线库（空 IP 仍为空归属地）
+    monkeypatch.setattr(notifier.geoip, "region_of", lambda ip: "北京" if ip else "")
 
 
 def _use_db(monkeypatch, db):
@@ -211,9 +213,7 @@ async def test_record_attempt_submitted_carries_context(monkeypatch, notify_on):
         "userId": "u_1",
         "nickname": "User1234",
         "phone": "13800001234",
-        "mode": "scenario",
-        "title": "咖啡店给错咖啡",
-        "round": 2,
+        "detail": "场景「咖啡店给错咖啡」 · 第 2 轮",
         "ip": "",
         "region": "",
     }
@@ -237,7 +237,7 @@ async def test_flush_sends_first_event_immediately(monkeypatch, notify_on):
 @pytest.mark.asyncio
 async def test_flush_holds_events_inside_window(monkeypatch, notify_on):
     db = _Db(
-        events=[_event("nt_2", "attempt_submitted", nickname="User1234", mode="free", title="", round=1)],
+        events=[_event("nt_2", "attempt_submitted", nickname="User1234", detail="自由说 · 第 1 轮")],
         state=[{"_id": "feishu", "lastSentAt": NOW - timedelta(seconds=60)}],
     )
     _use_db(monkeypatch, db)
@@ -253,8 +253,8 @@ async def test_flush_merges_events_after_window(monkeypatch, notify_on):
     db = _Db(
         events=[
             _event("nt_1", "user_registered", minutes_ago=9, nickname="A", phone="13800001234"),
-            _event("nt_2", "attempt_submitted", minutes_ago=5, nickname="B", mode="free",
-                   title="Your best trip", round=3),
+            _event("nt_2", "attempt_submitted", minutes_ago=5, nickname="B",
+                   detail="自由说「Your best trip」 · 第 3 轮"),
             _event("nt_3", "user_registered", minutes_ago=1, nickname="C", phone="13900005678"),
         ],
         state=[{"_id": "feishu", "lastSentAt": NOW - timedelta(minutes=11)}],
@@ -304,7 +304,7 @@ def test_build_card_lists_events_with_masked_phone():
     events = [
         _event("nt_1", "user_registered", nickname="User1234", phone="13800001234"),
         _event("nt_2", "attempt_submitted", nickname="User1234", phone="13800001234",
-               mode="scenario", title="咖啡店给错咖啡", round=1),
+               detail="场景「咖啡店给错咖啡」 · 第 1 轮"),
     ]
     card = notifier.build_card(events, NOW)
 
@@ -316,16 +316,21 @@ def test_build_card_lists_events_with_masked_phone():
     assert blocks[1] == "**🎤 练习提交 1 次**\n· User1234 · 138****1234 · 场景「咖啡店给错咖啡」 · 第 1 轮 · 21:00"
 
 
-def test_build_card_folds_long_sections_and_truncates_title():
+def test_build_card_folds_long_sections():
     events = [
-        _event(f"nt_{i}", "attempt_submitted", nickname=f"User{i}", mode="scenario", title="很长的标题" * 10, round=1)
+        _event(f"nt_{i}", "attempt_submitted", nickname=f"User{i}", detail=f"场景「题{i}」 · 第 1 轮")
         for i in range(notifier.MAX_ITEMS_PER_SECTION + 3)
     ]
     text = _card_text(notifier.build_card(events, NOW))
 
     assert f"练习提交 {notifier.MAX_ITEMS_PER_SECTION + 3} 次" in text
     assert "…还有 3 次" in text
-    assert "…」" in text  # 标题截断
+
+
+def test_attempt_detail_truncates_long_title():
+    detail = notifier.attempt_detail({"mode": "scenario", "title": "很长的标题" * 10}, 2)
+
+    assert "…」" in detail and detail.endswith("第 2 轮")
 
 
 def test_safe_error_strips_app_secret(notify_on):
@@ -411,3 +416,68 @@ async def test_send_message_raises_on_feishu_error(monkeypatch, notify_on):
 
     with pytest.raises(RuntimeError, match="code=9499"):
         await notifier._send_message({"header": {"title": {"content": "你好"}}})
+
+
+@pytest.mark.asyncio
+async def test_record_user_action_carries_actor_origin_and_detail(monkeypatch, notify_on):
+    """通用行为事件：昵称/手机号/来源/IP/明细一次补齐。"""
+    db = _Db()
+    db.users.docs.append(
+        {"_id": "u_1", "nickname": "User1234", "phone": "13800001234", "sourceType": "human"}
+    )
+    _use_db(monkeypatch, db)
+
+    await notifier.record_user_action("coach_question", "u_1", "「为什么用 could you」", "1.2.3.4")
+
+    doc = db.notificationEvents.docs[0]
+    assert doc["type"] == "coach_question"
+    assert doc["payload"] == {
+        "userId": "u_1",
+        "nickname": "User1234",
+        "phone": "13800001234",
+        "detail": "「为什么用 could you」",
+        "ip": "1.2.3.4",
+        "region": "北京",
+    }
+
+
+@pytest.mark.asyncio
+async def test_record_user_action_skips_ai_test_account(monkeypatch, notify_on):
+    """行为事件按账号来源过滤：测试号不产生通知。"""
+    db = _Db()
+    db.users.docs.append(
+        {"_id": "u_1", "nickname": "T", "phone": "13800001234", "sourceType": "ai_test"}
+    )
+    _use_db(monkeypatch, db)
+
+    await notifier.record_user_action("feedback_submitted", "u_1", "👍 好评")
+
+    assert db.notificationEvents.docs == []
+
+
+@pytest.mark.asyncio
+async def test_record_event_ignores_unregistered_type(monkeypatch, notify_on):
+    db = _Db()
+    _use_db(monkeypatch, db)
+
+    await notifier.record_event("legacy_removed_type", {"x": 1})
+
+    assert db.notificationEvents.docs == []
+
+
+def test_build_card_renders_every_registered_event_type():
+    """新增事件类型无需改渲染代码：注册表里有定义就能出块。"""
+    events = [
+        _event("nt_1", "review_item_added", nickname="A", phone="13800001234",
+               region="北京", detail="「I'm in a rush」"),
+        _event("nt_2", "coach_question", nickname="A", phone="13800001234",
+               region="北京", detail="「为什么用 could you」"),
+        _event("nt_3", "feedback_submitted", nickname="B", phone="13900005678",
+               region="广东深圳", detail="👍 好评 · 很好用"),
+    ]
+    text = _card_text(notifier.build_card(events, NOW))
+
+    assert "📌 收藏复习 1 条" in text and "「I'm in a rush」" in text
+    assert "💬 追问教练 1 次" in text and "北京" in text
+    assert "📝 用户反馈 1 条" in text and "👍 好评 · 很好用" in text
+    assert "139****5678" in text and "广东深圳" in text

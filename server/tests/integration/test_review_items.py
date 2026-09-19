@@ -334,3 +334,15 @@ def test_review_items_reject_userid_token_mismatch(client, user_id, auth_headers
     other, _ = login_headers(client)
     resp = client.get(f"/api/review-items/?userId={other}", headers=auth_headers)
     assert resp.status_code == 403
+
+
+def test_add_enqueues_notification(client, user_id, auth_headers, notify_enabled):
+    """收藏复习进运营通知：明细是被收藏的表达。"""
+    _add(client, user_id, auth_headers, expression="in a bit of a rush")
+
+    events = list(
+        MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+        .notificationEvents.find({"type": "review_item_added"})
+    )
+    assert len(events) == 1
+    assert events[0]["payload"]["detail"] == "「in a bit of a rush」"

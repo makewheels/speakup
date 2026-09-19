@@ -1,7 +1,9 @@
 import json
 from unittest.mock import patch
 
-from tests.conftest import login_headers
+from pymongo import MongoClient
+
+from tests.conftest import TEST_DB_NAME, login_headers
 
 from .test_correct import _mock_correct
 
@@ -104,3 +106,22 @@ def test_chat_empty_question_400(client, user_id, auth_headers, practice_id):
         headers=auth_headers,
     )
     assert resp.status_code == 400
+
+
+def test_chat_enqueues_notification(client, user_id, auth_headers, practice_id, notify_enabled):
+    """追问进运营通知：带上提问摘要与访问来源。"""
+    _make_attempt(client, user_id, auth_headers, practice_id)
+    with patch("routes.correct.followup_chat_stream", new=_fake_chat_stream):
+        client.post(
+            "/api/correct/chat/stream",
+            json={"userId": user_id, "practiceId": practice_id, "question": "为什么这么说？"},
+            headers=auth_headers,
+        )
+
+    events = list(
+        MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+        .notificationEvents.find({"type": "coach_question"})
+    )
+    assert len(events) == 1
+    assert events[0]["payload"]["detail"] == "「为什么这么说？」"
+    assert events[0]["payload"]["phone"] == "13800001234"

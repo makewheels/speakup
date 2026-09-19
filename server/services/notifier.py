@@ -14,6 +14,7 @@ import contextlib
 import json
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -45,9 +46,25 @@ ERROR_MAX_CHARS = 200
 REQUEST_TIMEOUT_SECONDS = 10
 TOKEN_SAFETY_MARGIN_SECONDS = 300  # token 剩余不足这么多秒就重取，避免边界过期
 
-SECTIONS = {
-    "user_registered": ("👤 新注册", "人"),
-    "attempt_submitted": ("🎤 练习提交", "次"),
+@dataclass(frozen=True)
+class EventSpec:
+    """一类通知事件的呈现定义：卡片小标题、量词、行内依次展示的 payload 字段。
+
+    加事件只需在这里加一行 + 业务侧调用一次 record_*：渲染是数据驱动的，
+    不用再碰 build_card / _item_line。
+    """
+
+    label: str
+    unit: str
+    fields: tuple[str, ...]
+
+
+EVENTS = {
+    "user_registered": EventSpec("👤 新注册", "人", ("nickname", "phone", "region")),
+    "attempt_submitted": EventSpec("🎤 练习提交", "次", ("nickname", "phone", "region", "detail")),
+    "review_item_added": EventSpec("📌 收藏复习", "条", ("nickname", "phone", "region", "detail")),
+    "coach_question": EventSpec("💬 追问教练", "次", ("nickname", "phone", "region", "detail")),
+    "feedback_submitted": EventSpec("📝 用户反馈", "条", ("nickname", "phone", "region", "detail")),
 }
 CARD_HEADER_TEMPLATE = "blue"  # 卡片标题栏配色
 MODE_LABELS = {"scenario": "场景", "free": "自由说"}
@@ -78,7 +95,6 @@ async def record_user_registered(
 async def record_attempt_submitted(practice: dict, round_no: int, ip: str = "") -> None:
     """一次录音提交（同步与流式评估共用）。"""
     user_id = str(practice.get("userId") or "")
-    mode = practice.get("mode") or "scenario"
     brief = await _user_brief(user_id)
     await record_event(
         "attempt_submitted",
@@ -86,12 +102,26 @@ async def record_attempt_submitted(practice: dict, round_no: int, ip: str = "") 
             "userId": user_id,
             "nickname": brief["nickname"],
             "phone": brief["phone"],
-            "mode": mode,
-            "title": practice.get("title") or "",
-            "round": int(round_no),
+            "detail": attempt_detail(practice, round_no),
             **_origin(ip),
         },
         source_type=practice.get("sourceType"),
+    )
+
+
+async def record_user_action(event_type: str, user_id: str, detail: str, ip: str = "") -> None:
+    """通用用户行为（收藏、追问、反馈等）：统一补昵称/手机号/来源，测试号不入队。"""
+    brief = await _user_brief(user_id)
+    await record_event(
+        event_type,
+        {
+            "userId": user_id,
+            "nickname": brief["nickname"],
+            "phone": brief["phone"],
+            "detail": detail,
+            **_origin(ip),
+        },
+        source_type=brief["sourceType"],
     )
 
 
@@ -102,6 +132,9 @@ def _origin(ip: str) -> dict:
 
 async def record_event(event_type: str, payload: dict, source_type: str | None = None) -> None:
     """事件入队。未开启通知、测试号或写库失败都静默跳过——通知绝不阻塞业务。"""
+    if event_type not in EVENTS:
+        logger.warning("未注册的通知事件类型，已忽略: %s", event_type)
+        return
     if not enabled() or source_type == "ai_test":
         return
     try:
@@ -156,15 +189,15 @@ async def flush_pending(now: datetime | None = None) -> int:
 def build_card(events: list[dict], now: datetime) -> dict:
     """合并事件成一张飞书卡片：标题栏报时间，每类一个分块往下平铺，块内最多 8 条。"""
     elements = []
-    for event_type, (label, unit) in SECTIONS.items():
+    for event_type, spec in EVENTS.items():
         group = [event for event in events if event.get("type") == event_type]
         if not group:
             continue
-        lines = [f"**{label} {len(group)} {unit}**"]
+        lines = [f"**{spec.label} {len(group)} {spec.unit}**"]
         lines += [f"· {_item_line(event_type, event)}" for event in group[:MAX_ITEMS_PER_SECTION]]
         hidden = len(group) - MAX_ITEMS_PER_SECTION
         if hidden > 0:
-            lines.append(f"· …还有 {hidden} {unit}")
+            lines.append(f"· …还有 {hidden} {spec.unit}")
         elements.append({"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}})
     return {
         "config": {"wide_screen_mode": True},
@@ -177,18 +210,29 @@ def build_card(events: list[dict], now: datetime) -> dict:
 
 
 def _item_line(event_type: str, event: dict) -> str:
+    """按事件定义拼一行明细；空字段直接跳过，末尾统一补时分。"""
     payload = event.get("payload") or {}
-    nickname = payload.get("nickname") or "未知用户"
-    phone = mask_phone(str(payload.get("phone") or ""))
-    region = str(payload.get("region") or "")
+    parts = [value for field in EVENTS[event_type].fields if (value := _field(field, payload))]
     moment = _moment(event.get("createdAt"))
-    if event_type == "user_registered":
-        return " · ".join(part for part in (nickname, phone, region, moment) if part)
-    mode = MODE_LABELS.get(payload.get("mode"), MODE_LABELS["scenario"])
-    title = _truncate(str(payload.get("title") or ""), TITLE_MAX_CHARS)
+    if moment:
+        parts.append(moment)
+    return " · ".join(parts)
+
+
+def _field(name: str, payload: dict) -> str:
+    if name == "nickname":
+        return str(payload.get("nickname") or "未知用户")
+    if name == "phone":
+        return mask_phone(str(payload.get("phone") or ""))
+    return str(payload.get(name) or "")
+
+
+def attempt_detail(practice: dict, round_no: int) -> str:
+    """练习提交的明细文案：场景「咖啡店给错咖啡」 · 第 1 轮。"""
+    mode = MODE_LABELS.get(practice.get("mode"), MODE_LABELS["scenario"])
+    title = _truncate(str(practice.get("title") or ""), TITLE_MAX_CHARS)
     topic = f"{mode}「{title}」" if title else mode
-    parts = (nickname, phone, region, topic, f"第 {payload.get('round', 1)} 轮", moment)
-    return " · ".join(part for part in parts if part)
+    return f"{topic} · 第 {int(round_no)} 轮"
 
 
 def _moment(value: object) -> str:
@@ -207,14 +251,20 @@ def mask_phone(phone: str) -> str:
 
 
 async def _user_brief(user_id: str) -> dict:
-    """通知要用的用户信息：昵称 + 手机号（查不到时都为空串，不阻塞事件入队）。"""
+    """通知要用的用户信息：昵称 / 手机号 / 来源类型（查不到时给安全默认值，不阻塞入队）。"""
     try:
-        user = await get_db().users.find_one(id_filter(user_id), {"nickname": 1, "phone": 1})
+        user = await get_db().users.find_one(
+            id_filter(user_id), {"nickname": 1, "phone": 1, "sourceType": 1}
+        )
     except Exception:
         logger.warning("通知取用户信息失败: user=%s", user_id, exc_info=True)
-        return {"nickname": "", "phone": ""}
+        return {"nickname": "", "phone": "", "sourceType": None}
     user = user or {}
-    return {"nickname": str(user.get("nickname") or ""), "phone": str(user.get("phone") or "")}
+    return {
+        "nickname": str(user.get("nickname") or ""),
+        "phone": str(user.get("phone") or ""),
+        "sourceType": user.get("sourceType") or None,
+    }
 
 
 async def _retire_exhausted(db) -> None:

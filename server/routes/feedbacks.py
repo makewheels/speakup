@@ -2,11 +2,12 @@ import logging
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, ValidationError
 from pymongo import ReturnDocument
 
 from db.connection import get_db
+from services import geoip, notifier
 from services.auth_tokens import assert_same_user, current_user_id
 from services.feedback_images import (
     MAX_FEEDBACK_IMAGE_BYTES,
@@ -155,8 +156,19 @@ async def _save_feedback(
 
 
 @router.post("")
-async def submit_feedback(req: FeedbackRequest, token_user_id: str = Depends(current_user_id)):
-    return await _save_feedback(req, token_user_id)
+async def submit_feedback(req: FeedbackRequest, request: Request, token_user_id: str = Depends(current_user_id)):
+    result = await _save_feedback(req, token_user_id)
+    await notifier.record_user_action(
+        "feedback_submitted", token_user_id, _feedback_detail(req), geoip.client_ip(request)
+    )
+    return result
+
+
+def _feedback_detail(req: FeedbackRequest) -> str:
+    """反馈明细：评级 + 评论摘要（没有评级时退回类型）。"""
+    head = {"good": "👍 好评", "bad": "👎 待改进"}.get(req.rating or "", req.type)
+    comment = " ".join(req.comment.split())[:40]
+    return f"{head} · {comment}" if comment else head
 
 
 async def _delete_uploaded(keys: list[str], token_user_id: str) -> None:
