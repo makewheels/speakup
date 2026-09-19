@@ -1,7 +1,8 @@
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from db.connection import get_db
+from services import geoip, notifier
 from services.auth_tokens import assert_same_user, current_user_id
 from services.oss_storage import get_url as oss_signed_url
 from services.translator import translate_to_chinese
@@ -55,7 +56,7 @@ async def reactivate_review_item(rid: str, now: datetime) -> None:
 
 
 @router.post("")
-async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_user_id)):
+async def add_items(req: AddItemsRequest, request: Request, token_user_id: str = Depends(current_user_id)):
     assert_same_user(req.userId, token_user_id)
     user = await get_db().users.find_one(id_filter(token_user_id), {"sourceType": 1})
     source_type = normalize_source_type((user or {}).get("sourceType"))
@@ -99,7 +100,19 @@ async def add_items(req: AddItemsRequest, token_user_id: str = Depends(current_u
         })
         ids.append(rid)
         added += 1
+    if added:
+        await notifier.record_user_action(
+            "review_item_added", token_user_id, _collected_detail(req.items, added),
+            geoip.client_ip(request),
+        )
     return {"added": added, "ids": ids}
+
+
+def _collected_detail(items: list[dict], added: int) -> str:
+    first = str((items[0] if items else {}).get("expression") or "")[:40]
+    if not first:
+        return f"新增 {added} 条"
+    return f"「{first}」" if added == 1 else f"「{first}」等 {added} 条"
 
 
 @router.get("")

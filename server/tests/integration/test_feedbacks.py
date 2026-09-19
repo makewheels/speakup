@@ -289,3 +289,15 @@ def test_invalid_later_image_cleans_already_uploaded_objects(
     assert response.status_code == 400
     assert uploaded.await_count == 1
     assert deleted.await_count == 1
+
+
+def test_submit_enqueues_notification(client, user_id, auth_headers, practice_id, notify_enabled):
+    """用户反馈进运营通知：评级 + 评论摘要。"""
+    _submit_practice(client, user_id, auth_headers, practice_id)
+
+    events = list(
+        MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+        .notificationEvents.find({"type": "feedback_submitted"})
+    )
+    assert len(events) == 1
+    assert events[0]["payload"]["detail"] == "👎 待改进 · 我其实说得挺对的"

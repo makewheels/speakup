@@ -259,7 +259,7 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat/stream")
-async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(current_user_id)):  # noqa: C901
+async def correct_chat_stream(req: ChatRequest, request: Request, token_user_id: str = Depends(current_user_id)):  # noqa: C901
     """用户拿到反馈后，基于本次练习上下文继续追问 AI（SSE 纯文本流）。
     把问答历史存进对应 attempt 的 chat 数组，刷新/历史页可回看。
     """
@@ -267,6 +267,9 @@ async def correct_chat_stream(req: ChatRequest, token_user_id: str = Depends(cur
         raise HTTPException(400, "问题不能为空")
 
     assert_same_user(req.userId, token_user_id)
+    await notifier.record_user_action(
+        "coach_question", token_user_id, f"「{req.question.strip()[:40]}」", geoip.client_ip(request)
+    )
     practice = await get_db().practiceSessions.find_one(
         {**id_filter(req.practiceId), "userId": token_user_id}
     )
