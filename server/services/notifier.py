@@ -78,11 +78,13 @@ async def record_attempt_submitted(practice: dict, round_no: int) -> None:
     """一次录音提交（同步与流式评估共用）。"""
     user_id = str(practice.get("userId") or "")
     mode = practice.get("mode") or "scenario"
+    brief = await _user_brief(user_id)
     await record_event(
         "attempt_submitted",
         {
             "userId": user_id,
-            "nickname": await _nickname_of(user_id),
+            "nickname": brief["nickname"],
+            "phone": brief["phone"],
             "mode": mode,
             "title": practice.get("title") or "",
             "round": int(round_no),
@@ -145,7 +147,7 @@ async def flush_pending(now: datetime | None = None) -> int:
 
 
 def build_card(events: list[dict], now: datetime) -> dict:
-    """合并事件成一张飞书卡片：标题栏报时间，每类一个分块，块内明细最多 8 条。"""
+    """合并事件成一张飞书卡片：标题栏报时间，每类一个分块往下平铺，块内最多 8 条。"""
     elements = []
     for event_type, (label, unit) in SECTIONS.items():
         group = [event for event in events if event.get("type") == event_type]
@@ -169,14 +171,16 @@ def build_card(events: list[dict], now: datetime) -> dict:
 
 def _item_line(event_type: str, event: dict) -> str:
     payload = event.get("payload") or {}
-    moment = _moment(event.get("createdAt"))
     nickname = payload.get("nickname") or "未知用户"
+    phone = mask_phone(str(payload.get("phone") or ""))
+    moment = _moment(event.get("createdAt"))
     if event_type == "user_registered":
-        return " · ".join(part for part in (nickname, mask_phone(payload.get("phone", "")), moment) if part)
+        return " · ".join(part for part in (nickname, phone, moment) if part)
     mode = MODE_LABELS.get(payload.get("mode"), MODE_LABELS["scenario"])
     title = _truncate(str(payload.get("title") or ""), TITLE_MAX_CHARS)
     topic = f"{mode}「{title}」" if title else mode
-    return " · ".join(part for part in (nickname, topic, f"第 {payload.get('round', 1)} 轮", moment) if part)
+    parts = (nickname, phone, topic, f"第 {payload.get('round', 1)} 轮", moment)
+    return " · ".join(part for part in parts if part)
 
 
 def _moment(value: object) -> str:
@@ -194,13 +198,15 @@ def mask_phone(phone: str) -> str:
     return f"{phone[:3]}****{phone[-4:]}" if len(phone) == 11 else phone
 
 
-async def _nickname_of(user_id: str) -> str:
+async def _user_brief(user_id: str) -> dict:
+    """通知要用的用户信息：昵称 + 手机号（查不到时都为空串，不阻塞事件入队）。"""
     try:
-        user = await get_db().users.find_one(id_filter(user_id), {"nickname": 1})
+        user = await get_db().users.find_one(id_filter(user_id), {"nickname": 1, "phone": 1})
     except Exception:
-        logger.warning("通知取昵称失败: user=%s", user_id, exc_info=True)
-        return ""
-    return str((user or {}).get("nickname") or "")
+        logger.warning("通知取用户信息失败: user=%s", user_id, exc_info=True)
+        return {"nickname": "", "phone": ""}
+    user = user or {}
+    return {"nickname": str(user.get("nickname") or ""), "phone": str(user.get("phone") or "")}
 
 
 async def _retire_exhausted(db) -> None:
