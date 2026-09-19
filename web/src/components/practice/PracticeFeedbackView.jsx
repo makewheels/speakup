@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import Icon from "../Icon.jsx";
+import RecordingPlayer from "../RecordingPlayer.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
 import PracticeFreeCard from "./PracticeFreeCard.jsx";
@@ -33,6 +34,7 @@ export default function PracticeFeedbackView({
   onCopyShareLink,
   loading = false,
   streamingLen = 0,
+  recordingUrl = "",
   result,
   retrySame,
   round,
@@ -83,9 +85,12 @@ export default function PracticeFeedbackView({
 
       <div className="fb-score-anchor" ref={scoreAnchorRef}>
         <ScoreBadge loading={loading} score={result.score} />
-        <div>
-          <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>
-        </div>
+        {/* 首轮不挂轮次徽章：页面信息已经够密，重复第 2 次起才有比较意义 */}
+        {(round ?? 1) > 1 && (
+          <div>
+            <span className="attempt-badge">{t("practice.attemptBadge", { n: round })}</span>
+          </div>
+        )}
       </div>
 
       {loading && (
@@ -124,6 +129,17 @@ export default function PracticeFeedbackView({
             </div>
           )}
         </div>
+      )}
+
+      {/* 你说的：默认折叠，展开看原话并回放原声；不影响首屏密度 */}
+      {!loading && transcript && (
+        <details className="fb-said">
+          <summary>{t("practice.youSaid")}</summary>
+          <div className="fb-said-body">
+            <p className="fb-said-text">{transcript}</p>
+            {recordingUrl && <RecordingPlayer src={recordingUrl} />}
+          </div>
+        </details>
       )}
 
       <SelectableNoteText
@@ -189,8 +205,8 @@ export default function PracticeFeedbackView({
         </div>
       </div>}
 
-      {/* 重说不封顶：重试按钮常驻；当前轮次由页面顶部徽章统一表达。 */}
-      {!loading && <div className="actions-row" style={{ marginTop: 8 }}>
+      {/* 重说不封顶：重试按钮常驻；当前轮次由页面顶部徽章统一表达（首轮不显示徽章）。 */}
+      {!loading && <div className="actions-row fb-actions">
         <button className="su-btn su-btn-primary" onClick={retrySame} disabled={actionsDisabled} style={{ flex: 2, height: 48 }}>
           <Icon name="refresh" size={16} />&nbsp;{t("practice.sayItAgain")}
         </button>

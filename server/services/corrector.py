@@ -25,7 +25,6 @@ from services.corrector_prompts import (
     RETRY_PROMPT,
     SYSTEM_PROMPT,
 )
-from services.gap_examples import normalized_example
 
 _API_TIMEOUT = 10.0
 _client: FallbackChat | None = None
@@ -37,8 +36,6 @@ class GapItem(BaseModel):
     original: str = ""
     better: str = ""
     chinese: str = ""
-    example: str = ""
-    exampleChinese: str = ""
     why: str = ""
     category: Literal["task", "grammar", "naturalness", "vocabulary", "register"] = "vocabulary"
     saveToReview: bool = False
@@ -224,14 +221,11 @@ def _coerce_result(data: dict, free: bool = False) -> dict:
         if free and category == "task":
             category = "naturalness"
         better = str(item.get("better") or "")
-        example, example_chinese = normalized_example(item, better)
         gaps.append({
             "title": str(item.get("title") or ""),
             "original": str(item.get("original") or ""),
             "better": better,
             "chinese": str(item.get("chinese") or ""),
-            "example": example,
-            "exampleChinese": example_chinese,
             "why": str(item.get("why") or ""),
             "category": category,
             "saveToReview": bool(item.get("saveToReview")),

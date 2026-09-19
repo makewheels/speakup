@@ -21,8 +21,6 @@ FAKE_AI_RESULT = {
             "original": "please change it fast",
             "better": "Could you remake it?",
             "chinese": "能重做一下吗？",
-            "example": "Could you remake this drink, please?",
-            "exampleChinese": "你能重做这杯饮料吗？",
             "why": "命令式听起来在指责，先用 Could you 提请求。",
             "category": "register",
             "saveToReview": True,
@@ -197,7 +195,6 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     assert a["standardAnswerNotes"] == FAKE_AI_RESULT["standardAnswerNotes"]
     assert len(a["gaps"]) == 2
     assert a["gaps"][0]["better"] == FAKE_AI_RESULT["gaps"][0]["better"]
-    assert a["gaps"][0]["exampleChinese"] == "你能重做这杯饮料吗？"
     assert a["gaps"][0]["reviewItemId"]            # saveToReview=True → 自动收录并回写 id
     assert "reviewItemId" not in a["gaps"][1]       # saveToReview=False → 不收录、不回写
     assert a["note"] == ""

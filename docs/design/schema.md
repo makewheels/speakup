@@ -120,7 +120,7 @@
     { "expression": "in a bit of a rush", "chinese": "有点赶时间", "explanation": "礼貌说明时间紧。" }
   ],
   "gaps": [
-    { "title": "...", "original": "连续原话短语或完整句子", "better": "同范围改写", "chinese": "...", "example": "跨语境例句", "exampleChinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
+    { "title": "...", "original": "连续原话短语或完整句子", "better": "同范围改写", "chinese": "...", "why": "...", "category": "task | grammar | naturalness | vocabulary | register", "saveToReview": true }
   ],
   "progress": { "verdict": "passed | improved | stuck", "fixed": [], "remaining": [], "comment": "" },
   "chat": [
