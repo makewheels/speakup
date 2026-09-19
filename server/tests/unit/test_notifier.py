@@ -1,5 +1,7 @@
-"""运营通知服务纯逻辑测试：窗口合并、开关、脱敏、失败重试。DB 与 webhook 全 mock。"""
+"""运营通知服务纯逻辑测试：窗口合并、开关、脱敏、失败重试、token 缓存。DB 与飞书接口全 mock。"""
 
+import json
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
@@ -86,10 +88,20 @@ class _Db:
         self.users = _Collection()
 
 
+@pytest.fixture(autouse=True)
+def _clear_token_cache():
+    notifier._token_cache.update({"value": "", "expires_at": 0.0})
+    yield
+    notifier._token_cache.update({"value": "", "expires_at": 0.0})
+
+
 @pytest.fixture
 def notify_on(monkeypatch):
     monkeypatch.setattr(notifier, "NOTIFY_ENABLED", True)
-    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_WEBHOOK_URL", "https://open.feishu.cn/open-apis/bot/v2/hook/test-token")
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_APP_ID", "cli_test")
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_APP_SECRET", "secret-test")
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_CHAT_ID", "oc_test")
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_BASE_URL", "https://open.feishu.cn")
     monkeypatch.setattr(notifier, "NOTIFY_WINDOW_SECONDS", 600)
 
 
@@ -108,23 +120,28 @@ def _event(event_id, event_type, minutes_ago=0, **payload):
     }
 
 
-def _fake_webhook(monkeypatch, error=None):
+def _fake_send(monkeypatch, error=None):
     sent = []
-    async def _post(text):
+    async def _send(text):
         sent.append(text)
         if error:
             raise error
-    monkeypatch.setattr(notifier, "_post_webhook", _post)
+    monkeypatch.setattr(notifier, "_send_message", _send)
     return sent
 
 
-def test_enabled_requires_switch_and_webhook(monkeypatch):
+def test_enabled_requires_switch_and_credentials(monkeypatch):
     monkeypatch.setattr(notifier, "NOTIFY_ENABLED", False)
-    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_WEBHOOK_URL", "https://x")
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_APP_ID", "cli_test")
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_APP_SECRET", "secret-test")
+    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_CHAT_ID", "oc_test")
     assert notifier.enabled() is False
+
     monkeypatch.setattr(notifier, "NOTIFY_ENABLED", True)
-    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_WEBHOOK_URL", "")
-    assert notifier.enabled() is False
+    for missing in ("NOTIFY_FEISHU_APP_ID", "NOTIFY_FEISHU_APP_SECRET", "NOTIFY_FEISHU_CHAT_ID"):
+        monkeypatch.setattr(notifier, missing, "")
+        assert notifier.enabled() is False, missing
+        monkeypatch.setattr(notifier, missing, "restored")
 
 
 @pytest.mark.asyncio
@@ -195,7 +212,7 @@ async def test_record_attempt_submitted_carries_context(monkeypatch, notify_on):
 async def test_flush_sends_first_event_immediately(monkeypatch, notify_on):
     db = _Db(events=[_event("nt_1", "user_registered", nickname="User1234", phone="13800001234")])
     _use_db(monkeypatch, db)
-    sent = _fake_webhook(monkeypatch)
+    sent = _fake_send(monkeypatch)
 
     count = await notifier.flush_pending(NOW)
 
@@ -213,7 +230,7 @@ async def test_flush_holds_events_inside_window(monkeypatch, notify_on):
         state=[{"_id": "feishu", "lastSentAt": NOW - timedelta(seconds=60)}],
     )
     _use_db(monkeypatch, db)
-    sent = _fake_webhook(monkeypatch)
+    sent = _fake_send(monkeypatch)
 
     assert await notifier.flush_pending(NOW) == 0
     assert sent == []
@@ -232,7 +249,7 @@ async def test_flush_merges_events_after_window(monkeypatch, notify_on):
         state=[{"_id": "feishu", "lastSentAt": NOW - timedelta(minutes=11)}],
     )
     _use_db(monkeypatch, db)
-    sent = _fake_webhook(monkeypatch)
+    sent = _fake_send(monkeypatch)
 
     assert await notifier.flush_pending(NOW) == 3
 
@@ -248,7 +265,7 @@ async def test_flush_merges_events_after_window(monkeypatch, notify_on):
 async def test_flush_keeps_pending_and_counts_attempt_on_failure(monkeypatch, notify_on):
     db = _Db(events=[_event("nt_1", "user_registered", nickname="A", phone="13800001234")])
     _use_db(monkeypatch, db)
-    _fake_webhook(monkeypatch, error=RuntimeError("boom"))
+    _fake_send(monkeypatch, error=RuntimeError("boom"))
 
     assert await notifier.flush_pending(NOW) == 0
 
@@ -263,7 +280,7 @@ async def test_flush_retires_exhausted_events(monkeypatch, notify_on):
     exhausted["attempts"] = notifier.MAX_ATTEMPTS
     db = _Db(events=[exhausted, _event("nt_new", "user_registered", nickname="B", phone="13800001234")])
     _use_db(monkeypatch, db)
-    sent = _fake_webhook(monkeypatch)
+    sent = _fake_send(monkeypatch)
 
     assert await notifier.flush_pending(NOW) == 1
 
@@ -298,8 +315,85 @@ def test_build_message_folds_long_sections_and_truncates_title():
     assert "…」" in text  # 标题截断
 
 
-def test_safe_error_strips_webhook_url(monkeypatch, notify_on):
-    url = "https://open.feishu.cn/open-apis/bot/v2/hook/test-token"
-    text = notifier._safe_error(RuntimeError(f"connect failed: {url}"))
+def test_safe_error_strips_app_secret(notify_on):
+    text = notifier._safe_error(RuntimeError("auth failed: secret-test"))
 
-    assert url not in text and "<webhook>" in text
+    assert "secret-test" not in text and "<app-secret>" in text
+
+
+class _FakeResponse:
+    def __init__(self, payload, status_code=200):
+        self._payload = payload
+        self.status_code = status_code
+        self.content = b"{}"
+
+    def json(self):
+        return self._payload
+
+
+class _FakeClient:
+    """httpx.AsyncClient 替身：按顺序吐出预置响应，记录每次请求。"""
+
+    def __init__(self, responses, calls):
+        self._responses = list(responses)
+        self._calls = calls
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def post(self, url, **kwargs):
+        self._calls.append((url, kwargs))
+        return self._responses.pop(0)
+
+
+def _fake_http(monkeypatch, responses):
+    calls = []
+    monkeypatch.setattr(notifier.httpx, "AsyncClient", lambda **kwargs: _FakeClient(responses, calls))
+    return calls
+
+
+@pytest.mark.asyncio
+async def test_send_message_reuses_cached_token(monkeypatch, notify_on):
+    calls = _fake_http(monkeypatch, [
+        _FakeResponse({"code": 0, "tenant_access_token": "t-1", "expire": 7200}),
+        _FakeResponse({"code": 0, "data": {}}),
+        _FakeResponse({"code": 0, "data": {}}),
+    ])
+
+    await notifier._send_message("第一条")
+    await notifier._send_message("第二条")
+
+    urls = [url for url, _ in calls]
+    assert sum("tenant_access_token" in url for url in urls) == 1  # 两次发送只换一次 token
+    assert sum("/im/v1/messages" in url for url in urls) == 2
+    _, send_kwargs = calls[2]
+    assert send_kwargs["params"] == {"receive_id_type": "chat_id"}
+    assert send_kwargs["headers"] == {"Authorization": "Bearer t-1"}
+    assert send_kwargs["json"]["receive_id"] == "oc_test"
+    assert json.loads(send_kwargs["json"]["content"])["text"] == "第二条"
+
+
+@pytest.mark.asyncio
+async def test_tenant_token_refreshes_near_expiry(monkeypatch, notify_on):
+    notifier._token_cache.update({"value": "stale", "expires_at": 0.0})
+    calls = _fake_http(monkeypatch, [
+        _FakeResponse({"code": 0, "tenant_access_token": "t-new", "expire": 7200}),
+    ])
+
+    token = await notifier._tenant_token()
+
+    assert token == "t-new"
+    assert notifier._token_cache["value"] == "t-new"
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_send_message_raises_on_feishu_error(monkeypatch, notify_on):
+    notifier._token_cache.update({"value": "t-1", "expires_at": time.monotonic() + 3600})
+    _fake_http(monkeypatch, [_FakeResponse({"code": 9499, "msg": "chat not found"})])
+
+    with pytest.raises(RuntimeError, match="code=9499"):
+        await notifier._send_message("你好")

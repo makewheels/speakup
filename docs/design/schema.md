@@ -273,7 +273,7 @@
   "payload":    { "userId": "u_...", "nickname": "User1234", "phone": "13800001234" },
   "status":     "pending | sent | failed",   // failed = 重试用尽（超过 5 次）
   "attempts":   0,                            // 已尝试发送次数
-  "lastError":  "RuntimeError: webhook HTTP 500",  // 脱敏（抹掉 webhook URL），成功时无此字段
+  "lastError":  "RuntimeError: 发消息 HTTP 500",  // 脱敏（抹掉 app_secret），成功时无此字段
   "createdAt":  datetime,
   "sentAt":     datetime,                     // 已发时写入
   "batchId":    "nt_..."                      // 同一条合并消息里的事件共用一个批次号

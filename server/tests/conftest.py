@@ -129,6 +129,20 @@ def scenario_id(client):
 
 
 @pytest.fixture
+def notify_enabled(monkeypatch):
+    """打开运营通知并给齐假凭据：只验证入队，不发真实消息。"""
+    from services import notifier
+
+    for key, value in {
+        "NOTIFY_ENABLED": True,
+        "NOTIFY_FEISHU_APP_ID": "cli_test",
+        "NOTIFY_FEISHU_APP_SECRET": "secret-test",
+        "NOTIFY_FEISHU_CHAT_ID": "oc_test",
+    }.items():
+        monkeypatch.setattr(notifier, key, value)
+
+
+@pytest.fixture
 def practice_id(client, user_id, auth_headers, scenario_id):
     resp = client.post(
         "/api/practice-sessions",

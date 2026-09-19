@@ -54,9 +54,12 @@ PRONUNCIATION_SCORE_COEFF = float(os.getenv("PRONUNCIATION_SCORE_COEFF", "2.0"))
 PRONUNCIATION_ISSUE_THRESHOLD = float(os.getenv("PRONUNCIATION_ISSUE_THRESHOLD", "80"))
 PRONUNCIATION_MAX_ISSUES = int(os.getenv("PRONUNCIATION_MAX_ISSUES", "3"))
 
-# 运营通知（飞书自定义机器人 webhook）：默认关闭；没配 webhook 时全链路 no-op。
+# 运营通知（飞书应用机器人）：默认关闭；没配齐应用凭据时全链路 no-op。
 NOTIFY_ENABLED = os.getenv("NOTIFY_ENABLED", "false").lower() in ("1", "true", "yes")
-NOTIFY_FEISHU_WEBHOOK_URL = os.getenv("NOTIFY_FEISHU_WEBHOOK_URL", "")
+NOTIFY_FEISHU_APP_ID = os.getenv("NOTIFY_FEISHU_APP_ID", "")
+NOTIFY_FEISHU_APP_SECRET = os.getenv("NOTIFY_FEISHU_APP_SECRET", "")
+NOTIFY_FEISHU_CHAT_ID = os.getenv("NOTIFY_FEISHU_CHAT_ID", "")
+NOTIFY_FEISHU_BASE_URL = os.getenv("NOTIFY_FEISHU_BASE_URL", "https://open.feishu.cn")
 NOTIFY_WINDOW_SECONDS = int(os.getenv("NOTIFY_WINDOW_SECONDS", "600"))
 NOTIFY_FLUSH_INTERVAL_SECONDS = int(os.getenv("NOTIFY_FLUSH_INTERVAL_SECONDS", "30"))
 
