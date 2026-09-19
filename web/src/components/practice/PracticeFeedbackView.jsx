@@ -131,38 +131,47 @@ export default function PracticeFeedbackView({
         </div>
       )}
 
-      {/* 你说的：默认折叠，展开看原话并回放原声；不影响首屏密度 */}
-      {!loading && transcript && (
-        <details className="fb-said">
-          <summary>{t("practice.youSaid")}</summary>
-          <div className="fb-said-body">
-            <p className="fb-said-text">{transcript}</p>
-            {recordingUrl && <RecordingPlayer src={recordingUrl} />}
-          </div>
-        </details>
-      )}
-
       <SelectableNoteText
         attemptId={attemptId}
         attemptIndex={Math.max(0, round - 1)}
         practiceId={session?._id}
         userId={userId}
       >
-        {!loading && gaps.length > 0 && (
+        {!loading && (
           <section className="result-section result-expression">
             <div className="result-section-head">
               <h2 className="result-section-title">{t("practice.expressionSuggestions")}</h2>
-              <span className="result-section-meta">{t("practice.suggestionCount", { n: gaps.length })}</span>
+              {gaps.length > 0 && (
+                <span className="result-section-meta">{t("practice.suggestionCount", { n: gaps.length })}</span>
+              )}
             </div>
-            <FeedbackGapList
-              attemptId={attemptId}
-              attemptIndex={Math.max(0, round - 1)}
-              gaps={gaps}
-              onToggleGap={toggleGap}
-              practiceId={session?._id}
-              savedMap={savedMap}
-              showTitle={false}
-            />
+
+            {/* 你说的：本区块第一项，默认折叠，展开看原话并回放原声 */}
+            {transcript && (
+              <details className="fb-said">
+                <summary>{t("practice.youSaid")}</summary>
+                <div className="fb-said-body">
+                  <p className="fb-said-text">{transcript}</p>
+                  {recordingUrl && <RecordingPlayer src={recordingUrl} />}
+                </div>
+              </details>
+            )}
+
+            {gaps.length > 0 ? (
+              <FeedbackGapList
+                attemptId={attemptId}
+                attemptIndex={Math.max(0, round - 1)}
+                gaps={gaps}
+                onToggleGap={toggleGap}
+                practiceId={session?._id}
+                savedMap={savedMap}
+                showTitle={false}
+              />
+            ) : (
+              <div className="fb-empty-feedback">
+                {hasAnswer ? t("practice.noGaps") : t("practice.noUsableFeedback")}
+              </div>
+            )}
           </section>
         )}
 
@@ -175,13 +184,6 @@ export default function PracticeFeedbackView({
           t={t}
         />}
       </SelectableNoteText>
-      {!loading && gaps.length === 0 && (
-        <div className="fb-empty-feedback">
-          {hasAnswer
-            ? t("practice.noGaps")
-            : t("practice.noUsableFeedback")}
-        </div>
-      )}
 
       {!loading && <div className="fb-chat">
         <h2 className="result-section-title">{t("practice.askTheCoach")}</h2>
