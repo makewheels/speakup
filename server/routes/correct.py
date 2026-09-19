@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -10,7 +10,7 @@ from routes.review_items import reactivate_review_item, review_kind_filter
 from services.auth_tokens import assert_same_user, current_user_id
 from services.corrector import correct_text, correct_text_stream
 from services.followup_chat import followup_chat_stream
-from services import notifier
+from services import geoip, notifier
 from services.practice_attempts import (
     complete_attempt,
     discard_attempt,
@@ -65,7 +65,7 @@ def _has_usable_feedback(result: dict) -> bool:
 
 
 async def _save_attempt_and_review(
-    req: CorrectRequest, practice: dict, attempt: dict, result: dict
+    req: CorrectRequest, practice: dict, attempt: dict, result: dict, client_ip: str = ""
 ) -> int:
     """Complete one independent Attempt and save opted-in review gaps.
 
@@ -138,12 +138,12 @@ async def _save_attempt_and_review(
         auto_saved += 1
 
     await complete_attempt(attempt_id, result)
-    await notifier.record_attempt_submitted(practice, round_no)
+    await notifier.record_attempt_submitted(practice, round_no, client_ip)
     return auto_saved
 
 
 @router.post("")
-async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
+async def correct(req: CorrectRequest, request: Request, token_user_id: str = Depends(current_user_id)):
     practice = await _load_practice(req, token_user_id)
     scenario, prev = await _correction_context(practice)
     mode = _normalize_mode(practice.get("mode") or req.mode)
@@ -167,7 +167,7 @@ async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user
         result = await correct_text(req.text, scenario, prev, round_no, link_to=link)
         if not _has_usable_feedback(result):
             raise HTTPException(502, result.get("summary") or "AI 没有返回可用反馈，请重试")
-        auto_saved = await _save_attempt_and_review(req, practice, attempt, result)
+        auto_saved = await _save_attempt_and_review(req, practice, attempt, result, geoip.client_ip(request))
     except Exception:
         await discard_attempt(attempt["attemptId"])
         raise
@@ -181,7 +181,7 @@ async def correct(req: CorrectRequest, token_user_id: str = Depends(current_user
 
 
 @router.post("/stream")
-async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(current_user_id)):
+async def correct_stream(req: CorrectRequest, request: Request, token_user_id: str = Depends(current_user_id)):
     practice = await _load_practice(req, token_user_id)
     scenario, prev = await _correction_context(practice)
     mode = _normalize_mode(practice.get("mode") or req.mode)
@@ -226,7 +226,7 @@ async def correct_stream(req: CorrectRequest, token_user_id: str = Depends(curre
                 message = (result or {}).get('summary') or 'AI 没有返回可用反馈，请重试'
                 yield f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
                 return
-            auto_saved = await _save_attempt_and_review(req, practice, attempt, result)
+            auto_saved = await _save_attempt_and_review(req, practice, attempt, result, geoip.client_ip(request))
             completed = True
             done_event = {
                 "type": "done",

@@ -16,3 +16,6 @@ __pycache__/
 .coverage
 htmlcov/
 coverage/
+
+# IP 归属地离线库（约 11MB，构建/本地按需下载，不进 Git）
+server/data/*.xdb

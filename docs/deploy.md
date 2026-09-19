@@ -53,6 +53,14 @@ AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`�
 
 排障：待发事件在 `notificationEvents`（`status=pending`，`attempts` 计数，`lastError` 已抹掉 app_secret）；`notificationState` 的 `lastSentAt` 决定窗口。要立刻发一批可临时把 `NOTIFY_WINDOW_SECONDS` 调小重启，不必改代码。
 
+## IP 归属地
+
+事件通知里带访问来源（`ip` / `region`），注册另外把首次来源写进用户档案（`signupIp` / `signupRegion`）。归属地走离线库 ip2region（Apache-2.0），**不把用户 IP 发给任何第三方**：
+
+- 库文件 `server/data/ip2region_v4.xdb`（约 11MB）不进 Git；本地用 `cd server && uv run python scripts/fetch_geoip_db.py` 拉取
+- Docker 构建时自动拉一份进镜像（拉不到只警告，不阻断构建）；如要换位置可用 `GEOIP_DB_PATH` 指定
+- 库缺失或查到保留地址时 `region` 为空串，通知照常发；IP 取自 `X-Forwarded-For` 首段（Caddy 注入），直连时回落 socket 对端
+
 **多服务部署的核心约定**（这台机以后会跑多个服务）：
 
 - `/opt/caddy/` 是**唯一**占 80/443 的网关，独立 compose，独立 Caddyfile，由人工/单独的 caddy 仓库维护

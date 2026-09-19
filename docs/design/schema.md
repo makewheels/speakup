@@ -19,12 +19,15 @@
   "avatarVersion": 1787555910000,         // 每次上传更新，用于版本化地址刷新缓存
   "sourceType": "human | ai_test",  // 数据来源；普通用户默认 human，自动体验专用账号为 ai_test
   "practicePreferences": { "level": "daily", "purpose": "travel" },  // 练习偏好（难度/目的）：服务端事实源，跨设备一致；未设置时缺省
+  "signupIp":    "114.242.248.1",         // 注册来源 IP；取反代后的真实地址，历史用户缺省
+  "signupRegion": "北京",                  // 注册 IP 归属地（离线库解析），查不到时为空串
   "createdAt": datetime,
   "updatedAt": datetime                  // 修改资料后写入；历史用户可缺省
 }
 ```
 
 `sourceType` 在用户首次创建时确定，后续普通登录不改写。历史缺字段用户按 `human` 处理。
+`signupIp` / `signupRegion` 只在注册时写入，用于回看用户从哪来；IP 归属地由离线库 `services/geoip.py` 解析，库缺失或查不到时 `signupRegion` 为空串。
 生产分析排除自动体验数据时使用 `{sourceType: {$ne: "ai_test"}}`，以兼容历史记录。
 昵称通过鉴权接口更新，服务端去除首尾空白并合并连续空白；空昵称、超过 24 个字符或含控制字符时拒绝保存。
 练习偏好通过 `GET/PUT /api/auth/practice-preferences` 读写（非法取值 422、跨用户 403、未设置读取 404）；登录响应携带已设置的偏好。前端 localStorage 只是缓存：服务端有值以服务端为准，本地有值而服务端没有时自动迁移。
@@ -270,7 +273,8 @@
 {
   "_id":        "nt_1781276...",
   "type":       "user_registered | attempt_submitted",
-  "payload":    { "userId": "u_...", "nickname": "User1234", "phone": "13800001234" },
+  "payload":    { "userId": "u_...", "nickname": "User1234", "phone": "13800001234",
+                  "ip": "114.242.248.1", "region": "北京" },  // 访问来源，region 由离线库解析
   "status":     "pending | sent | failed",   // failed = 重试用尽（超过 5 次）
   "attempts":   0,                            // 已尝试发送次数
   "lastError":  "RuntimeError: 发消息 HTTP 500",  // 脱敏（抹掉 app_secret），成功时无此字段

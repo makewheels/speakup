@@ -28,6 +28,7 @@ from config import (
     NOTIFY_WINDOW_SECONDS,
 )
 from db.connection import get_db
+from services import geoip
 from utils.id_generator import notification_event_id
 from utils.mongo_ids import id_filter
 
@@ -65,16 +66,16 @@ def enabled() -> bool:
 
 
 async def record_user_registered(
-    user_id: str, nickname: str, phone: str, source_type: str = "human"
+    user_id: str, nickname: str, phone: str, source_type: str = "human", ip: str = ""
 ) -> None:
     await record_event(
         "user_registered",
-        {"userId": user_id, "nickname": nickname, "phone": phone},
+        {"userId": user_id, "nickname": nickname, "phone": phone, **_origin(ip)},
         source_type=source_type,
     )
 
 
-async def record_attempt_submitted(practice: dict, round_no: int) -> None:
+async def record_attempt_submitted(practice: dict, round_no: int, ip: str = "") -> None:
     """一次录音提交（同步与流式评估共用）。"""
     user_id = str(practice.get("userId") or "")
     mode = practice.get("mode") or "scenario"
@@ -88,9 +89,15 @@ async def record_attempt_submitted(practice: dict, round_no: int) -> None:
             "mode": mode,
             "title": practice.get("title") or "",
             "round": int(round_no),
+            **_origin(ip),
         },
         source_type=practice.get("sourceType"),
     )
+
+
+def _origin(ip: str) -> dict:
+    """事件的访问来源：IP 与归属地一起进 payload，方便回查用户从哪来。"""
+    return {"ip": ip or "", "region": geoip.region_of(ip)}
 
 
 async def record_event(event_type: str, payload: dict, source_type: str | None = None) -> None:
@@ -173,13 +180,14 @@ def _item_line(event_type: str, event: dict) -> str:
     payload = event.get("payload") or {}
     nickname = payload.get("nickname") or "未知用户"
     phone = mask_phone(str(payload.get("phone") or ""))
+    region = str(payload.get("region") or "")
     moment = _moment(event.get("createdAt"))
     if event_type == "user_registered":
-        return " · ".join(part for part in (nickname, phone, moment) if part)
+        return " · ".join(part for part in (nickname, phone, region, moment) if part)
     mode = MODE_LABELS.get(payload.get("mode"), MODE_LABELS["scenario"])
     title = _truncate(str(payload.get("title") or ""), TITLE_MAX_CHARS)
     topic = f"{mode}「{title}」" if title else mode
-    parts = (nickname, phone, topic, f"第 {payload.get('round', 1)} 轮", moment)
+    parts = (nickname, phone, region, topic, f"第 {payload.get('round', 1)} 轮", moment)
     return " · ".join(part for part in parts if part)
 
 

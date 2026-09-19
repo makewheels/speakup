@@ -3,6 +3,7 @@ from io import BytesIO
 from PIL import Image
 from pymongo import MongoClient
 
+from services import geoip
 from tests.conftest import TEST_DB_NAME
 
 
@@ -313,3 +314,16 @@ def test_practice_preferences_cross_user_forbidden(client):
         headers=headers_a,
     )
     assert put.status_code == 403
+
+
+def test_registration_records_signup_origin(client, monkeypatch):
+    """新用户落库时记下注册来源 IP 与归属地。"""
+    monkeypatch.setattr(geoip, "client_ip", lambda request: "114.242.248.1")
+    monkeypatch.setattr(geoip, "region_of", lambda ip: "北京")
+
+    client.post("/api/auth/login", json={"phone": "13800007777"})
+
+    db = MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME]
+    user = db.users.find_one({"phone": "13800007777"})
+    assert user["signupIp"] == "114.242.248.1"
+    assert user["signupRegion"] == "北京"

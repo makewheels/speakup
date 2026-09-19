@@ -170,7 +170,10 @@ async def test_record_event_enqueues_pending(monkeypatch, notify_on):
     doc = db.notificationEvents.docs[0]
     assert doc["_id"].startswith("nt_")
     assert doc["type"] == "user_registered"
-    assert doc["payload"] == {"userId": "u_1", "nickname": "User1234", "phone": "13800001234"}
+    assert doc["payload"] == {
+        "userId": "u_1", "nickname": "User1234", "phone": "13800001234",
+        "ip": "", "region": "",
+    }
     assert doc["status"] == "pending"
     assert doc["attempts"] == 0
 
@@ -211,6 +214,8 @@ async def test_record_attempt_submitted_carries_context(monkeypatch, notify_on):
         "mode": "scenario",
         "title": "咖啡店给错咖啡",
         "round": 2,
+        "ip": "",
+        "region": "",
     }
 
 
