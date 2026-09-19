@@ -74,7 +74,7 @@ export default function PracticePage() {
   const {
     elapsed, paused, pauseSupported,
     resetCapture, startCapture, stopCapture, pauseResumeCapture,
-    discardCapture, takeAudioBlob,
+    discardCapture, takeAudioBlob, recordingUrl, restoreRecordingUrl,
   } = usePracticeRecorder();
   const evalTimerRef = useRef(null);
   const evalAnchorRef = useRef(null);
@@ -209,6 +209,8 @@ export default function PracticePage() {
           const selectedAttempt = requested.attempt;
           setResult(resultFromAttempt(selectedAttempt));
           setTranscript(selectedAttempt.transcript ?? "");
+          // 刷新或从历史进来时本地录音已失效，回落服务端签名 URL 供「你说的」回放
+          restoreRecordingUrl(selectedAttempt.recordingUrl ?? "");
           setSavedMap(reviewMapFromGaps(selectedAttempt.gaps));
           setRound(requested.round);
           setActiveAttemptId(requested.attemptId);
@@ -423,6 +425,7 @@ export default function PracticePage() {
         chat={chat}
         chatBusy={chatBusy}
         chatInput={chatInput}
+        recordingUrl={recordingUrl}
         result={result}
         loading={feedbackLoading}
         streamingLen={streamingLen}

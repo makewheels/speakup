@@ -229,6 +229,13 @@
   padding-top: 16px;
   border-top: 1px solid var(--rule);
 }
+
+/* 重说 / 下一个：与上方追问区用分割线拉开，否则两块紧贴容易被读成同一组 */
+.fb-page .fb-actions {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
 .fb-chat > .result-section-title { margin-bottom: 12px; }
 .fb-chat-msg {
   font-family: var(--ff-cn);
@@ -408,48 +415,31 @@
   color: var(--ink-2);
   line-height: 1.55;
 }
-/* 例句移入可展开区域，首屏只保留「你说 / 这样说 / 为什么」三行。 */
-.fb-gap-example-details {
-  border-top: 1px solid var(--rule);
-  padding-top: 9px;
+/* 「你说的」：默认折叠，展开看原话并能回放原声 */
+.fb-said {
+  margin-top: 18px;
+  border-radius: 12px;
+  background: var(--bg-mute);
+  overflow: hidden;
 }
-.fb-gap-example-details summary {
-  width: fit-content;
+.fb-said > summary {
+  padding: 11px 14px;
   font-family: var(--ff-cn);
-  font-size: 13px;
-  color: var(--ink-3);
+  font-size: 14px;
+  color: var(--ink-2);
   cursor: pointer;
   user-select: none;
 }
-.fb-gap-example-body {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 9px;
-  background: var(--bg-mute);
+.fb-said-body {
+  padding: 0 14px 14px;
 }
-.fb-gap-example-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.fb-gap-example {
-  flex: 1;
+.fb-said-text {
+  margin: 0 0 10px;
   font-family: var(--ff-en);
-  font-size: 15px;
-  color: var(--ink-2);
-  line-height: 1.5;
-}
-.fb-gap-example-row .spk-btn {
-  min-width: 30px;
-  min-height: 30px;
-  padding: 5px;
-}
-.fb-gap-example-zh {
-  margin: 5px 0 0;
-  font-family: var(--ff-cn);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-3);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 /* 选中文字后手动加入笔记：跟随实际选区，移动端靠近视口底部时自动放到选区上方。 */
