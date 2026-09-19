@@ -206,7 +206,7 @@
 .fb-gaps-section { margin-top: 22px; margin-bottom: 8px; }
 
 .fb-empty-feedback {
-  margin-top: 18px;
+  margin-top: 0;   /* 在表达反馈区块内，上方间距由区块头或「你说的」提供 */
   padding: 14px 16px;
   border: 1px solid var(--rule);
   border-radius: 8px;
@@ -415,9 +415,10 @@
   color: var(--ink-2);
   line-height: 1.55;
 }
-/* 「你说的」：默认折叠，展开看原话并能回放原声 */
+/* 「你说的」：表达反馈区块的第一项，默认折叠，展开看原话并能回放原声。
+   上方间距由 .result-section-head 的 margin-bottom 提供，这里只压下方。 */
 .fb-said {
-  margin-top: 18px;
+  margin: 0 0 12px;
   border-radius: 12px;
   background: var(--bg-mute);
   overflow: hidden;
