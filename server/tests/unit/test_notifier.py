@@ -197,7 +197,7 @@ async def test_record_event_swallows_db_error(monkeypatch, notify_on):
 @pytest.mark.asyncio
 async def test_record_attempt_submitted_carries_context(monkeypatch, notify_on):
     db = _Db()
-    db.users.docs.append({"_id": "u_1", "nickname": "User1234"})
+    db.users.docs.append({"_id": "u_1", "nickname": "User1234", "phone": "13800001234"})
     _use_db(monkeypatch, db)
     practice = {"userId": "u_1", "mode": "scenario", "title": "咖啡店给错咖啡", "sourceType": "human"}
 
@@ -207,6 +207,7 @@ async def test_record_attempt_submitted_carries_context(monkeypatch, notify_on):
     assert payload == {
         "userId": "u_1",
         "nickname": "User1234",
+        "phone": "13800001234",
         "mode": "scenario",
         "title": "咖啡店给错咖啡",
         "round": 2,
@@ -294,10 +295,11 @@ async def test_flush_retires_exhausted_events(monkeypatch, notify_on):
     assert "新注册 1 人" in text and "User" not in text
 
 
-def test_build_card_masks_phone_and_keeps_order():
+def test_build_card_lists_events_with_masked_phone():
     events = [
         _event("nt_1", "user_registered", nickname="User1234", phone="13800001234"),
-        _event("nt_2", "attempt_submitted", nickname="User1234", mode="scenario", title="咖啡店给错咖啡", round=1),
+        _event("nt_2", "attempt_submitted", nickname="User1234", phone="13800001234",
+               mode="scenario", title="咖啡店给错咖啡", round=1),
     ]
     card = notifier.build_card(events, NOW)
 
@@ -305,7 +307,8 @@ def test_build_card_masks_phone_and_keeps_order():
     assert card["header"]["title"]["content"] == "SpeakUp 动态 · 09-18 21:00"
     blocks = [block["text"]["content"] for block in card["elements"]]
     assert blocks[0] == "**👤 新注册 1 人**\n· User1234 · 138****1234 · 21:00"
-    assert blocks[1] == "**🎤 练习提交 1 次**\n· User1234 · 场景「咖啡店给错咖啡」 · 第 1 轮 · 21:00"
+    # 练习提交同样带脱敏手机号，重名用户也分得清
+    assert blocks[1] == "**🎤 练习提交 1 次**\n· User1234 · 138****1234 · 场景「咖啡店给错咖啡」 · 第 1 轮 · 21:00"
 
 
 def test_build_card_folds_long_sections_and_truncates_title():

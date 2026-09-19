@@ -222,6 +222,7 @@ def test_correct_enqueues_notification(client, user_id, auth_headers, practice_i
     assert events[0]["payload"] == {
         "userId": user_id,
         "nickname": "User1234",
+        "phone": "13800001234",
         "mode": "scenario",
         "title": "测试咖啡店",
         "round": 1,
