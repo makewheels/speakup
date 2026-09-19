@@ -109,8 +109,8 @@ describe("PracticePage feedback", () => {
       ],
     });
     const scrollSpy = vi.fn();
-    const originalScrollTo = window.scrollTo;
-    window.scrollTo = scrollSpy;
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollSpy;
     try {
       setup("/practice/sess_abc?result=1");
       await waitFor(() => expect(screen.getByText("6.5")).toBeInTheDocument());
@@ -124,8 +124,9 @@ describe("PracticePage feedback", () => {
       expect(scenarioCard.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING)
         .toBeTruthy();
       expect(scrollSpy).toHaveBeenCalledTimes(1);
+      expect(scrollSpy.mock.instances[0]).toBe(anchor);  // 停在分数锚点，不是页面顶部
     } finally {
-      window.scrollTo = originalScrollTo;
+      Element.prototype.scrollIntoView = originalScrollIntoView;
     }
   });
 
