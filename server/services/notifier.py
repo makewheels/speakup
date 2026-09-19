@@ -45,9 +45,10 @@ REQUEST_TIMEOUT_SECONDS = 10
 TOKEN_SAFETY_MARGIN_SECONDS = 300  # token 剩余不足这么多秒就重取，避免边界过期
 
 SECTIONS = {
-    "user_registered": ("新注册", "人"),
-    "attempt_submitted": ("练习提交", "次"),
+    "user_registered": ("👤 新注册", "人"),
+    "attempt_submitted": ("🎤 练习提交", "次"),
 }
+CARD_HEADER_TEMPLATE = "blue"  # 卡片标题栏配色
 MODE_LABELS = {"scenario": "场景", "free": "自由说"}
 
 
@@ -126,7 +127,7 @@ async def flush_pending(now: datetime | None = None) -> int:
         return 0
 
     try:
-        await _send_message(build_message(events, now))
+        await _send_message(build_card(events, now))
     except Exception as exc:
         await _mark_retry(db, events, exc)
         return 0
@@ -143,19 +144,27 @@ async def flush_pending(now: datetime | None = None) -> int:
     return len(events)
 
 
-def build_message(events: list[dict], now: datetime) -> str:
-    lines = [f"【SpeakUp】{now.astimezone(CN_TZ):%m-%d %H:%M} 动态"]
+def build_card(events: list[dict], now: datetime) -> dict:
+    """合并事件成一张飞书卡片：标题栏报时间，每类一个分块，块内明细最多 8 条。"""
+    elements = []
     for event_type, (label, unit) in SECTIONS.items():
         group = [event for event in events if event.get("type") == event_type]
         if not group:
             continue
-        lines.append(f"{label} {len(group)} {unit}")
-        for event in group[:MAX_ITEMS_PER_SECTION]:
-            lines.append("· " + _item_line(event_type, event))
+        lines = [f"**{label} {len(group)} {unit}**"]
+        lines += [f"· {_item_line(event_type, event)}" for event in group[:MAX_ITEMS_PER_SECTION]]
         hidden = len(group) - MAX_ITEMS_PER_SECTION
         if hidden > 0:
             lines.append(f"· …还有 {hidden} {unit}")
-    return "\n".join(lines)
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}})
+    return {
+        "config": {"wide_screen_mode": True},
+        "header": {
+            "template": CARD_HEADER_TEMPLATE,
+            "title": {"tag": "plain_text", "content": f"SpeakUp 动态 · {now.astimezone(CN_TZ):%m-%d %H:%M}"},
+        },
+        "elements": elements,
+    }
 
 
 def _item_line(event_type: str, event: dict) -> str:
@@ -218,7 +227,7 @@ def _safe_error(exc: Exception) -> str:
     return text[:ERROR_MAX_CHARS]
 
 
-async def _send_message(text: str) -> None:
+async def _send_message(card: dict) -> None:
     token = await _tenant_token()
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
         resp = await client.post(
@@ -227,8 +236,8 @@ async def _send_message(text: str) -> None:
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "receive_id": NOTIFY_FEISHU_CHAT_ID,
-                "msg_type": "text",
-                "content": json.dumps({"text": text}, ensure_ascii=False),
+                "msg_type": "interactive",
+                "content": json.dumps(card, ensure_ascii=False),
             },
         )
     _check_feishu(resp, "发消息")
