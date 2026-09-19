@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import Icon from "../Icon.jsx";
 import PracticeMedia from "./PracticeMedia.jsx";
 import PracticeScenarioCard from "./PracticeScenarioCard.jsx";
@@ -59,9 +59,12 @@ export default function PracticeFeedbackView({
   const isFree = session?.mode === "free";
   const hasAnswer = Boolean((result.standardAnswer || "").trim());
 
-  // 只在结果页首帧绘制前回到顶部；流式结束、媒体加载和发音结果到达时都不再滚动。
+  // 结果页首帧就停在分数处：题目卡与媒体留在上方可回看，不必从最顶开始。
+  // 媒体有固定宽高比，图片/视频加载不会撑高页面把位置挤偏；
+  // 流式结束、媒体加载和发音结果到达时都不再滚动。
+  const scoreAnchorRef = useRef(null);
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
+    scoreAnchorRef.current?.scrollIntoView?.({ block: "start", behavior: "auto" });
   }, []);
 
   return (
@@ -78,7 +81,7 @@ export default function PracticeFeedbackView({
         ? <PracticeFreeCard freeTopic={scenario?.freeTopic || session?.freeTopic || ""} t={t} />
         : <PracticeScenarioCard scenario={scenario} topic={session?.topic} t={t} />}
 
-      <div className="fb-score-anchor">
+      <div className="fb-score-anchor" ref={scoreAnchorRef}>
         <ScoreBadge loading={loading} score={result.score} />
         <div>
           <span className="attempt-badge">{t("practice.attemptBadge", { n: round ?? 1 })}</span>

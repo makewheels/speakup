@@ -63,9 +63,9 @@ describe("PracticePage result stability", () => {
       streamHandlers = handlers;
       return { abort: vi.fn() };
     });
-    const originalScrollTo = window.scrollTo;
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
     const scrollSpy = vi.fn();
-    window.scrollTo = scrollSpy;
+    Element.prototype.scrollIntoView = scrollSpy;
     try {
       setup("/practice/sess_abc");
       await waitFor(() => screen.getByText("Tap once to record"));
@@ -80,7 +80,8 @@ describe("PracticePage result stability", () => {
       expect(scenarioCard.compareDocumentPosition(anchor) & Node.DOCUMENT_POSITION_FOLLOWING)
         .toBeTruthy();
       expect(anchor.querySelector(".fb-score-num")).toHaveTextContent("–");
-      expect(scrollSpy).toHaveBeenCalledTimes(1);
+      expect(scrollSpy.mock.instances.at(-1)).toBe(anchor);  // 首帧停在分数锚点
+      const callsAtFirstFrame = scrollSpy.mock.calls.length;
 
       await act(async () => {
         streamHandlers.onChunk("partial result");
@@ -100,9 +101,9 @@ describe("PracticePage result stability", () => {
 
       await waitFor(() => expect(screen.getByText("6.5")).toBeInTheDocument());
       expect(document.querySelector(".fb-score-anchor")).toBe(anchor);
-      expect(scrollSpy).toHaveBeenCalledTimes(1);
+      expect(scrollSpy.mock.calls.length).toBe(callsAtFirstFrame);  // 流式结束后不再滚动
     } finally {
-      window.scrollTo = originalScrollTo;
+      Element.prototype.scrollIntoView = originalScrollIntoView;
     }
   });
 });
