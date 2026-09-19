@@ -76,8 +76,12 @@ test("结果页先展示题目再展示稳定评分，反馈与分享位于末�
   const standardTitle = page.getByRole("heading", { level: 2, name: "标准答案" });
   await expect(standardTitle).toBeVisible();
   expect(await standardTitle.evaluate((node) => node.closest("summary") === null)).toBe(true);
-  await expect(page.locator(".fb-gap-example-details summary"))
-    .toHaveText("看这个用法在另一个场景怎么说");
+  // 迁移例句已下线：历史数据带 example 也不渲染
+  await expect(page.locator(".fb-gap-example-details")).toHaveCount(0);
+  await expect(page.getByText("能帮我重新打印登机牌吗？我的航班很快登机。")).toHaveCount(0);
+  // 原话收进「你说的」折叠区；首轮不挂轮次徽章
+  await expect(page.locator(".fb-said > summary")).toHaveText("你说的");
+  await expect(page.getByText("第 1 次尝试")).toHaveCount(0);
 
   const promptBox = await page.locator(".sc-card").boundingBox();
   const scoreBox = await page.locator(".fb-score-anchor").boundingBox();

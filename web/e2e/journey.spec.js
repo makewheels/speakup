@@ -123,7 +123,8 @@ test("结果页 attempt 参数精确还原对应轮次", async ({ page }) => {
 
   await page.goto("/practice/sess_journey?attempt=pa_j1", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("ROUND_ONE_SUMMARY")).toBeVisible();
-  await expect(page.getByText("Attempt #1")).toBeVisible();
+  // 首轮不挂轮次徽章（第 1 次是默认状态）
+  await expect(page.getByText("Attempt #1")).toHaveCount(0);
 });
 
 test("历史列表进入会话详情", async ({ page }) => {
