@@ -10,3 +10,4 @@ docs
 *.md
 .env
 .env.*
+server/data/*.xdb

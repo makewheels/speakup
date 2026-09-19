@@ -130,8 +130,11 @@ def scenario_id(client):
 
 @pytest.fixture
 def notify_enabled(monkeypatch):
-    """打开运营通知并给齐假凭据：只验证入队，不发真实消息。"""
-    from services import notifier
+    """打开运营通知并给齐假凭据：只验证入队，不发真实消息。
+
+    IP 与归属地同时固定成可断言的值（真实查询依赖未入库的离线库）。
+    """
+    from services import geoip, notifier
 
     for key, value in {
         "NOTIFY_ENABLED": True,
@@ -140,6 +143,8 @@ def notify_enabled(monkeypatch):
         "NOTIFY_FEISHU_CHAT_ID": "oc_test",
     }.items():
         monkeypatch.setattr(notifier, key, value)
+    monkeypatch.setattr(geoip, "client_ip", lambda request: "114.242.248.1")
+    monkeypatch.setattr(geoip, "region_of", lambda ip: "北京")
 
 
 @pytest.fixture

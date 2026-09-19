@@ -4,12 +4,12 @@ import logging
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from db.connection import get_db
-from services import notifier, oss_storage
+from services import geoip, notifier, oss_storage
 from services.avatar_images import InvalidAvatarImage, build_avatar_variants
 from services.auth_tokens import assert_same_user, create_session, current_user_id
 from services.storage_paths import avatar_key
@@ -79,7 +79,7 @@ async def _delete_avatar_keys(keys: list[str], user_id_value: str) -> None:
 
 
 @router.post("/login")
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
     if not re.match(r"^1\d{10}$", req.phone):
         raise HTTPException(400, "请输入正确的手机号")
 
@@ -89,6 +89,7 @@ async def login(req: LoginRequest):
         nickname = f"User{req.phone[-4:]}"
         uid = user_id()
         source_type = req.sourceType
+        ip = geoip.client_ip(request)
         await get_db().users.insert_one({
             "_id": uid,
             "phone": req.phone,
@@ -96,6 +97,8 @@ async def login(req: LoginRequest):
             "sourceType": source_type,
             "createdAt": now,
             "lastLoginAt": now,
+            "signupIp": ip,
+            "signupRegion": geoip.region_of(ip),
         })
         user = {
             "_id": uid,
@@ -103,7 +106,7 @@ async def login(req: LoginRequest):
             "nickname": nickname,
             "sourceType": source_type,
         }
-        await notifier.record_user_registered(uid, nickname, req.phone, source_type)
+        await notifier.record_user_registered(uid, nickname, req.phone, source_type, ip)
     else:
         source_type = normalize_source_type(user.get("sourceType"))
         await get_db().users.update_one(
