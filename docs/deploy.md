@@ -46,11 +46,12 @@ AI 能力按环境变量解耦：文字使用 `CHAT_*`，语音使用 `VOICE_*`�
 
 服务端在「新用户注册」「提交练习」时推飞书，10 分钟内多条事件合并成一条（首条立即发），行为与开关见 [业务/10-运营通知.md](业务/10-运营通知.md)。配置同样走 Infisical `speakup-secrets/prod/notifications`，由部署流水线读取后注入容器（`NOTIFY_*` 已在 `ci-cd.yml` 的两处白名单里）：
 
-- `NOTIFY_ENABLED`：总开关，默认 `false`；关闭或 `NOTIFY_FEISHU_WEBHOOK_URL` 为空时全链路 no-op
-- `NOTIFY_FEISHU_WEBHOOK_URL`：飞书群自定义机器人的 webhook（URL 本身即凭据，机器人只需「往一个群发消息」，比复用 Open API 应用凭据权限面更小）
+- `NOTIFY_ENABLED`：总开关，默认 `false`；关闭或未配齐应用凭据时全链路 no-op
+- `NOTIFY_FEISHU_APP_ID` / `NOTIFY_FEISHU_APP_SECRET`：飞书自建应用凭据，换 `tenant_access_token`（进程内缓存到临期）后发消息
+- `NOTIFY_FEISHU_CHAT_ID`：接收群 `oc_...`；`NOTIFY_FEISHU_BASE_URL` 默认 `https://open.feishu.cn`
 - `NOTIFY_WINDOW_SECONDS`（默认 600）、`NOTIFY_FLUSH_INTERVAL_SECONDS`（默认 30）
 
-排障：待发事件在 `notificationEvents`（`status=pending`，`attempts` 计数，`lastError` 已抹掉 URL）；`notificationState` 的 `lastSentAt` 决定窗口。要立刻发一批可临时把 `NOTIFY_WINDOW_SECONDS` 调小重启，不必改代码。
+排障：待发事件在 `notificationEvents`（`status=pending`，`attempts` 计数，`lastError` 已抹掉 app_secret）；`notificationState` 的 `lastSentAt` 决定窗口。要立刻发一批可临时把 `NOTIFY_WINDOW_SECONDS` 调小重启，不必改代码。
 
 **多服务部署的核心约定**（这台机以后会跑多个服务）：
 

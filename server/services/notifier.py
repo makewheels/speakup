@@ -4,20 +4,26 @@
 - flush_pending：距上次发送满 NOTIFY_WINDOW_SECONDS（或从未发过）时把 pending 合并成一条发出。
   第一条立即发，窗口内的后续事件攒到窗口结束合并，每个窗口最多一条。
 - 发送失败保留 pending 下一轮重试，超过 MAX_ATTEMPTS 标 failed 不再重试。
-- NOTIFY_ENABLED=false 或未配 webhook 时全链路 no-op；测试号（sourceType=ai_test）不入队。
-- 手机号脱敏后进消息；webhook URL 是凭据，日志与 lastError 里都不出现。
+- NOTIFY_ENABLED=false 或未配齐应用凭据时全链路 no-op；测试号（sourceType=ai_test）不入队。
+- 手机号脱敏后进消息；app_secret 是凭据，日志与 lastError 里都不出现。
+- 走飞书 Open API：app 凭据换 tenant_access_token（缓存到临期），再往目标群发文本消息。
 """
 
 import asyncio
 import contextlib
+import json
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 import httpx
 
 from config import (
     NOTIFY_ENABLED,
-    NOTIFY_FEISHU_WEBHOOK_URL,
+    NOTIFY_FEISHU_APP_ID,
+    NOTIFY_FEISHU_APP_SECRET,
+    NOTIFY_FEISHU_BASE_URL,
+    NOTIFY_FEISHU_CHAT_ID,
     NOTIFY_FLUSH_INTERVAL_SECONDS,
     NOTIFY_WINDOW_SECONDS,
 )
@@ -35,7 +41,8 @@ BATCH_LIMIT = 200           # 一次合并最多取多少条 pending
 MAX_ITEMS_PER_SECTION = 8   # 消息里每类最多列几条明细，其余折叠
 TITLE_MAX_CHARS = 20
 ERROR_MAX_CHARS = 200
-WEBHOOK_TIMEOUT_SECONDS = 10
+REQUEST_TIMEOUT_SECONDS = 10
+TOKEN_SAFETY_MARGIN_SECONDS = 300  # token 剩余不足这么多秒就重取，避免边界过期
 
 SECTIONS = {
     "user_registered": ("新注册", "人"),
@@ -44,8 +51,16 @@ SECTIONS = {
 MODE_LABELS = {"scenario": "场景", "free": "自由说"}
 
 
+_token_cache: dict[str, object] = {"value": "", "expires_at": 0.0}
+
+
 def enabled() -> bool:
-    return bool(NOTIFY_ENABLED and NOTIFY_FEISHU_WEBHOOK_URL)
+    return bool(
+        NOTIFY_ENABLED
+        and NOTIFY_FEISHU_APP_ID
+        and NOTIFY_FEISHU_APP_SECRET
+        and NOTIFY_FEISHU_CHAT_ID
+    )
 
 
 async def record_user_registered(
@@ -111,7 +126,7 @@ async def flush_pending(now: datetime | None = None) -> int:
         return 0
 
     try:
-        await _post_webhook(build_message(events, now))
+        await _send_message(build_message(events, now))
     except Exception as exc:
         await _mark_retry(db, events, exc)
         return 0
@@ -196,23 +211,58 @@ async def _mark_retry(db, events: list[dict], exc: Exception) -> None:
 
 
 def _safe_error(exc: Exception) -> str:
-    """错误信息进库/进日志前抹掉 webhook URL（URL 即凭据）。"""
+    """错误信息进库/进日志前抹掉 app_secret（凭据不出现在任何持久化位置）。"""
     text = f"{type(exc).__name__}: {exc}"
-    if NOTIFY_FEISHU_WEBHOOK_URL:
-        text = text.replace(NOTIFY_FEISHU_WEBHOOK_URL, "<webhook>")
+    if NOTIFY_FEISHU_APP_SECRET:
+        text = text.replace(NOTIFY_FEISHU_APP_SECRET, "<app-secret>")
     return text[:ERROR_MAX_CHARS]
 
 
-async def _post_webhook(text: str) -> None:
-    payload = {"msg_type": "text", "content": {"text": text}}
-    async with httpx.AsyncClient(timeout=WEBHOOK_TIMEOUT_SECONDS) as client:
-        resp = await client.post(NOTIFY_FEISHU_WEBHOOK_URL, json=payload)
+async def _send_message(text: str) -> None:
+    token = await _tenant_token()
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+        resp = await client.post(
+            f"{NOTIFY_FEISHU_BASE_URL}/open-apis/im/v1/messages",
+            params={"receive_id_type": "chat_id"},
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "receive_id": NOTIFY_FEISHU_CHAT_ID,
+                "msg_type": "text",
+                "content": json.dumps({"text": text}, ensure_ascii=False),
+            },
+        )
+    _check_feishu(resp, "发消息")
+
+
+async def _tenant_token() -> str:
+    """带缓存的 tenant_access_token；剩余有效期不足 margin 就重取。"""
+    now = time.monotonic()
+    if _token_cache["value"] and now < float(_token_cache["expires_at"]):
+        return str(_token_cache["value"])
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+        resp = await client.post(
+            f"{NOTIFY_FEISHU_BASE_URL}/open-apis/auth/v3/tenant_access_token/internal",
+            json={"app_id": NOTIFY_FEISHU_APP_ID, "app_secret": NOTIFY_FEISHU_APP_SECRET},
+        )
+    body = _check_feishu(resp, "取 token")
+    token = str(body.get("tenant_access_token") or "")
+    if not token:
+        raise RuntimeError("token 响应缺少 tenant_access_token")
+    expire = int(body.get("expire") or 0)
+    _token_cache["value"] = token
+    _token_cache["expires_at"] = now + max(0, expire - TOKEN_SAFETY_MARGIN_SECONDS)
+    return token
+
+
+def _check_feishu(resp: httpx.Response, action: str) -> dict:
+    """飞书接口统一判错：HTTP 层与业务 code 层都查，成功返回响应体。"""
     if resp.status_code >= 400:
-        raise RuntimeError(f"webhook HTTP {resp.status_code}")
+        raise RuntimeError(f"{action} HTTP {resp.status_code}")
     body = resp.json() if resp.content else {}
-    code = body.get("code", body.get("StatusCode", 0))
+    code = body.get("code", 0)
     if code:
-        raise RuntimeError(f"webhook 返回 code={code}")
+        raise RuntimeError(f"{action}返回 code={code} msg={body.get('msg', '')}")
+    return body
 
 
 async def _flusher_loop() -> None:

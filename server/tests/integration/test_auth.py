@@ -3,17 +3,11 @@ from io import BytesIO
 from PIL import Image
 from pymongo import MongoClient
 
-from services import notifier
 from tests.conftest import TEST_DB_NAME
 
 
 def _notification_events() -> list[dict]:
     return list(MongoClient("mongodb://localhost:27017/")[TEST_DB_NAME].notificationEvents.find({}))
-
-
-def _enable_notifications(monkeypatch):
-    monkeypatch.setattr(notifier, "NOTIFY_ENABLED", True)
-    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_WEBHOOK_URL", "https://open.feishu.cn/open-apis/bot/v2/hook/test")
 
 
 def _avatar_png() -> bytes:
@@ -66,9 +60,7 @@ def test_login_rejects_unknown_source_type(client):
     assert resp.status_code == 422
 
 
-def test_registration_enqueues_notification(client, monkeypatch):
-    _enable_notifications(monkeypatch)
-
+def test_registration_enqueues_notification(client, notify_enabled):
     client.post("/api/auth/login", json={"phone": "13800001234"})
 
     events = _notification_events()
@@ -78,18 +70,14 @@ def test_registration_enqueues_notification(client, monkeypatch):
     assert events[0]["status"] == "pending"
 
 
-def test_relogin_does_not_enqueue_notification(client, monkeypatch):
-    _enable_notifications(monkeypatch)
-
+def test_relogin_does_not_enqueue_notification(client, notify_enabled):
     client.post("/api/auth/login", json={"phone": "13800001234"})
     client.post("/api/auth/login", json={"phone": "13800001234"})
 
     assert len(_notification_events()) == 1
 
 
-def test_ai_test_registration_does_not_enqueue_notification(client, monkeypatch):
-    _enable_notifications(monkeypatch)
-
+def test_ai_test_registration_does_not_enqueue_notification(client, notify_enabled):
     client.post("/api/auth/login", json={"phone": "13900009999", "sourceType": "ai_test"})
 
     assert _notification_events() == []

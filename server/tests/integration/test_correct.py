@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, patch
 
 from pymongo import MongoClient
 
-from services import notifier
 from tests.conftest import TEST_DB_NAME
 from tests.conftest import login_headers
 
@@ -213,9 +212,7 @@ def test_correct_persists_attempt_with_round(client, user_id, auth_headers, prac
     assert stored_attempt["practiceId"] == practice_id
 
 
-def test_correct_enqueues_notification(client, user_id, auth_headers, practice_id, monkeypatch):
-    monkeypatch.setattr(notifier, "NOTIFY_ENABLED", True)
-    monkeypatch.setattr(notifier, "NOTIFY_FEISHU_WEBHOOK_URL", "https://open.feishu.cn/open-apis/bot/v2/hook/test")
+def test_correct_enqueues_notification(client, user_id, auth_headers, practice_id, notify_enabled):
     with _mock_correct():
         client.post(
             "/api/correct",
