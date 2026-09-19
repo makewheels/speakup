@@ -122,12 +122,17 @@ def _event(event_id, event_type, minutes_ago=0, **payload):
 
 def _fake_send(monkeypatch, error=None):
     sent = []
-    async def _send(text):
-        sent.append(text)
+    async def _send(card):
+        sent.append(card)
         if error:
             raise error
     monkeypatch.setattr(notifier, "_send_message", _send)
     return sent
+
+
+def _card_text(card) -> str:
+    """把卡片各分块正文拼成文本，便于按文案断言。"""
+    return "\n".join(block["text"]["content"] for block in card["elements"])
 
 
 def test_enabled_requires_switch_and_credentials(monkeypatch):
@@ -217,7 +222,7 @@ async def test_flush_sends_first_event_immediately(monkeypatch, notify_on):
     count = await notifier.flush_pending(NOW)
 
     assert count == 1
-    assert len(sent) == 1 and "新注册 1 人" in sent[0]
+    assert len(sent) == 1 and "新注册 1 人" in _card_text(sent[0])
     assert db.notificationEvents.docs[0]["status"] == "sent"
     assert db.notificationEvents.docs[0]["batchId"].startswith("nt_")
     assert db.notificationState.docs[0]["lastSentAt"] == NOW
@@ -254,7 +259,7 @@ async def test_flush_merges_events_after_window(monkeypatch, notify_on):
     assert await notifier.flush_pending(NOW) == 3
 
     assert len(sent) == 1
-    text = sent[0]
+    text = _card_text(sent[0])
     assert "新注册 2 人" in text and "练习提交 1 次" in text
     assert "138****1234" in text and "13900005678" not in text
     assert "自由说「Your best trip」" in text and "第 3 轮" in text
@@ -285,30 +290,30 @@ async def test_flush_retires_exhausted_events(monkeypatch, notify_on):
     assert await notifier.flush_pending(NOW) == 1
 
     assert db.notificationEvents.docs[0]["status"] == "failed"
-    assert "新注册 1 人" in sent[0] and "User" not in sent[0]
+    text = _card_text(sent[0])
+    assert "新注册 1 人" in text and "User" not in text
 
 
-def test_build_message_masks_phone_and_keeps_order():
+def test_build_card_masks_phone_and_keeps_order():
     events = [
         _event("nt_1", "user_registered", nickname="User1234", phone="13800001234"),
         _event("nt_2", "attempt_submitted", nickname="User1234", mode="scenario", title="咖啡店给错咖啡", round=1),
     ]
-    text = notifier.build_message(events, NOW)
-    lines = text.splitlines()
+    card = notifier.build_card(events, NOW)
 
-    assert lines[0] == "【SpeakUp】09-18 21:00 动态"
-    assert lines[1] == "新注册 1 人"
-    assert lines[2] == "· User1234 · 138****1234 · 21:00"
-    assert lines[3] == "练习提交 1 次"
-    assert lines[4] == "· User1234 · 场景「咖啡店给错咖啡」 · 第 1 轮 · 21:00"
+    assert card["config"] == {"wide_screen_mode": True}
+    assert card["header"]["title"]["content"] == "SpeakUp 动态 · 09-18 21:00"
+    blocks = [block["text"]["content"] for block in card["elements"]]
+    assert blocks[0] == "**👤 新注册 1 人**\n· User1234 · 138****1234 · 21:00"
+    assert blocks[1] == "**🎤 练习提交 1 次**\n· User1234 · 场景「咖啡店给错咖啡」 · 第 1 轮 · 21:00"
 
 
-def test_build_message_folds_long_sections_and_truncates_title():
+def test_build_card_folds_long_sections_and_truncates_title():
     events = [
         _event(f"nt_{i}", "attempt_submitted", nickname=f"User{i}", mode="scenario", title="很长的标题" * 10, round=1)
         for i in range(notifier.MAX_ITEMS_PER_SECTION + 3)
     ]
-    text = notifier.build_message(events, NOW)
+    text = _card_text(notifier.build_card(events, NOW))
 
     assert f"练习提交 {notifier.MAX_ITEMS_PER_SECTION + 3} 次" in text
     assert "…还有 3 次" in text
@@ -363,8 +368,8 @@ async def test_send_message_reuses_cached_token(monkeypatch, notify_on):
         _FakeResponse({"code": 0, "data": {}}),
     ])
 
-    await notifier._send_message("第一条")
-    await notifier._send_message("第二条")
+    await notifier._send_message({"header": {"title": {"content": "第一条"}}})
+    await notifier._send_message({"header": {"title": {"content": "第二条"}}})
 
     urls = [url for url, _ in calls]
     assert sum("tenant_access_token" in url for url in urls) == 1  # 两次发送只换一次 token
@@ -373,7 +378,8 @@ async def test_send_message_reuses_cached_token(monkeypatch, notify_on):
     assert send_kwargs["params"] == {"receive_id_type": "chat_id"}
     assert send_kwargs["headers"] == {"Authorization": "Bearer t-1"}
     assert send_kwargs["json"]["receive_id"] == "oc_test"
-    assert json.loads(send_kwargs["json"]["content"])["text"] == "第二条"
+    assert send_kwargs["json"]["msg_type"] == "interactive"
+    assert json.loads(send_kwargs["json"]["content"])["header"]["title"]["content"] == "第二条"
 
 
 @pytest.mark.asyncio
@@ -396,4 +402,4 @@ async def test_send_message_raises_on_feishu_error(monkeypatch, notify_on):
     _fake_http(monkeypatch, [_FakeResponse({"code": 9499, "msg": "chat not found"})])
 
     with pytest.raises(RuntimeError, match="code=9499"):
-        await notifier._send_message("你好")
+        await notifier._send_message({"header": {"title": {"content": "你好"}}})
